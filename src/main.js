@@ -6,7 +6,7 @@ const app = mount(App, {
 });
 export default app;*/
 
-
+const ggdcalcwithexpetion = (array,exeption) => array.reduce((a, b) => (b!=exeption)?(a+Math.max(b-10,0)):a);
 const averagewithexpetion = (array,exeption) => array.reduce((a, b) => (b!=exeption)?a + b:a) / array.length;
 const maxwithexpetion = (array,exeption) => array.reduce((a, b) => (b!=exeption)?(b>a?b:a):a);
 const minwithexpetion = (array,exeption) => array.reduce((a, b) => (b!=exeption)?(b<a?b:a):a);
@@ -16,22 +16,36 @@ class SoilData{
     t2m_min
     rh2m
     prectotcorr 
-    //allsky
-    //ws2m
+    allsky
+    ws2m
     daily_t2m
-    //gdd = float(np.sum(np.maximum(daily_t2m - 10.0, 0.0)))
+    gdd
+    constructor(){
 
-    constructor(data){
-        let t2marr=Object.values(data.properties.parameter.T2M)
-        let rh2marr=Object.values(data.properties.parameter.RH2M)
-        let prectotcorr=Object.values(data.properties.parameter.PRECTOTCORR)
+    }
+    dataInit(data){
         let exeption=data.header.fill_value
+        let t2marr=Object.values(data.properties.parameter.T2M)
         this.t2m=averagewithexpetion(t2marr,exeption)
-        this.t2m_max=maxwithexpetion(t2marr,exeption)
-        this.t2m_min=minwithexpetion(t2marr,exeption)
-        this.prectotcorr=averagewithexpetion(prectotcorr,exeption)
-        this.rh2m=averagewithexpetion(rh2marr,exeption)
+        this.t2m_max=averagewithexpetion(Object.values(data.properties.parameter.T2M_MAX),exeption)
+        this.t2m_min=averagewithexpetion(Object.values(data.properties.parameter.T2M_MIN),exeption)
+        this.rh2m=averagewithexpetion(Object.values(data.properties.parameter.RH2M),exeption)
+        this.prectotcorr=averagewithexpetion(Object.values(data.properties.parameter.PRECTOTCORR),exeption)
+        this.allsky=averagewithexpetion(Object.values(data.properties.parameter.ALLSKY_SFC_SW_DWN),exeption)
+        this.ws2m=averagewithexpetion(Object.values(data.properties.parameter.WS2M),exeption)
         this.daily_t2m=t2marr
+        this.gdd=ggdcalcwithexpetion(t2marr,exeption)
+    }
+    retrive(){
+        this.t2m = localStorage.getItem("t2m");
+        this.t2m_max = localStorage.getItem("t2m_max");
+        this.t2m_min = localStorage.getItem("t2m_min");
+        this.rh2m = localStorage.getItem("rh2m");
+        this.prectotcorr = localStorage.getItem("prectotcorr");
+        this.allsky = localStorage.getItem("allsky");
+        this.ws2m = localStorage.getItem("ws2m");
+        this.daily_t2m = localStorage.getItem("daily_t2m");
+        this.gdd=localStorage.getItem("gdd");
     }
     print(){
         console.log(`t2m: ${this.t2m}`)
@@ -39,9 +53,22 @@ class SoilData{
         console.log(`t2m_min: ${this.t2m_min}`)
         console.log(`rh2m: ${this.rh2m}`)
         console.log(`prectotcorr: ${this.prectotcorr}`)
-        console.log(`daily_t2m:${this.daily_t2m}`)
+        console.log(`allsky: ${this.allsky}`)
+        console.log(`ws2m: ${this.ws2m}`)
+        console.log(`daily_t2m: ${this.daily_t2m}`)
+        console.log(`gdd: ${this.gdd}`)
     }
-
+    store(){
+        localStorage.setItem("t2m", this.t2m);
+        localStorage.setItem("t2m_max", this.t2m_max);
+        localStorage.setItem("t2m_min", this.t2m_min);
+        localStorage.setItem("rh2m", this.rh2m);
+        localStorage.setItem("prectotcorr", this.prectotcorr);
+        localStorage.setItem("allsky", this.allsky);
+        localStorage.setItem("ws2m", this.ws2m);
+        localStorage.setItem("daily_t2m", this.daily_t2m);
+        localStorage.setItem("gdd", this.gdd);
+    }
 }
 
 
@@ -68,8 +95,8 @@ const formattedDate = date.getFullYear() +
     console.log(formattedDateOffset)
 
     const params = new URLSearchParams({
-        parameters: "T2M,PRECTOTCORR,RH2M",
-        community: "RE",
+        parameters: "T2M,T2M_MAX,T2M_MIN,RH2M,PRECTOTCORR,ALLSKY_SFC_SW_DWN,WS2M",
+        community: "AG",
         longitude: longitude,
         latitude: latitude,
         start: formattedDateOffset,
@@ -82,33 +109,17 @@ const formattedDate = date.getFullYear() +
     if (!response.ok) {
         throw new Error(`HTTP error: ${response.status}`);
     }
-/*t2m = np.mean(list(props["T2M"].values()))
-t2m_max = np.mean(list(props["T2M_MAX"].values()))
-t2m_min = np.mean(list(props["T2M_MIN"].values()))
-rh2m = np.mean(list(props["RH2M"].values()))
-# Осадки (PRECTOTCORR) обычно суммируются за сезон
-prectotcorr = np.sum(list(props["PRECTOTCORR"].values())) / 4.0  # Среднемесячные !!!
-allsky = np.mean(list(props["ALLSKY_SFC_SW_DWN"].values()))
-ws2m = np.mean(list(props["WS2M"].values()))
-
-# Накопленное тепло GDD (база 10°C) за сезон
-daily_t2m = np.array(list(props["T2M"].values()))
-gdd = float(np.sum(np.maximum(daily_t2m - 10.0, 0.0)))*/
     const data = await response.json();
-    /*console.log(data["T2M"])
-    const soilData=new SoilData(
-        
-        math.mean(list(data["T2M"].values()))
-
-    )*/
-   let obj=new SoilData(data)
-   console.log(data)
-    console.log(averagewithexpetion(Object.values(data.properties.parameter.T2M),data.header.fill_value))
-    console.log(averagewithexpetion(Object.values(data.properties.parameter.RH2M),data.header.fill_value))
-    console.log(averagewithexpetion(Object.values(data.properties.parameter.PRECTOTCORR),data.header.fill_value))
-    obj.print()
+    let obj=new SoilData()
+    obj.dataInit(data);
+    console.log(data)
+    //obj.print()
     return obj;
 }
-
-let a=getWeather(50.0,30.0);
-//a.print()
+function testfun(a){
+    a.store()
+    let obj=new SoilData()
+    obj.retrive()
+    obj.print()
+}
+getWeather(50.0,30.0).then(a=>testfun(a));
