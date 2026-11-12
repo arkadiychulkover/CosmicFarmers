@@ -1,0 +1,39 @@
+# Зависимости
+node_modules/
+
+# Сборка
+dist/
+.svelte-kit/
+.vite/
+
+# Логи
+*.log
+npm-debug.log*
+
+# Переменные окружения (секреты)
+.env
+.env.*
+!.env.example
+
+# ОС
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/*
+!.vscode/extensions.json
+*.swp
+
+# Python (ml/export_onnx.py)
+.venv/
+venv/
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+
+# Песочница mock_model_testing_store: копии кода из корня и сборка
+mock_model_testing_store/node_modules/
+mock_model_testing_store/dist/
+mock_model_testing_store/src/lib/
+mock_model_testing_store/public/
