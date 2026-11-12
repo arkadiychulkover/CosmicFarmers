@@ -54,7 +54,7 @@ class SoilData {
         this.#longitude = longitude
         this.#latitude = latitude
 
-        this.#ready = promdata.then(function(data) {
+        this.#ready = promdata(longitude, latitude).then(function(data) {
             let exeption = data.header.fill_value
             let t2marr = Object.values(data.properties.parameter.T2M)
 
@@ -148,8 +148,8 @@ const formattedDate = date.getFullYear() +
     String(date.getDate()).padStart(2, '0');
 
     }
-    console.log(formattedDate)
-    console.log(formattedDateOffset)
+    //console.log(formattedDate)
+    //console.log(formattedDateOffset)
 
     const params = new URLSearchParams({
         parameters: "T2M,T2M_MAX,T2M_MIN,RH2M,PRECTOTCORR,ALLSKY_SFC_SW_DWN,WS2M",
@@ -168,20 +168,20 @@ const formattedDate = date.getFullYear() +
     }
     const data = await response.json();
     
-    console.log(data)
+    //console.log(data)
     return data
 }
 
 localStorage.clear();
 let obj=new SoilData()
-console.log(storageReady)
-console.log(localStorage.getItem("isinit"))
-    obj.dataInit(getWeather(50.0,30.0),50.0,30.0);
-    console.log(storageReady)
-    obj.store()
-    let a=new SoilData()
-    a.retrive()
-    a.print()
+//console.log(storageReady)
+//console.log(localStorage.getItem("isinit"))
+obj.dataInit(getWeather,50.0,30.0);
+//console.log(storageReady)
+obj.store()
+let a=new SoilData()
+a.retrive()
+a.print()
     
     //console.log(`rh2m: ${a.longitude}`)
     
