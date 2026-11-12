@@ -2,11 +2,12 @@
   import TelemetryCard from '../components/TelemetryCard.svelte';
   import ClimateSlider from '../components/ClimateSlider.svelte';
   import ActionButton from '../components/ActionButton.svelte';
+  import FieldProfileStatus from '../components/FieldProfileStatus.svelte';
   import PrecipitationChart from '../components/charts/PrecipitationChart.svelte';
   import TemperatureChart from '../components/charts/TemperatureChart.svelte';
   import SolarGauge from '../components/charts/SolarGauge.svelte';
   import GddBar from '../components/charts/GddBar.svelte';
-  import { getTelemetry } from '../services/nasa.js';
+  import { getTelemetry } from '../api.js';
   import { session } from '../stores/session.svelte.js';
 
   let telemetry = $state(null);
@@ -53,10 +54,8 @@
   }
 
   function calculate() {
-    console.log({
-      ...$state.snapshot(session.form),
-      precipitationAnomaly: session.climate,
-    });
+    session.result = null;
+    session.activeTab = 'calculating';
   }
 </script>
 
@@ -66,7 +65,7 @@
   {#if failed}
     <p class="status">Could not load telemetry. Check coordinates and try again.</p>
   {:else if !telemetry}
-    <p class="status">Fetching field profile…</p>
+    <FieldProfileStatus />
   {:else}
     <div class="grid" class:stale={loading}>
       <TelemetryCard
@@ -131,15 +130,7 @@
 <style>
   .screen {
     display: grid;
-    gap: 20px;
-  }
-
-  h2 {
-    margin: 0;
-    text-align: center;
-    font-size: 13px;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
+    gap: 24px;
   }
 
   .status {

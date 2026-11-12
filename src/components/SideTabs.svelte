@@ -1,5 +1,10 @@
 <script>
-  let { tabs, active = $bindable(), collapsed = $bindable(false) } = $props();
+  let { tabs, active, onselect, collapsed = $bindable(false) } = $props();
+
+  function select(id) {
+    collapsed = false;
+    onselect(id);
+  }
 </script>
 
 <div class="rail" class:collapsed>
@@ -11,7 +16,7 @@
         class="tab"
         class:active={tab.id === active}
         aria-selected={tab.id === active}
-        onclick={() => (active = tab.id)}
+        onclick={() => select(tab.id)}
       >
         <span>{tab.label}</span>
       </button>

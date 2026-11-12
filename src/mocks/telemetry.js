@@ -3,7 +3,7 @@ const basePrecipitation = [70, 100, 130, 115, 95, 80, 55];
 const tempOffsets = [-6, -1, 3, 5, 4, 0, -5];
 const historicalAverage = 620;
 
-export function mockTelemetry(lat, lon) {
+function buildTelemetry(lat, lon) {
   const factor = 0.75 + (Math.abs(lat * 13 + lon * 7) % 50) / 100;
   const monthlyPrecipitation = basePrecipitation.map((v) => Math.round(v * factor));
   const totalPrecipitation = monthlyPrecipitation.reduce((sum, v) => sum + v, 0);
@@ -31,4 +31,9 @@ export function mockTelemetry(lat, lon) {
       value: Math.round(meanTemp * 95),
     },
   };
+}
+
+export async function getTelemetry(lat, lon) {
+  await new Promise((resolve) => setTimeout(resolve, 600));
+  return buildTelemetry(lat, lon);
 }

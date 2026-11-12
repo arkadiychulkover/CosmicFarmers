@@ -22,12 +22,12 @@
 
   .primary {
     border: 1px solid transparent;
-    background: #dcdcdc;
-    color: var(--color-bg);
+    background: var(--color-button);
+    color: var(--color-button-text);
   }
 
   .primary:hover:not(:disabled) {
-    background: #ffffff;
+    background: var(--color-button-hover);
   }
 
   .outline {
@@ -37,7 +37,7 @@
   }
 
   .outline:hover:not(:disabled) {
-    background: rgba(255, 255, 255, 0.1);
+    background: color-mix(in srgb, var(--color-text) 10%, transparent);
   }
 
   .btn:disabled {

@@ -4,11 +4,12 @@
     min = 0,
     max = 100,
     step = 1,
-    unit = '',
+    unit = "",
     value = $bindable(),
-    minLabel = '',
-    midLabel = '',
-    maxLabel = '',
+    minLabel = "",
+    midLabel = "",
+    maxLabel = "",
+    showRange = false,
   } = $props();
 
   const percent = $derived(((value - min) / (max - min)) * 100);
@@ -39,7 +40,12 @@
       {#if unit}<span class="unit">{unit}</span>{/if}
     </div>
   </div>
-
+  {#if showRange}
+    <div class="marks">
+      <span>{min}</span>
+      <span>{max}</span>
+    </div>
+  {/if}
   <input
     id="slider-{label}"
     class="range"

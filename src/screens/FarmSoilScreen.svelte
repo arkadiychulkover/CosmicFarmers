@@ -50,6 +50,7 @@
     min={4.5}
     max={8.5}
     step={0.1}
+    showRange
     minLabel="Acidic"
     midLabel="Neutral"
     maxLabel="Alkaline"

@@ -7,6 +7,8 @@ const defaults = {
   activePresetId: null,
   climate: 0,
   collapsed: false,
+  theme: 'dark',
+  result: null,
   form: {
     lat: 42.0308,
     lon: -93.6319,
@@ -26,7 +28,13 @@ function load() {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return fresh;
     const saved = JSON.parse(raw);
-    return { ...fresh, ...saved, form: { ...fresh.form, ...saved.form } };
+    const merged = { ...fresh, ...saved, form: { ...fresh.form, ...saved.form } };
+    if (merged.theme !== 'light') merged.theme = 'dark';
+    if (merged.activeTab === 'calculating') merged.activeTab = 'telemetry';
+    if (merged.activeTab === 'results' && !merged.result?.recommendations) {
+      merged.activeTab = 'telemetry';
+    }
+    return merged;
   } catch {
     return fresh;
   }
