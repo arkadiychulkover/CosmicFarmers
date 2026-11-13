@@ -1,5 +1,5 @@
 <script>
-  let { values, months } = $props();
+  let { values = [], months = [] } = $props();
 
   const width = 120;
   const height = 60;
@@ -7,11 +7,13 @@
   const top = 6;
   const bottom = 46;
 
-  const max = $derived(Math.max(...values) * 1.1);
+  const safeValues = $derived(Array.isArray(values) && values.length > 0 ? values : [0, 0, 0, 0, 0, 0, 0]);
+  const safeMonths = $derived(Array.isArray(months) && months.length > 0 ? months : ['Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct']);
+  const max = $derived(Math.max(...safeValues, 1) * 1.1);
   const points = $derived(
-    values.map((v, i) => ({
-      x: padX + (i / (values.length - 1)) * (width - padX * 2),
-      y: bottom - (v / max) * (bottom - top),
+    safeValues.map((v, i) => ({
+      x: padX + (i / Math.max(1, safeValues.length - 1)) * (width - padX * 2),
+      y: bottom - (Math.max(0, v) / max) * (bottom - top),
     }))
   );
   const line = $derived(points.map((p) => `${p.x},${p.y}`).join(' '));
@@ -22,9 +24,9 @@
   <line x1={padX} y1={bottom} x2={width - padX} y2={bottom} class="axis" />
   <polygon points={area} class="area" />
   <polyline points={line} class="line" />
-  {#each points as p, i (months[i])}
+  {#each points as p, i (safeMonths[i] ?? i)}
     <circle cx={p.x} cy={p.y} r="1.4" class="dot" />
-    <text x={p.x} y={height - 6} text-anchor="middle" class="label">{months[i]}</text>
+    <text x={p.x} y={height - 6} text-anchor="middle" class="label">{safeMonths[i] ?? ''}</text>
   {/each}
 </svg>
 
