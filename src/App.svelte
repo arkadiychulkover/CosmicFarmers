@@ -1,5 +1,10 @@
 <script>
-  import '@fontsource-variable/inter';
+  import '@fontsource/roboto/400.css';
+  import '@fontsource/roboto/500.css';
+  import '@fontsource/roboto/700.css';
+  import '@fontsource/rajdhani/500.css';
+  import '@fontsource/rajdhani/600.css';
+  import '@fontsource/rajdhani/700.css';
   import './style.css';
   import Header from './components/Header.svelte';
   import SideTabs from './components/SideTabs.svelte';
@@ -16,11 +21,23 @@
     { id: 'telemetry', label: 'Stress Test + NASA Telemetry' },
   ];
 
-  const panelScreen = $derived(session.activeTab === 'results' ? 'telemetry' : session.activeTab);
-  const tabActive = $derived(session.activeTab === 'farm' ? 'farm' : 'telemetry');
-  const showResults = $derived(session.activeTab === 'results' && Boolean(session.result));
+  let previousTab = $state('telemetry');
 
-  // Грузим ONNX-модель заранее, пока пользователь заполняет форму.
+  const panelScreen = $derived.by(() => {
+    if (session.activeTab === 'calculating') return 'calculating';
+    if (session.activeTab === 'farm') return 'farm';
+    if (session.activeTab === 'telemetry') return 'telemetry';
+    return previousTab || 'telemetry';
+  });
+
+  const tabActive = $derived(
+    session.activeTab === 'farm'
+      ? 'farm'
+      : session.activeTab === 'telemetry'
+      ? 'telemetry'
+      : (session.collapsed ? null : panelScreen)
+  );
+
   preloadCropModel().catch((e) => console.error('Crop model failed to load', e));
 
   $effect(() => {
@@ -28,44 +45,65 @@
   });
 
   function selectTab(id) {
-    if (id === 'telemetry' && session.activeTab === 'results') return;
+    previousTab = id;
     session.activeTab = id;
+    session.collapsed = false;
+  }
+
+  function toggleCollapse() {
+    if (session.collapsed) {
+      session.collapsed = false;
+      if (session.activeTab === 'results') {
+        session.activeTab = previousTab || 'telemetry';
+      }
+    } else {
+      session.collapsed = true;
+      if (session.result) {
+        session.activeTab = 'results';
+      }
+    }
   }
 </script>
 
 <div class="app">
   <Header />
 
-  {#if showResults}
-    <main class="results-page">
-      <ResultsScreen />
-    </main>
-  {:else}
-    <div class="layout">
-      <section class="panel" class:collapsed={session.collapsed}>
-        <div class="content">
-          {#if panelScreen === 'telemetry'}
-            <TelemetryScreen />
-          {:else if panelScreen === 'calculating'}
-            <CalculatingScreen />
-          {:else}
-            <FarmSoilScreen />
-          {/if}
-        </div>
-
-        <SideTabs {tabs} active={tabActive} onselect={selectTab} bind:collapsed={session.collapsed} />
-      </section>
-
-      <div class="globe-stage">
-        <Globus
-          width="100%"
-          height="calc(100vh - var(--header-height))"
-          latitude={session.form.lat}
-          longitude={session.form.lon}
-        />
+  <div class="layout">
+    <section class="panel" class:collapsed={session.collapsed}>
+      <div class="content">
+        {#if panelScreen === 'telemetry'}
+          <TelemetryScreen />
+        {:else if panelScreen === 'calculating'}
+          <CalculatingScreen />
+        {:else}
+          <FarmSoilScreen />
+        {/if}
       </div>
+
+      <SideTabs
+        {tabs}
+        active={tabActive}
+        onselect={selectTab}
+        collapsed={session.collapsed}
+        ontoggle={toggleCollapse}
+      />
+    </section>
+
+    <div class="globe-stage">
+      <Globus
+        width="100%"
+        height="calc(100vh - var(--header-height))"
+        latitude={session.form.lat}
+        longitude={session.form.lon}
+      />
+
+      {#if session.activeTab === 'results' && session.result && session.collapsed}
+        <div class="results-overlay">
+          <ResultsScreen />
+        </div>
+      {/if}
     </div>
-  {/if}
+  </div>
 
   <footer>©CosmicValley, IT STEP Students Team</footer>
 </div>
@@ -79,6 +117,8 @@
     display: flex;
     align-items: flex-start;
     min-height: calc(100vh - var(--header-height));
+    position: relative;
+    overflow: hidden;
   }
 
   .panel {
@@ -87,13 +127,13 @@
     width: var(--panel-width);
     max-width: calc(100vw - var(--rail-width));
     min-height: calc(100vh - var(--header-height));
-    border-radius: 24px 0 0 0;
     background: var(--color-panel);
     transition: width 0.25s ease;
+    z-index: 5;
   }
 
   .content {
-    padding: 28px 40px 40px 32px;
+    padding: 24px 54px 40px var(--content-left);
   }
 
   .panel.collapsed {
@@ -105,6 +145,7 @@
   }
 
   .globe-stage {
+    position: relative;
     flex: 1;
     min-width: 0;
     height: calc(100vh - var(--header-height));
@@ -113,9 +154,26 @@
     justify-content: center;
   }
 
-  .results-page {
-    /* полноэкранный вертикальный слайдер: страница не прокручивается */
-    height: calc(100vh - var(--header-height));
+  .results-overlay {
+    position: absolute;
+    top: 20px;
+    left: calc(var(--results-offset, 118px) - var(--panel-collapsed-width, 36px));
+    z-index: 10;
+    width: var(--results-width, 387px);
+    max-width: calc(100vw - 120px);
+    pointer-events: auto;
+    animation: fadeIn 0.25s ease;
+  }
+
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
   }
 
   footer {
@@ -124,8 +182,9 @@
     bottom: 10px;
     left: 0;
     text-align: center;
-    font-size: 8px;
+    font-size: 9px;
     color: var(--color-text-dim);
     pointer-events: none;
+    z-index: 1;
   }
 </style>

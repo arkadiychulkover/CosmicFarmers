@@ -10,13 +10,15 @@
   <div class="info">
     <div class="head">
       <h3>{title}</h3>
-      {#if value}<span class="value">{value} {unit}</span>{/if}
+      {#if value !== ''}
+        <span class="value">{value} <small>{unit}</small></span>
+      {/if}
     </div>
 
     {#each rows as row (row.label)}
       <div class="row">
         <span>{row.label}</span>
-        <span>{row.value}</span>
+        <strong>{row.value}</strong>
       </div>
     {/each}
 
@@ -26,12 +28,16 @@
 
 <style>
   .card {
+    --color-text-dim: var(--color-card-dim);
+    --color-border-dim: #b7c2da;
+
     display: flex;
     flex-direction: column;
     gap: 10px;
-    padding: 10px;
-    border-radius: 6px;
+    padding: 12px;
+    border-radius: 8px;
     background: var(--color-card);
+    color: var(--color-card-text);
   }
 
   .visual {
@@ -53,28 +59,43 @@
 
   h3 {
     margin: 0;
-    font-size: 10px;
+    font-family: var(--font-display);
+    font-size: 14px;
     font-weight: 600;
-    color: var(--color-text);
+    color: var(--color-card-text);
   }
 
   .value {
-    font-size: 10px;
-    color: var(--color-text);
+    font-family: var(--font-display);
+    font-size: 17px;
+    font-weight: 700;
     white-space: nowrap;
+  }
+
+  .value small {
+    font-size: 11px;
+    font-weight: 500;
   }
 
   .row {
     display: flex;
     justify-content: space-between;
+    align-items: baseline;
     gap: 8px;
-    font-size: 9px;
-    color: var(--color-text-dim);
+    font-size: 10px;
+    color: var(--color-card-dim);
+  }
+
+  .row strong {
+    font-family: var(--font-display);
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--color-card-text);
   }
 
   .note {
     margin: 0;
-    font-size: 9px;
-    color: var(--color-text-dim);
+    font-size: 9.5px;
+    color: var(--color-card-dim);
   }
 </style>

@@ -1,5 +1,5 @@
 <script>
-  let { label, min, max, step = 1, value = $bindable() } = $props();
+  let { label, min, max, step = 1, value = $bindable(), locked = false, oncommit } = $props();
 
   function commit(event) {
     let n = Number(event.currentTarget.value);
@@ -7,38 +7,66 @@
     n = Math.min(max, Math.max(min, n));
     value = n;
     event.currentTarget.value = n;
+    oncommit?.();
   }
 </script>
 
 <div class="field">
   <label for="num-{label}">{label}</label>
-  <input id="num-{label}" type="number" {min} {max} {step} bind:value onchange={commit} />
+  <input
+    id="num-{label}"
+    type="number"
+    {min}
+    {max}
+    {step}
+    {value}
+    readonly={locked}
+    onchange={commit}
+  />
 </div>
 
 <style>
   .field {
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: 8px;
   }
 
   label {
-    font-size: 11px;
+    font-size: 13px;
+    font-weight: 700;
     color: var(--color-text);
   }
 
   input {
     width: 100%;
-    padding: 7px 10px;
-    border: 1px solid var(--color-text-dim);
+    padding: 6px 12px;
+    border: 1px solid var(--color-border-dim);
     border-radius: 6px;
-    background: transparent;
+    background: var(--color-field);
     color: var(--color-text);
-    font-family: inherit;
     font-size: 11px;
+    appearance: textfield;
+    -moz-appearance: textfield;
+  }
+
+  input::-webkit-outer-spin-button,
+  input::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+
+  input:read-only {
+    color: var(--color-text-dim);
+    cursor: default;
+  }
+
+  input:not(:read-only):hover {
+    border-color: var(--color-border-strong);
   }
 
   input:focus-visible {
+    border-color: var(--color-border-strong);
     outline: 2px solid var(--color-accent);
     outline-offset: 1px;
   }

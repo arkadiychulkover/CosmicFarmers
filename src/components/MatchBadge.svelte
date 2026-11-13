@@ -1,10 +1,22 @@
 <script>
-  let { value, size = 'large' } = $props();
+  let { value = 0, size = 'large' } = $props();
+
+  const displayValue = $derived.by(() => {
+    const num = Number(value);
+    if (Number.isNaN(num)) return 0;
+    return Math.min(100, Math.max(0, Math.round(num)));
+  });
+
+  const validSize = $derived(size === 'small' ? 'small' : 'large');
 </script>
 
-<div class="match {size}" role="img" aria-label="{value} percent match">
-  <span class="num">{value}</span>
-  <span class="side">
+<div
+  class="match {validSize}"
+  role="img"
+  aria-label="{displayValue} percent match"
+>
+  <span class="num">{displayValue}</span>
+  <span class="side" aria-hidden="true">
     <b>%</b>
     <small>match</small>
   </span>
@@ -12,49 +24,57 @@
 
 <style>
   .match {
-    display: flex;
+    display: inline-flex;
     align-items: flex-start;
     flex-shrink: 0;
     color: var(--color-result-match);
+    white-space: nowrap;
+    user-select: none;
+    line-height: 1;
   }
 
   .num {
-    font-weight: 500;
+    font-family: var(--font-display);
+    font-weight: 600;
     line-height: 1;
-    letter-spacing: -0.02em;
+    font-variant-numeric: tabular-nums;
   }
 
   .side {
-    display: flex;
+    display: inline-flex;
     flex-direction: column;
     align-items: flex-start;
     margin-top: 2px;
+    margin-left: 2px;
   }
 
   b {
-    font-weight: 500;
+    font-family: var(--font-display);
+    font-weight: 600;
     line-height: 1;
   }
 
   small {
-    font-size: 6px;
+    font-size: 7px;
     letter-spacing: 0.1em;
     text-transform: uppercase;
+    line-height: 1.1;
+    opacity: 0.85;
   }
 
   .large .num {
-    font-size: 40px;
+    font-size: 46px;
   }
 
   .large b {
-    font-size: 20px;
+    font-size: 24px;
   }
 
   .small .num {
-    font-size: 30px;
+    font-size: 34px;
   }
 
   .small b {
-    font-size: 15px;
+    font-size: 18px;
   }
 </style>
