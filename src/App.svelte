@@ -8,7 +8,7 @@
   import './style.css';
   import Header from './components/Header.svelte';
   import SideTabs from './components/SideTabs.svelte';
-  import Globus from './components/globus.svelte';
+  import Globus from './components/Globus.svelte';
   import FarmSoilScreen from './screens/FarmSoilScreen.svelte';
   import TelemetryScreen from './screens/TelemetryScreen.svelte';
   import CalculatingScreen from './screens/CalculatingScreen.svelte';

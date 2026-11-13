@@ -4,6 +4,8 @@
   export let apiKey: string = 'AIzaSyBKj8CqToLMmorTvvQc_cqgbGtvVoYAxO4';
   export let initialLat: number = 50.45;
   export let initialLng: number = 30.52;
+  export let onconfirm: ((data: { lat: number; lng: number; address: string }) => void) | undefined = undefined;
+  export let onclose: (() => void) | undefined = undefined;
 
   interface PlaceSuggestion {
     placeId: string;
@@ -12,7 +14,6 @@
     fullText: string;
   }
 
-  // Custom Event Dispatcher для передачи данных родителю
   const dispatch = createEventDispatcher<{
     close: void;
     confirm: { lat: number; lng: number; address: string };
@@ -23,13 +24,12 @@
   let map: any = null;
   let marker: any = null;
 
-  let selectedLat: number = initialLat;
-  let selectedLng: number = initialLng;
+  let selectedLat: number = Number(initialLat) || 50.45;
+  let selectedLng: number = Number(initialLng) || 30.52;
   let selectedAddress: string = '';
   let isLoading: boolean = true;
   let loadError: string = '';
 
-  // Состояние поиска через новый Places API (New) v1
   let searchQuery: string = '';
   let suggestions: PlaceSuggestion[] = [];
   let showSuggestions: boolean = false;
@@ -37,10 +37,8 @@
   let highlightedIndex: number = -1;
   let debounceTimer: ReturnType<typeof setTimeout> | null = null;
 
-  // Активный тип карты: 'roadmap' (неон), 'hybrid' (спутник), 'terrain' (рельеф)
   let activeMapType: 'roadmap' | 'hybrid' | 'terrain' = 'roadmap';
 
-  // Cyber Neon map style - повторяет неоновую стилистику глобуса
   const darkMapStyle = [
     { elementType: 'geometry', stylers: [{ color: '#090d14' }] },
     { elementType: 'labels.text.stroke', stylers: [{ color: '#06080d' }, { weight: 3 }] },
@@ -127,6 +125,10 @@
 
       const existingScript = document.getElementById('google-maps-script');
       if (existingScript) {
+        if ((window as any).google && (window as any).google.maps && (window as any).google.maps.Map) {
+          resolve();
+          return;
+        }
         existingScript.addEventListener('load', () => resolve());
         existingScript.addEventListener('error', () => reject(new Error('Failed to load Google Maps')));
         return;
@@ -199,10 +201,16 @@
       updatePosition(pos.lat(), pos.lng());
     });
 
+    setTimeout(() => {
+      if (map && (window as any).google?.maps) {
+        (window as any).google.maps.event.trigger(map, 'resize');
+        map.setCenter(startPos);
+      }
+    }, 100);
+
     isLoading = false;
   }
 
-  // Поиск автодополнений через новый Google Places API (New) v1
   async function fetchSuggestions(query: string) {
     const trimmed = query.trim();
     if (trimmed.length < 2) {
@@ -257,32 +265,25 @@
   }
 
   function handleSearchInput(e: Event) {
-    const val = (e.target as HTMLInputElement).value;
-    searchQuery = val;
+    const target = e.target as HTMLInputElement;
+    searchQuery = target.value;
 
     if (debounceTimer) clearTimeout(debounceTimer);
-    if (val.trim().length < 2) {
-      suggestions = [];
-      showSuggestions = false;
-      return;
-    }
-
     debounceTimer = setTimeout(() => {
-      fetchSuggestions(val);
-    }, 220);
+      fetchSuggestions(searchQuery);
+    }, 320);
   }
 
-  // Получение точных координат выбранного места через Places API (New) v1
-  async function selectSuggestion(item: PlaceSuggestion) {
-    searchQuery = item.fullText;
+  async function selectSuggestion(suggestion: PlaceSuggestion) {
+    searchQuery = suggestion.fullText || suggestion.mainText;
     showSuggestions = false;
-    suggestions = [];
 
     try {
       const resp = await fetch(
-        `https://places.googleapis.com/v1/places/${encodeURIComponent(item.placeId)}?fields=location,viewport,displayName,formattedAddress`,
+        `https://places.googleapis.com/v1/places/${suggestion.placeId}?fields=id,displayName,formattedAddress,location,viewport`,
         {
           headers: {
+            'Content-Type': 'application/json',
             'X-Goog-Api-Key': apiKey
           }
         }
@@ -296,7 +297,6 @@
     }
   }
 
-  // Прямой текстовый поиск по нажатию Enter, если пользователь не кликнул по подсказке
   async function searchByTextQuery(query: string) {
     const trimmed = query.trim();
     if (!trimmed) return;
@@ -374,7 +374,6 @@
     }
   }
 
-  // Переключение типов карты через API
   function setMapType(type: 'roadmap' | 'hybrid' | 'terrain') {
     const google = (window as any).google;
     if (!map || !google) return;
@@ -417,15 +416,18 @@
   }
 
   function handleConfirm() {
-    dispatch('confirm', {
+    const payload = {
       lat: selectedLat,
       lng: selectedLng,
       address: selectedAddress
-    });
+    };
+    dispatch('confirm', payload);
+    onconfirm?.(payload);
   }
 
   function handleClose() {
     dispatch('close');
+    onclose?.();
   }
 
   function handleKeydown(e: KeyboardEvent) {
@@ -453,9 +455,8 @@
   });
 </script>
 
-<div class="modal-backdrop" on:click|self={handleClose} role="presentation">
+<div class="modal-backdrop" onclick={(e) => { if (e.target === e.currentTarget) handleClose(); }} onkeydown={(e) => { if (e.key === 'Escape') handleClose(); }} role="presentation">
   <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="modal-title">
-    <!-- Header -->
     <div class="modal-header">
       <div class="header-left">
         <svg class="header-svg" viewBox="0 0 24 24" fill="none" stroke="#00f0ff" stroke-width="2">
@@ -465,10 +466,9 @@
         </svg>
         <h2 id="modal-title" class="modal-title">Google Maps Coordinate Picker</h2>
       </div>
-      <button type="button" class="close-btn" on:click={handleClose} aria-label="Close modal">✕</button>
+      <button type="button" class="close-btn" onclick={handleClose} aria-label="Close modal">✕</button>
     </div>
 
-    <!-- Search input (Places API New v1) -->
     <div class="search-container">
       <div class="search-wrapper">
         <svg class="search-svg" viewBox="0 0 24 24" fill="none" stroke="#00f0ff" stroke-width="2">
@@ -478,9 +478,9 @@
         <input
           type="text"
           value={searchQuery}
-          on:input={handleSearchInput}
-          on:keydown={handleSearchKeydown}
-          on:focus={() => { if (suggestions.length > 0) showSuggestions = true; }}
+          oninput={handleSearchInput}
+          onkeydown={handleSearchKeydown}
+          onfocus={() => { if (suggestions.length > 0) showSuggestions = true; }}
           placeholder="Search city, street, or place (e.g. Odesa, Kyiv, Iowa)..."
           class="search-input"
           autocomplete="off"
@@ -489,7 +489,7 @@
           <button
             type="button"
             class="clear-search-btn"
-            on:click={() => {
+            onclick={() => {
               searchQuery = '';
               suggestions = [];
               showSuggestions = false;
@@ -500,7 +500,6 @@
           </button>
         {/if}
 
-        <!-- Custom cyber suggestions dropdown for Places API (New) -->
         {#if showSuggestions && suggestions.length > 0}
           <ul class="suggestions-dropdown" role="listbox">
             {#each suggestions as item, idx (item.placeId)}
@@ -508,8 +507,8 @@
                 role="option"
                 aria-selected={idx === highlightedIndex}
                 class="suggestion-item {idx === highlightedIndex ? 'highlighted' : ''}"
-                on:mousedown|preventDefault={() => selectSuggestion(item)}
-                on:mouseenter={() => { highlightedIndex = idx; }}
+                onmousedown={(e) => { e.preventDefault(); selectSuggestion(item); }}
+                onmouseenter={() => { highlightedIndex = idx; }}
               >
                 <svg class="pin-svg" viewBox="0 0 24 24" fill="none" stroke="#00f0ff" stroke-width="2">
                   <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
@@ -529,7 +528,6 @@
       <span class="search-hint">Enter an address and press Enter (or pick from the list), or click on the map</span>
     </div>
 
-    <!-- Map container -->
     <div class="map-view-wrapper">
       {#if isLoading}
         <div class="map-loader">
@@ -550,13 +548,12 @@
         </div>
       {/if}
 
-      <!-- Vertical Google Maps-style icon toolbar (Cyber Neon) -->
       <div class="map-toolbar-vertical" role="toolbar" aria-label="Map layers and navigation">
         <div class="toolbar-group">
           <button
             type="button"
             class="tool-btn {activeMapType === 'roadmap' ? 'active' : ''}"
-            on:click={() => setMapType('roadmap')}
+            onclick={() => setMapType('roadmap')}
             title="Neon Vector Map"
             aria-label="Neon Vector Map"
           >
@@ -570,7 +567,7 @@
           <button
             type="button"
             class="tool-btn {activeMapType === 'hybrid' ? 'active' : ''}"
-            on:click={() => setMapType('hybrid')}
+            onclick={() => setMapType('hybrid')}
             title="Satellite Imagery"
             aria-label="Satellite Imagery"
           >
@@ -584,7 +581,7 @@
           <button
             type="button"
             class="tool-btn {activeMapType === 'terrain' ? 'active' : ''}"
-            on:click={() => setMapType('terrain')}
+            onclick={() => setMapType('terrain')}
             title="Terrain"
             aria-label="Terrain"
           >
@@ -598,7 +595,7 @@
           <button
             type="button"
             class="tool-btn"
-            on:click={zoomIn}
+            onclick={zoomIn}
             title="Zoom In (+)"
             aria-label="Zoom In"
           >
@@ -611,7 +608,7 @@
           <button
             type="button"
             class="tool-btn"
-            on:click={zoomOut}
+            onclick={zoomOut}
             title="Zoom Out (-)"
             aria-label="Zoom Out"
           >
@@ -623,7 +620,7 @@
           <button
             type="button"
             class="tool-btn target-btn"
-            on:click={centerOnMarker}
+            onclick={centerOnMarker}
             title="Center on Marker"
             aria-label="Center on Marker"
           >
@@ -642,7 +639,6 @@
       <div bind:this={mapContainer} class="map-container"></div>
     </div>
 
-    <!-- Footer with coordinates & actions -->
     <div class="modal-footer">
       <div class="coords-preview">
         <div class="coord-box">
@@ -659,10 +655,10 @@
       </div>
 
       <div class="action-buttons">
-        <button type="button" class="btn cancel-btn" on:click={handleClose}>
+        <button type="button" class="btn cancel-btn" onclick={handleClose}>
           Cancel
         </button>
-        <button type="button" class="btn confirm-btn" on:click={handleConfirm}>
+        <button type="button" class="btn confirm-btn" onclick={handleConfirm}>
           Select Point
         </button>
       </div>
@@ -1110,7 +1106,6 @@
     }
     to {
       opacity: 1;
-      transform: scale(1);
     }
   }
 </style>
