@@ -10,7 +10,11 @@
   import ResultsScreen from './screens/ResultsScreen.svelte';
   import { session } from './stores/session.svelte.js';
   import { preloadCropModel } from './lib/crop/index.js';
+  import { presets } from './data/presets.js';
 
+  const preset = $derived(presets.find((p) => p.id === session.activePresetId && p.values));
+  const place = $derived(preset ? preset.label : 'Custom field');
+  
   const tabs = [
     { id: 'farm', label: 'Farm + Soil' },
     { id: 'telemetry', label: 'Stress Test + NASA Telemetry' },
@@ -57,6 +61,11 @@
       </section>
 
       <div class="globe-stage">
+        <span class="globe-stage-text-location">{place.toUpperCase()}</span>
+        <span class="s-QDAv-o1wJ_oy">
+          {Math.trunc(session.form.lat??0)}°{Math.abs(((session.form.lat??0)%1*60).toFixed(2))}'N 
+          {Math.trunc(session.form.lon??0)}°{Math.abs((session.form.lon??0)%1*60).toFixed(2)}'E
+        </span>
         <Globus
           width="100%"
           height="calc(100vh - var(--header-height))"
@@ -105,6 +114,7 @@
   }
 
   .globe-stage {
+    flex-direction: column;
     flex: 1;
     min-width: 0;
     height: calc(100vh - var(--header-height));
@@ -116,6 +126,14 @@
   .results-page {
     /* полноэкранный вертикальный слайдер: страница не прокручивается */
     height: calc(100vh - var(--header-height));
+  }
+
+  .globe-stage-text-location {
+    font-size: 30px;
+    color: var(--color-text-dim);
+    font-weight: 200;
+    color: var(--color-text);
+    margin-bottom: 10px;
   }
 
   footer {
