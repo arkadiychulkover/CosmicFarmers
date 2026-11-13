@@ -1,9 +1,10 @@
 <script>
-  let { value, max = 3000 } = $props();
+  let { value = 0, max = 3000 } = $props();
 
   const barX = 6;
   const barWidth = 108;
-  const pct = $derived(Math.min(100, Math.max(0, (value / max) * 100)));
+  const numVal = $derived(Math.round(Number(value)) || 0);
+  const pct = $derived(Math.min(100, Math.max(0, (numVal / max) * 100)));
   const markerX = $derived(barX + (pct / 100) * barWidth);
 </script>
 
@@ -17,7 +18,7 @@
   </defs>
   <rect x={barX} y="26" width={barWidth} height="10" rx="2" fill="url(#gdd-gradient)" />
   <line x1={markerX} y1="20" x2={markerX} y2="42" class="marker" />
-  <text x={markerX} y="16" text-anchor="middle" class="value">{value.toLocaleString('en-US')} GDD</text>
+  <text x={markerX} y="16" text-anchor="middle" class="value">{numVal.toLocaleString('en-US')} GDD</text>
   <text x={barX} y="52" class="label">0</text>
   <text x={barX + barWidth} y="52" text-anchor="end" class="label">{max.toLocaleString('en-US')}</text>
 </svg>

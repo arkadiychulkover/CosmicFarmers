@@ -35,7 +35,7 @@ function buildResult(input, telemetry) {
   const predecessor = shortName(cropOptions, input.predecessor);
   const soil = shortName(soilOptions, input.soil).toLowerCase();
   const total = telemetry.precipitation.total;
-  const gdd = telemetry.gdd.value.toLocaleString('en-US');
+  const gdd = (telemetry.gdd?.value ?? telemetry.gdd).toLocaleString('en-US');
   const floor = Math.round(total * 0.75);
   const penalty = Math.round(Math.abs(input.precipitationAnomaly) / 10);
   const ids = candidates[input.predecessor] ?? candidates.fallow;
@@ -67,7 +67,34 @@ function buildResult(input, telemetry) {
 }
 
 export async function runStrategy(input, { signal } = {}) {
-  const telemetry = await getTelemetry(input.lat, input.lon);
+  let telemetry;
+
+  if (input.telemetry) {
+    telemetry = input.telemetry;
+  } else if (input.nasaClimate) {
+    const d = input.nasaClimate;
+    const meanTemp = Number((d.T2M || 20).toFixed(1));
+    const totalPrecip = Math.round((d.PRECTOTCORR || 100) * 7);
+    telemetry = {
+      months: ['Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct'],
+      precipitation: {
+        total: totalPrecip,
+        monthly: Array(7).fill(Math.round(totalPrecip / 7)),
+        historicalAverage: 620,
+        anomalyPct: Math.round((totalPrecip / 620 - 1) * 100),
+      },
+      temperature: {
+        mean: meanTemp,
+        monthly: Array(7).fill(meanTemp),
+        heatDays: Math.max(0, Math.round((meanTemp - 14) * 2)),
+      },
+      solar: { value: Number((d.ALLSKY_SFC_SW_DWN || 18).toFixed(1)) },
+      gdd:   { value: Math.round(d.GDD || 1800) },
+    };
+  } else {
+    telemetry = await getTelemetry(input.lat, input.lon);
+  }
+
   await wait(3000, signal);
   return buildResult(input, telemetry);
 }

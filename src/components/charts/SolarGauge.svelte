@@ -1,7 +1,8 @@
 <script>
-  let { value, max = 30, optimalMin = 16, optimalMax = 22 } = $props();
+  let { value = 0, max = 30, optimalMin = 16, optimalMax = 22 } = $props();
 
-  const valuePct = $derived(Math.min(100, Math.max(0, (value / max) * 100)));
+  const numVal = $derived(Number(value) || 0);
+  const valuePct = $derived(Math.min(100, Math.max(0, (numVal / max) * 100)));
   const optimalStart = $derived((optimalMin / max) * 100);
   const optimalLength = $derived(((optimalMax - optimalMin) / max) * 100);
 </script>
@@ -21,7 +22,7 @@
     class="value"
     stroke-dasharray="{valuePct} 100"
   />
-  <text x="60" y="48" text-anchor="middle" class="number">{value}</text>
+  <text x="60" y="48" text-anchor="middle" class="number">{numVal}</text>
   <text x="60" y="61" text-anchor="middle" class="unit">Optimal: {optimalMin}–{optimalMax}</text>
 </svg>
 
