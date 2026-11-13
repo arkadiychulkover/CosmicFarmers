@@ -1,10 +1,12 @@
-/*import { mount } from 'svelte';
+import { mount } from 'svelte';
 import App from './App.svelte';
 import './style.css';
+
 const app = mount(App, {
     target: document.getElementById('app')
 });
-export default app;*/
+
+export default app;
 
 const ggdcalcwithexpetion = (array,exeption) => array.reduce((a, b) => (b!=exeption)?(a+Math.max(b-10,0)):a);
 const averagewithexpetion = (array,exeption) => array.reduce((a, b) => (b!=exeption)?a + b:a) / array.length;
