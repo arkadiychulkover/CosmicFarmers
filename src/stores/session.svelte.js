@@ -31,7 +31,7 @@ function load() {
     const merged = { ...fresh, ...saved, form: { ...fresh.form, ...saved.form } };
     if (merged.theme !== 'light') merged.theme = 'dark';
     if (merged.activeTab === 'calculating') merged.activeTab = 'telemetry';
-    if (merged.activeTab === 'results' && !merged.result?.recommendations) {
+    if (merged.activeTab === 'results' && !merged.result?.years?.[0]?.options) {
       merged.activeTab = 'telemetry';
     }
     return merged;

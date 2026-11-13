@@ -8,6 +8,7 @@
   import CalculatingScreen from './screens/CalculatingScreen.svelte';
   import ResultsScreen from './screens/ResultsScreen.svelte';
   import { session } from './stores/session.svelte.js';
+  import { preloadCropModel } from './lib/crop/index.js';
 
   const tabs = [
     { id: 'farm', label: 'Farm + Soil' },
@@ -17,6 +18,9 @@
   const panelScreen = $derived(session.activeTab === 'results' ? 'telemetry' : session.activeTab);
   const tabActive = $derived(session.activeTab === 'farm' ? 'farm' : 'telemetry');
   const showResults = $derived(session.activeTab === 'results' && Boolean(session.result));
+
+  // Грузим ONNX-модель заранее, пока пользователь заполняет форму.
+  preloadCropModel().catch((e) => console.error('Crop model failed to load', e));
 
   $effect(() => {
     document.documentElement.dataset.theme = session.theme;
@@ -31,27 +35,27 @@
 <div class="app">
   <Header />
 
-  <div class="layout">
-    <section class="panel" class:collapsed={session.collapsed}>
-      <div class="content">
-        {#if panelScreen === 'telemetry'}
-          <TelemetryScreen />
-        {:else if panelScreen === 'calculating'}
-          <CalculatingScreen />
-        {:else}
-          <FarmSoilScreen />
-        {/if}
-      </div>
+  {#if showResults}
+    <main class="results-page">
+      <ResultsScreen />
+    </main>
+  {:else}
+    <div class="layout">
+      <section class="panel" class:collapsed={session.collapsed}>
+        <div class="content">
+          {#if panelScreen === 'telemetry'}
+            <TelemetryScreen />
+          {:else if panelScreen === 'calculating'}
+            <CalculatingScreen />
+          {:else}
+            <FarmSoilScreen />
+          {/if}
+        </div>
 
-      <SideTabs {tabs} active={tabActive} onselect={selectTab} bind:collapsed={session.collapsed} />
-    </section>
-
-    {#if showResults}
-      <main class="results-column">
-        <ResultsScreen />
-      </main>
-    {/if}
-  </div>
+        <SideTabs {tabs} active={tabActive} onselect={selectTab} bind:collapsed={session.collapsed} />
+      </section>
+    </div>
+  {/if}
 
   <footer>©CosmicValley, IT STEP Students Team</footer>
 </div>
@@ -90,11 +94,9 @@
     display: none;
   }
 
-  .results-column {
-    flex-shrink: 0;
-    width: var(--results-width);
-    margin-left: calc(var(--rail-width) + 32px);
-    padding: 12px 0 40px;
+  .results-page {
+    /* полноэкранный вертикальный слайдер: страница не прокручивается */
+    height: calc(100vh - var(--header-height));
   }
 
   footer {

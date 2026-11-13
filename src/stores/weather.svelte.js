@@ -114,8 +114,14 @@ function buildTelemetry(d) {
   return null;
 }
 
+// В обучающей выборке GDD нормирован на сезон 120 дней (среднесуточный GDD x 120),
+// а здесь сумма за всё окно апр-окт (~214 дней). Приводим к шкале модели.
+const MODEL_GDD_DAYS = 120;
+
 function buildCropInput(d) {
   if (!d) return null;
+  const rawGdd = d.gdd?.value ?? d.gdd;
+  const days = d.daily_t2m?.length || MODEL_GDD_DAYS;
   return {
     N:                session.form.n,
     P:                session.form.p,
@@ -127,7 +133,7 @@ function buildCropInput(d) {
     RH2M:             d.rh2m,
     PRECTOTCORR:      d.prectotcorr,
     ALLSKY_SFC_SW_DWN: d.allsky,
-    GDD:              d.gdd?.value ?? d.gdd,
+    GDD:              (rawGdd / days) * MODEL_GDD_DAYS,
     WS2M:             d.ws2m,
   };
 }
