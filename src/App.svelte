@@ -3,6 +3,7 @@
   import './style.css';
   import Header from './components/Header.svelte';
   import SideTabs from './components/SideTabs.svelte';
+  import Globus from './components/globus.svelte';
   import FarmSoilScreen from './screens/FarmSoilScreen.svelte';
   import TelemetryScreen from './screens/TelemetryScreen.svelte';
   import CalculatingScreen from './screens/CalculatingScreen.svelte';
@@ -54,6 +55,15 @@
 
         <SideTabs {tabs} active={tabActive} onselect={selectTab} bind:collapsed={session.collapsed} />
       </section>
+
+      <div class="globe-stage">
+        <Globus
+          width="100%"
+          height="calc(100vh - var(--header-height))"
+          latitude={session.form.lat}
+          longitude={session.form.lon}
+        />
+      </div>
     </div>
   {/if}
 
@@ -92,6 +102,15 @@
 
   .panel.collapsed .content {
     display: none;
+  }
+
+  .globe-stage {
+    flex: 1;
+    min-width: 0;
+    height: calc(100vh - var(--header-height));
+    display: flex;
+    align-items: center;
+    justify-content: center;
   }
 
   .results-page {

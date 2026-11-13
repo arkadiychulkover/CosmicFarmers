@@ -12,7 +12,7 @@
 
 <div class="field">
   <label for="num-{label}">{label}</label>
-  <input id="num-{label}" type="number" {min} {max} {step} {value} onchange={commit} />
+  <input id="num-{label}" type="number" {min} {max} {step} bind:value onchange={commit} />
 </div>
 
 <style>

@@ -33,7 +33,7 @@
         {min}
         {max}
         {step}
-        {value}
+        bind:value
         onchange={clampInput}
         aria-label="{label} value"
       />
