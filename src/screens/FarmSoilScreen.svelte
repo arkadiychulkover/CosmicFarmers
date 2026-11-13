@@ -5,16 +5,53 @@
   import GoalSelector from '../components/GoalSelector.svelte';
   import SliderField from '../components/SliderField.svelte';
   import ActionButton from '../components/ActionButton.svelte';
+  import GoogleMapModal from '../components/GoogleMapModal.svelte';
   import { presets } from '../data/presets.js';
   import { cropOptions, soilOptions, goalOptions } from '../data/options.js';
   import { session, applyPreset } from '../stores/session.svelte.js';
+  import { fetchNasaDataForCoords } from '../utils/nasaApi.js';
+
+  let isMapOpen = $state(false);
 
   function coordinatesEdited() {
     session.activePresetId = null;
   }
 
-  function toggleEditing() {
-    session.coordsEditable = !session.coordsEditable;
+  function openMap() {
+    isMapOpen = true;
+  }
+
+  function handleMapClose() {
+    isMapOpen = false;
+  }
+
+  async function handleMapConfirm(event) {
+    const detail = event?.detail || event || {};
+    const lat = Number(Number(detail.lat).toFixed(4));
+    const lon = Number(Number(detail.lng).toFixed(4));
+
+    session.form.lat = lat;
+    session.form.lon = lon;
+    session.activePresetId = null;
+    isMapOpen = false;
+
+    session.nasaLoading = true;
+    session.nasaError = null;
+    try {
+      const payload = await fetchNasaDataForCoords(lat, lon);
+      if (payload) {
+        session.nasaData = payload;
+        session.form.ph = payload.ph;
+        session.form.soil = payload.soil;
+        session.form.n = payload.n;
+        session.form.p = payload.p;
+        session.form.k = payload.k;
+      }
+    } catch (err) {
+      session.nasaError = err?.message || 'Failed to load climate data for chosen location';
+    } finally {
+      session.nasaLoading = false;
+    }
   }
 </script>
 
@@ -29,7 +66,6 @@
       min={-90}
       max={90}
       step={0.0001}
-      locked={!session.coordsEditable}
       oncommit={coordinatesEdited}
       bind:value={session.form.lat}
     />
@@ -38,26 +74,20 @@
       min={-180}
       max={180}
       step={0.0001}
-      locked={!session.coordsEditable}
       oncommit={coordinatesEdited}
       bind:value={session.form.lon}
     />
     <button
       type="button"
-      class="edit"
-      class:on={session.coordsEditable}
-      aria-pressed={session.coordsEditable}
-      aria-label="Edit coordinates"
-      onclick={toggleEditing}
+      class="map-btn"
+      aria-label="Pick coordinates on Google Maps"
+      title="Pick coordinates on Google Maps"
+      onclick={openMap}
     >
-      <svg viewBox="0 0 16 16" aria-hidden="true">
-        <path
-          d="M2 14l.6-3.4L11.4 1.8a1.4 1.4 0 012 0l.8.8a1.4 1.4 0 010 2L5.4 13.4 2 14z"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="1.3"
-          stroke-linejoin="round"
-        />
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6" />
+        <line x1="8" y1="2" x2="8" y2="18" />
+        <line x1="16" y1="6" x2="16" y2="22" />
       </svg>
     </button>
   </div>
@@ -94,6 +124,17 @@
   </div>
 </div>
 
+{#if isMapOpen}
+  <GoogleMapModal
+    initialLat={Number(session.form.lat) || 50.45}
+    initialLng={Number(session.form.lon) || 30.52}
+    on:close={handleMapClose}
+    on:confirm={handleMapConfirm}
+    onclose={handleMapClose}
+    onconfirm={handleMapConfirm}
+  />
+{/if}
+
 <style>
   .screen {
     display: grid;
@@ -107,32 +148,39 @@
     gap: 14px;
   }
 
-  .edit {
+  .map-btn {
     display: grid;
     place-items: center;
-    width: 30px;
-    height: 30px;
+    width: 32px;
+    height: 32px;
     padding: 0;
-    border: none;
-    background: transparent;
-    color: var(--color-text);
-    cursor: pointer;
-    transition: color 0.15s;
-  }
-
-  .edit:hover,
-  .edit.on {
+    border: 1px solid var(--color-border-dim);
+    border-radius: 6px;
+    background: var(--color-field);
     color: var(--color-accent);
+    cursor: pointer;
+    transition: all 0.15s ease;
   }
 
-  .edit:focus-visible {
+  .map-btn:hover {
+    border-color: var(--color-accent);
+    background: color-mix(in srgb, var(--color-accent) 15%, transparent);
+    color: var(--color-accent);
+    box-shadow: 0 0 10px rgba(0, 240, 255, 0.25);
+  }
+
+  .map-btn:active {
+    transform: scale(0.95);
+  }
+
+  .map-btn:focus-visible {
     outline: 2px solid var(--color-accent);
     outline-offset: 2px;
   }
 
-  .edit svg {
-    width: 16px;
-    height: 16px;
+  .map-btn svg {
+    width: 17px;
+    height: 17px;
   }
 
   .actions {
