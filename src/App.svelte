@@ -96,12 +96,14 @@
     <div class="globe-stage">
 
       
-      <div class="globe-stage">
+      <div class="globe-stage" class:collapsed={session.collapsed}>
+        <div class="globe-stage-text-location-container" class:collapsed={session.collapsed}>
         <span class="globe-stage-text-location">{place.toUpperCase()}</span>
         <span class="s-QDAv-o1wJ_oy">
           {Math.trunc(session.form.lat??0)}°{Math.abs(((session.form.lat??0)%1*60).toFixed(2))}'N 
           {Math.trunc(session.form.lon??0)}°{Math.abs((session.form.lon??0)%1*60).toFixed(2)}'E
         </span>
+        </div>
         <Globus
           width="100%"
           height="calc(100vh - var(--header-height))"
@@ -166,6 +168,31 @@
     align-items: center;
     justify-content: center;
   }
+  
+.globe-stage.collapsed {
+  flex-direction: row;
+  align-self: stretch;
+  width: 100%;
+}
+
+.globe-stage-text-location-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.globe-stage-text-location-container.collapsed {
+  position: absolute;
+  top: 50%;
+  left: 10%;
+  z-index: 2;
+  align-items: flex-start;
+  transform: translateY(-50%);
+  pointer-events: none;
+  max-width: 15%;
+}
+
 
   .results-overlay {
     position: absolute;
@@ -192,7 +219,7 @@
   .globe-stage-text-location {
     font-size: 30px;
     color: var(--color-text-dim);
-    font-weight: 200;
+    font-weight: 400;
     color: var(--color-text);
     margin-bottom: 10px;
   }
