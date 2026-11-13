@@ -4,9 +4,9 @@ const STORAGE_KEY = 'field-shift-session';
 
 const defaults = {
   activeTab: 'farm',
-  activePresetId: null,
+  activePresetId: 'iowa',
   climate: 0,
-  collapsed: false,
+  collapsed: true,
   theme: 'dark',
   result: null,
   form: {

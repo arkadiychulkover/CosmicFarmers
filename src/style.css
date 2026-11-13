@@ -1,59 +1,86 @@
 :root {
   color-scheme: dark;
 
-  --font-main: 'Inter Variable', system-ui, sans-serif;
+  --font-main: 'Inter Variable', system-ui, -apple-system, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
 
-  --color-bg: #262626;
-  --color-panel: #4a4a4a;
-  --color-panel-dark: #3a3a3a;
-  --color-card: #5c5c5c;
-  --color-tab: #a8a8a8;
-  --color-tab-hover: #b8b8b8;
-  --color-tab-text: #2a2a2a;
-  --color-tab-active: var(--color-panel);
-  --color-text: #e8e8e8;
-  --color-text-dim: #9a9a9a;
-  --color-border-dim: #7a7a7a;
-  --color-accent: #2ecc71;
-  --color-button: #dcdcdc;
-  --color-button-hover: #ffffff;
-  --color-button-text: #262626;
-  --color-switch-thumb: #0d0d0d;
+  /* Cosmic Valley Figma Dark Palette */
+  --color-bg: #0B101D;
+  --color-panel: #182234;
+  --color-panel-dark: #131B2E;
+  --color-drawer: #1B2436;
+  --color-card: #243044;
+  --color-card-border: #2E3A52;
+  --color-tab: #182234;
+  --color-tab-hover: #222F46;
+  --color-tab-active: #2C3B54;
+  --color-tab-text: #94A3B8;
+  --color-tab-text-active: #FFFFFF;
+  --color-text: #FFFFFF;
+  --color-text-dim: #94A3B8;
+  --color-text-muted: #64748B;
+  --color-border-dim: #2E3A52;
+  --color-border-subtle: #1E293B;
 
-  --color-chart-blue: #4aa3df;
-  --color-chart-orange: #f0a030;
-  --color-chart-red: #e05a4f;
-  --color-chart-green: #5fbf6a;
+  /* Accent & CTAs */
+  --color-accent: #B6FFA0;
+  --color-accent-cyan: #38BDF8;
+  --color-button: #B6FFA0;
+  --color-button-hover: #C5FFB3;
+  --color-button-text: #0B101D;
+  --color-button-outline: #475569;
+  --color-switch-thumb: #FFFFFF;
 
-  --color-result-card: #b0b0b0;
-  --color-result-text: #2b2b2b;
-  --color-result-dim: #555555;
-  --color-result-match: #6b6b6b;
+  /* Charts */
+  --color-chart-blue: #38BDF8;
+  --color-chart-orange: #FB923C;
+  --color-chart-red: #F87171;
+  --color-chart-green: #B6FFA0;
 
-  --header-height: 96px;
-  --panel-width: 620px;
-  --panel-collapsed-width: 36px;
-  --rail-width: 34px;
-  --results-width: 360px;
+  --color-result-card: #1E293B;
+  --color-result-text: #FFFFFF;
+  --color-result-dim: #94A3B8;
+  --color-result-match: #38BDF8;
+
+  --header-height: 84px;
+  --panel-width: 520px;
+  --panel-collapsed-width: 0px;
+  --rail-width: 52px;
+  --results-width: 420px;
 }
 
 :root[data-theme='light'] {
   color-scheme: light;
 
-  --color-bg: #e6e6e6;
-  --color-panel: #cfcfcf;
-  --color-panel-dark: #bdbdbd;
-  --color-card: #dedede;
-  --color-tab: #9e9e9e;
-  --color-tab-hover: #8f8f8f;
-  --color-tab-text: #1f1f1f;
-  --color-text: #1f1f1f;
-  --color-text-dim: #5c5c5c;
-  --color-border-dim: #8a8a8a;
-  --color-button: #3a3a3a;
-  --color-button-hover: #1f1f1f;
-  --color-button-text: #f0f0f0;
-  --color-switch-thumb: #f5f5f5;
+  --color-bg: #EEF2F6;
+  --color-panel: #E2E8F0;
+  --color-panel-dark: #CBD5E1;
+  --color-drawer: #F1F5F9;
+  --color-card: #FFFFFF;
+  --color-card-border: #CBD5E1;
+  --color-tab: #E2E8F0;
+  --color-tab-hover: #CBD5E1;
+  --color-tab-active: #FFFFFF;
+  --color-tab-text: #64748B;
+  --color-tab-text-active: #0F172A;
+  --color-text: #0F172A;
+  --color-text-dim: #64748B;
+  --color-text-muted: #94A3B8;
+  --color-border-dim: #CBD5E1;
+  --color-border-subtle: #E2E8F0;
+
+  --color-accent: #15803D;
+  --color-accent-cyan: #0284C7;
+  --color-button: #15803D;
+  --color-button-hover: #166534;
+  --color-button-text: #FFFFFF;
+  --color-button-outline: #94A3B8;
+  --color-switch-thumb: #0F172A;
+
+  --color-chart-blue: #0284C7;
+  --color-chart-orange: #EA580C;
+  --color-chart-red: #DC2626;
+  --color-chart-green: #16A34A;
 }
 
 *,
@@ -68,18 +95,21 @@ body {
   color: var(--color-text);
   font-family: var(--font-main);
   -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
 }
 
 button,
-input {
+input,
+select {
   font-family: inherit;
 }
 
 h2 {
   margin: 0;
   text-align: center;
-  font-size: 16px;
-  font-weight: 500;
-  letter-spacing: 0.05em;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
+  color: var(--color-text);
 }

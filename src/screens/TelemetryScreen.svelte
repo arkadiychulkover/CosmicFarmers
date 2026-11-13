@@ -25,9 +25,9 @@
   }
 
   function gddNote(value) {
-    if (value >= 1600) return 'Thermal Maturity Window: Suited to full-season cultivars';
-    if (value >= 1000) return 'Thermal Maturity Window: Suited to mid-season cultivars';
-    return 'Thermal Maturity Window: Short-season cultivars only';
+    if (value >= 1600) return 'Suited to full-season cultivars';
+    if (value >= 1000) return 'Suited to mid-season cultivars';
+    return 'Short-season cultivars only';
   }
 
   function calculate() {
@@ -37,7 +37,10 @@
 </script>
 
 <div class="screen">
-  <h2>NASA Telemetry</h2>
+  <div class="header-block">
+    <h2>NASA Telemetry</h2>
+    <p class="subtitle">Multi-decade satellite climatology & growing season indicators</p>
+  </div>
 
   {#if failed}
     <p class="status">Could not load telemetry. Check coordinates and try again.</p>
@@ -58,7 +61,7 @@
         title="Temperature & Heat Stress"
         rows={[
           { label: 'Mean Season Temp', value: `${telemetry.temperature.mean} °C` },
-          { label: 'Extreme Heat Days (above 32°C)', value: `${telemetry.temperature.heatDays} days` },
+          { label: 'Extreme Heat Days (>32°C)', value: `${telemetry.temperature.heatDays} days` },
         ]}
       >
         <TemperatureChart
@@ -88,13 +91,15 @@
     </div>
   {/if}
 
-  <h2>Climate Risk Simulator</h2>
-  <ClimateSlider
-    label="Precipitation Anomaly Stress-Test"
-    minLabel="Extreme Drought"
-    maxLabel="Excessive Rainfall"
-    bind:value={session.climate}
-  />
+  <div class="risk-section">
+    <h2>Climate Risk Simulator</h2>
+    <ClimateSlider
+      label="Precipitation Anomaly Stress-Test"
+      minLabel="Extreme Drought"
+      maxLabel="Excessive Rainfall"
+      bind:value={session.climate}
+    />
+  </div>
 
   <div class="actions">
     <ActionButton onclick={calculate}>Calculate the Strategy →</ActionButton>
@@ -106,8 +111,22 @@
 
 <style>
   .screen {
-    display: grid;
-    gap: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 22px;
+  }
+
+  .header-block {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    text-align: center;
+  }
+
+  .subtitle {
+    margin: 0;
+    font-size: 10px;
+    color: var(--color-text-dim, #94A3B8);
   }
 
   .status {
@@ -115,7 +134,7 @@
     padding: 40px 0;
     text-align: center;
     font-size: 11px;
-    color: var(--color-text-dim);
+    color: var(--color-text-dim, #94A3B8);
   }
 
   .grid {
@@ -129,10 +148,21 @@
     opacity: 0.5;
   }
 
+  .risk-section {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 14px;
+    border: 1px solid var(--color-border-dim, #2E3A52);
+    border-radius: 10px;
+    background: rgba(19, 27, 46, 0.4);
+  }
+
   .actions {
-    display: grid;
+    display: flex;
+    flex-direction: column;
     gap: 10px;
-    width: 70%;
-    margin: 0 auto;
+    width: 100%;
+    margin-top: 8px;
   }
 </style>

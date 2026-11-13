@@ -4,11 +4,11 @@
     min = 0,
     max = 100,
     step = 1,
-    unit = "",
+    unit = '',
     value = $bindable(),
-    minLabel = "",
-    midLabel = "",
-    maxLabel = "",
+    minLabel = '',
+    midLabel = '',
+    maxLabel = '',
     showRange = false,
   } = $props();
 
@@ -26,7 +26,7 @@
 <div class="field">
   <div class="top">
     <label for="slider-{label}">{label}</label>
-    <div class="value-box">
+    <div class="value-badge">
       <input
         class="number"
         type="number"
@@ -40,12 +40,7 @@
       {#if unit}<span class="unit">{unit}</span>{/if}
     </div>
   </div>
-  {#if showRange}
-    <div class="marks">
-      <span>{min}</span>
-      <span>{max}</span>
-    </div>
-  {/if}
+
   <input
     id="slider-{label}"
     class="range"
@@ -68,7 +63,8 @@
   .field {
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: 8px;
+    width: 100%;
   }
 
   .top {
@@ -78,31 +74,36 @@
   }
 
   label {
-    font-size: 11px;
-    color: var(--color-text);
+    font-size: 11.5px;
+    font-weight: 500;
+    color: var(--color-text, #FFFFFF);
   }
 
-  .value-box {
+  .value-badge {
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 4px;
+    padding: 3px 8px;
+    border: 1px solid var(--color-border-dim, #2E3A52);
+    border-radius: 4px;
+    background: #131B2E;
   }
 
   .unit {
-    font-size: 10px;
-    color: var(--color-text-dim);
+    font-size: 9.5px;
+    color: var(--color-text-dim, #94A3B8);
   }
 
   .number {
-    width: 48px;
-    padding: 3px 6px;
-    border: 1px solid var(--color-text-dim);
-    border-radius: 4px;
+    width: 44px;
+    padding: 0;
+    border: none;
     background: transparent;
-    color: var(--color-text);
-    font-family: inherit;
-    font-size: 11px;
-    text-align: center;
+    color: var(--color-accent-cyan, #38BDF8);
+    font-family: var(--font-mono, monospace);
+    font-size: 11.5px;
+    font-weight: 600;
+    text-align: right;
     appearance: textfield;
     -moz-appearance: textfield;
   }
@@ -113,51 +114,55 @@
     margin: 0;
   }
 
-  .number:focus-visible {
-    outline: 2px solid var(--color-accent);
-    outline-offset: 1px;
+  .number:focus {
+    outline: none;
   }
 
   .range {
     -webkit-appearance: none;
     appearance: none;
     width: 100%;
-    height: 2px;
-    border-radius: 2px;
+    height: 4px;
+    border-radius: 9999px;
     background: linear-gradient(
       to right,
-      var(--color-text) var(--fill),
-      var(--color-border-dim) var(--fill)
+      var(--color-accent-cyan, #38BDF8) var(--fill),
+      #131B2E var(--fill)
     );
+    border: 1px solid var(--color-border-dim, #2E3A52);
     cursor: pointer;
   }
 
   .range::-webkit-slider-thumb {
     -webkit-appearance: none;
-    width: 10px;
-    height: 10px;
+    width: 14px;
+    height: 14px;
     border-radius: 50%;
-    background: var(--color-text);
-    border: none;
+    background: #FFFFFF;
+    border: 2px solid var(--color-accent-cyan, #38BDF8);
+    box-shadow: 0 0 6px rgba(56, 189, 248, 0.5);
+    cursor: grab;
   }
 
   .range::-moz-range-thumb {
-    width: 10px;
-    height: 10px;
+    width: 14px;
+    height: 14px;
     border-radius: 50%;
-    background: var(--color-text);
-    border: none;
+    background: #FFFFFF;
+    border: 2px solid var(--color-accent-cyan, #38BDF8);
+    box-shadow: 0 0 6px rgba(56, 189, 248, 0.5);
+    cursor: grab;
   }
 
   .range:focus-visible {
-    outline: 2px solid var(--color-accent);
-    outline-offset: 6px;
+    outline: 2px solid var(--color-accent-cyan, #38BDF8);
+    outline-offset: 4px;
   }
 
   .marks {
     display: flex;
     justify-content: space-between;
-    font-size: 9px;
-    color: var(--color-text-dim);
+    font-size: 9.5px;
+    color: var(--color-text-dim, #94A3B8);
   }
 </style>

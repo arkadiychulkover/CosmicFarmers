@@ -67,7 +67,7 @@
     >
       <span class="current">{selected ? selected.label : ''}</span>
       <svg class="arrow" viewBox="0 0 10 6" aria-hidden="true">
-        <path d="M1 1l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.5" />
+        <path d="M1 1l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.8" />
       </svg>
     </button>
 
@@ -96,31 +96,32 @@
   .field {
     display: flex;
     flex-direction: column;
-    align-items: flex-start;
-    gap: 10px;
+    align-items: stretch;
+    gap: 8px;
+    width: 100%;
   }
 
   .heading {
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: 3px;
   }
 
   .label {
-    font-size: 11px;
-    color: var(--color-text);
+    font-size: 11.5px;
+    font-weight: 600;
+    color: var(--color-text, #FFFFFF);
   }
 
   .hint {
-    font-size: 9px;
+    font-size: 9.5px;
     line-height: 1.4;
-    color: var(--color-text-dim);
+    color: var(--color-text-dim, #94A3B8);
   }
 
   .select {
     position: relative;
     width: 100%;
-    max-width: 340px;
   }
 
   .trigger {
@@ -129,20 +130,25 @@
     justify-content: space-between;
     gap: 12px;
     width: 100%;
-    padding: 6px 10px;
-    border: 1px solid var(--color-text);
+    padding: 9px 12px;
+    border: 1px solid var(--color-border-dim, #2E3A52);
     border-radius: 6px;
-    background: transparent;
-    color: var(--color-text);
+    background: #131B2E;
+    color: #FFFFFF;
     font-family: inherit;
     font-size: 11px;
     text-align: left;
     cursor: pointer;
+    transition: border-color 0.15s, background 0.15s;
+  }
+
+  .trigger:hover {
+    border-color: #475569;
   }
 
   .trigger:focus-visible {
-    outline: 2px solid var(--color-accent);
-    outline-offset: 2px;
+    outline: 2px solid var(--color-accent-cyan, #38BDF8);
+    outline-offset: 1px;
   }
 
   .current {
@@ -155,6 +161,7 @@
     width: 10px;
     height: 6px;
     flex-shrink: 0;
+    color: var(--color-text-dim, #94A3B8);
     transition: transform 0.15s;
   }
 
@@ -164,25 +171,29 @@
 
   .list {
     position: absolute;
-    top: calc(100% + 2px);
+    top: calc(100% + 4px);
     left: 0;
     right: 0;
-    z-index: 10;
+    z-index: 50;
     margin: 0;
-    padding: 0;
+    padding: 4px 0;
     list-style: none;
-    border: 1px solid var(--color-text);
+    border: 1px solid var(--color-border-dim, #2E3A52);
     border-radius: 6px;
-    background: var(--color-panel);
+    background: #1B2436;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
     overflow: hidden;
+    max-height: 220px;
+    overflow-y: auto;
   }
 
   li {
-    padding: 6px 10px;
+    padding: 8px 12px;
     font-size: 11px;
-    color: var(--color-text-dim);
-    border-bottom: 1px solid var(--color-border-dim);
+    color: var(--color-text-dim, #94A3B8);
+    border-bottom: 1px solid rgba(46, 58, 82, 0.4);
     cursor: pointer;
+    transition: background 0.1s, color 0.1s;
   }
 
   li:last-child {
@@ -190,12 +201,12 @@
   }
 
   li.highlighted {
-    color: var(--color-text);
-    background: rgba(255, 255, 255, 0.08);
+    color: #FFFFFF;
+    background: rgba(56, 189, 248, 0.12);
   }
 
   li.selected {
-    color: var(--color-text);
+    color: var(--color-accent-cyan, #38BDF8);
     font-weight: 600;
   }
 </style>

@@ -11,7 +11,10 @@
 </script>
 
 <div class="screen">
-  <h2>Calculate Optimal Rotation Strategy</h2>
+  <div class="header-block">
+    <h2>Calculate Optimal Rotation Strategy</h2>
+    <p class="subtitle">Set up field coordinates, predecessor history, and soil chemistry</p>
+  </div>
 
   <Presets {presets} activeId={session.activePresetId} onselect={applyPreset} />
 
@@ -34,7 +37,7 @@
 
   <SelectField
     label="Previous Season Crop (Predecessor)"
-    hint="Select the crop harvested in the last cycle to calculate nutrient carryover and pest/disease break requirements."
+    hint="Select the crop harvested in the last cycle to calculate nutrient carryover and pest break requirements."
     options={cropOptions}
     bind:value={session.form.predecessor}
   />
@@ -63,24 +66,26 @@
     bind:value={session.form.soil}
   />
 
-  <SliderField
-    label="Available Nitrogen (N)"
-    max={200}
-    unit="mg/kg"
-    bind:value={session.form.n}
-  />
-  <SliderField
-    label="Available Phosphorus (P)"
-    max={150}
-    unit="mg/kg"
-    bind:value={session.form.p}
-  />
-  <SliderField
-    label="Exchangeable Potassium (K)"
-    max={300}
-    unit="mg/kg"
-    bind:value={session.form.k}
-  />
+  <div class="npk-group">
+    <SliderField
+      label="Available Nitrogen (N)"
+      max={200}
+      unit="mg/kg"
+      bind:value={session.form.n}
+    />
+    <SliderField
+      label="Available Phosphorus (P)"
+      max={150}
+      unit="mg/kg"
+      bind:value={session.form.p}
+    />
+    <SliderField
+      label="Exchangeable Potassium (K)"
+      max={300}
+      unit="mg/kg"
+      bind:value={session.form.k}
+    />
+  </div>
 
   <div class="actions">
     <ActionButton onclick={() => (session.activeTab = "telemetry")}>
@@ -91,8 +96,22 @@
 
 <style>
   .screen {
-    display: grid;
-    gap: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 22px;
+  }
+
+  .header-block {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    text-align: center;
+  }
+
+  .subtitle {
+    margin: 0;
+    font-size: 10px;
+    color: var(--color-text-dim, #94A3B8);
   }
 
   .coords {
@@ -101,8 +120,18 @@
     gap: 12px;
   }
 
+  .npk-group {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    padding: 14px;
+    border: 1px solid var(--color-border-dim, #2E3A52);
+    border-radius: 8px;
+    background: rgba(19, 27, 46, 0.4);
+  }
+
   .actions {
-    width: 70%;
-    margin: 0 auto;
+    width: 100%;
+    margin-top: 8px;
   }
 </style>
