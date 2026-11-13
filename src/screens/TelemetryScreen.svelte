@@ -7,35 +7,12 @@
   import TemperatureChart from '../components/charts/TemperatureChart.svelte';
   import SolarGauge from '../components/charts/SolarGauge.svelte';
   import GddBar from '../components/charts/GddBar.svelte';
-  import { getTelemetry } from '../api.js';
+  import { weatherStore } from '../stores/weather.svelte.js';
   import { session } from '../stores/session.svelte.js';
 
-  let telemetry = $state(null);
-  let loading = $state(true);
-  let failed = $state(false);
-
-  $effect(() => {
-    const { lat, lon } = session.form;
-    let cancelled = false;
-    loading = true;
-    failed = false;
-
-    getTelemetry(lat, lon)
-      .then((data) => {
-        if (cancelled) return;
-        telemetry = data;
-        loading = false;
-      })
-      .catch(() => {
-        if (cancelled) return;
-        failed = true;
-        loading = false;
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  });
+  const telemetry = $derived(weatherStore.telemetry);
+  const loading   = $derived(weatherStore.loading);
+  const failed    = $derived(weatherStore.failed);
 
   function precipitationNote(pct) {
     const sign = pct >= 0 ? '+' : '';

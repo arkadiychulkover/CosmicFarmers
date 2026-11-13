@@ -4,6 +4,7 @@
   import { calculationSteps } from '../data/steps.js';
   import { runStrategy } from '../api.js';
   import { session } from '../stores/session.svelte.js';
+  import { weatherStore } from '../stores/weather.svelte.js';
 
   let current = $state(0);
   let failed = $state(false);
@@ -15,6 +16,8 @@
     const input = {
       ...$state.snapshot(session.form),
       precipitationAnomaly: session.climate,
+      nasaClimate: weatherStore.cropInput,
+      telemetry: weatherStore.telemetry,
     };
 
     const timer = setInterval(() => {
