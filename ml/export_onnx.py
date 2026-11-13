@@ -8,6 +8,7 @@
     <classes>/classes.json       - порядок классов (== порядок колонок `probabilities`)
     <classes>/features.json      - порядок 12 признаков (== порядок колонок входа)
 """
+
 import argparse
 import json
 from pathlib import Path
@@ -20,8 +21,20 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import accuracy_score
 from sklearn.model_selection import train_test_split
 
-FEATURES = ["N", "P", "K", "ph", "T2M", "T2M_MAX", "T2M_MIN",
-            "RH2M", "PRECTOTCORR", "ALLSKY_SFC_SW_DWN", "GDD", "WS2M"]
+FEATURES = [
+    "N",
+    "P",
+    "K",
+    "ph",
+    "T2M",
+    "T2M_MAX",
+    "T2M_MIN",
+    "RH2M",
+    "PRECTOTCORR",
+    "ALLSKY_SFC_SW_DWN",
+    "GDD",
+    "WS2M",
+]
 
 ap = argparse.ArgumentParser()
 ap.add_argument("csv")
@@ -30,15 +43,23 @@ ap.add_argument("--classes", default="src/lib/crop")
 args = ap.parse_args()
 
 df = pd.read_csv(args.csv).rename(
-    columns={"temperature": "T2M", "humidity": "RH2M", "rainfall": "PRECTOTCORR"})
+    columns={"temperature": "T2M", "humidity": "RH2M", "rainfall": "PRECTOTCORR"}
+)
 X = df[FEATURES].astype(np.float32)
 y = df["label"]
 
 X_train, X_test, y_train, y_test = train_test_split(
-    X, y, test_size=0.2, random_state=42, stratify=y)
+    X, y, test_size=0.2, random_state=42, stratify=y
+)
 
-rf = RandomForestClassifier(n_estimators=100, max_depth=12, min_samples_split=4,
-                            min_samples_leaf=2, random_state=42, n_jobs=-1)
+rf = RandomForestClassifier(
+    n_estimators=100,
+    max_depth=12,
+    min_samples_split=4,
+    min_samples_leaf=2,
+    random_state=42,
+    n_jobs=-1,
+)
 rf.fit(X_train, y_train)
 print(f"Accuracy: {accuracy_score(y_test, rf.predict(X_test)) * 100:.2f}%")
 
@@ -58,5 +79,8 @@ cls.mkdir(parents=True, exist_ok=True)
 print("classes:", len(rf.classes_))
 
 # эталон для сверки в JS-тестах: sklearn-вероятности на первых 5 строках
-gold = [{"x": X.iloc[i].tolist(), "p": rf.predict_proba(X.iloc[[i]])[0].tolist()} for i in range(5)]
+gold = [
+    {"x": X.iloc[i].tolist(), "p": rf.predict_proba(X.iloc[[i]])[0].tolist()}
+    for i in range(5)
+]
 (out.parent.parent / "ml" / "golden.json").write_text(json.dumps(gold))
