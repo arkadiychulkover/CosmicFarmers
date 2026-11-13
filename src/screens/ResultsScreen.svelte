@@ -1,15 +1,22 @@
 <script>
-  import { onMount } from 'svelte';
-  import YearSlide from '../components/YearSlide.svelte';
-  import { presets } from '../data/presets.js';
-  import { downloadPlan } from '../utils/downloadPlan.js';
-  import { session } from '../stores/session.svelte.js';
+  import ActionButton from "../components/ActionButton.svelte";
+  import CropFeatureCard from "../components/CropFeatureCard.svelte";
+  import CropMiniCard from "../components/CropMiniCard.svelte";
+  import YearSlide from "../components/YearSlide.svelte";
+  import { presets } from "../data/presets.js";
+  import { downloadPlan } from "../utils/downloadPlan.js";
+  import { session } from "../stores/session.svelte.js";
 
-  const LABELS = ['Recommended Next Crop', 'Follow-Up Crop', 'Cycle Completion'];
+  const LABELS = [
+    "Recommended Next Crop",
+    "Follow-Up Crop",
+    "Cycle Completion",
+  ];
   const SWIPE_PX = 50;
   const WHEEL_MIN = 15;
   const LOCK_MS = 850;
 
+  let showTimeline = $state(false);
   let page = $state();
   let index = $state(0);
   let exporting = $state(false);
@@ -19,24 +26,60 @@
   let armed = true;
   let swipeFrom = null;
 
-  const years = $derived(session.result.years);
-  const last = $derived(years.length - 1);
+  const result = $derived(session.result);
+  const recommendations = $derived(result?.recommendations ?? []);
+  const top = $derived(recommendations[0] ?? null);
+  const others = $derived(recommendations.slice(1));
+  const years = $derived(result?.years ?? []);
+  const last = $derived(Math.max(0, years.length - 1));
 
-  const preset = $derived(presets.find((p) => p.id === session.activePresetId && p.values));
-  const place = $derived(preset ? preset.label : 'Custom field');
-  const coords = $derived(
-    `${Math.abs(session.form.lat).toFixed(2)}° ${session.form.lat >= 0 ? 'N' : 'S'}, ` +
-      `${Math.abs(session.form.lon).toFixed(2)}° ${session.form.lon >= 0 ? 'E' : 'W'}`
+  const preset = $derived(
+    presets?.find((p) => p.id === session.activePresetId && p.values),
   );
+  const place = $derived(preset ? preset.label : "Custom field");
 
-  onMount(() => page?.focus());
+  const coords = $derived.by(() => {
+    const lat = Number(session.form?.lat ?? 0);
+    const lon = Number(session.form?.lon ?? 0);
+    return (
+      `${Math.abs(lat).toFixed(2)}° ${lat >= 0 ? "N" : "S"}, ` +
+      `${Math.abs(lon).toFixed(2)}° ${lon >= 0 ? "E" : "W"}`
+    );
+  });
+
+  $effect(() => {
+    if (!page) return;
+    page.focus();
+    page.addEventListener("wheel", onWheel, { passive: false });
+    page.addEventListener("keydown", onKeydown);
+    page.addEventListener("pointerdown", onPointerDown);
+    page.addEventListener("pointerup", onPointerUp);
+    page.addEventListener("pointercancel", onPointerCancel);
+
+    return () => {
+      page.removeEventListener("wheel", onWheel);
+      page.removeEventListener("keydown", onKeydown);
+      page.removeEventListener("pointerdown", onPointerDown);
+      page.removeEventListener("pointerup", onPointerUp);
+      page.removeEventListener("pointercancel", onPointerCancel);
+    };
+  });
+
+  function openTimeline() {
+    index = 0;
+    showTimeline = true;
+  }
+
+  function backToResults() {
+    showTimeline = false;
+  }
 
   function go(i) {
     index = Math.min(Math.max(i, 0), last);
   }
 
-  // Колесо/трекпад: один жест = один экран. armed сбрасывается, пока идёт инерция трекпада.
   function onWheel(event) {
+    event.preventDefault();
     const now = performance.now();
     if (now - lastWheel > 100) armed = true;
     lastWheel = now;
@@ -51,18 +94,22 @@
   }
 
   function onKeydown(event) {
-    const next = ['ArrowDown', 'PageDown', ' '];
-    const prev = ['ArrowUp', 'PageUp'];
+    if (event.target instanceof HTMLElement && event.target.closest("button, a, input")) {
+      return;
+    }
+
+    const next = ["ArrowDown", "PageDown", " "];
+    const prev = ["ArrowUp", "PageUp"];
     if (next.includes(event.key)) go(index + 1);
     else if (prev.includes(event.key)) go(index - 1);
-    else if (event.key === 'Home') go(0);
-    else if (event.key === 'End') go(last);
+    else if (event.key === "Home") go(0);
+    else if (event.key === "End") go(last);
     else return;
     event.preventDefault();
   }
 
   function onPointerDown(event) {
-    swipeFrom = event.target.closest('button') ? null : event.clientY;
+    swipeFrom = event.target?.closest("button, a") ? null : event.clientY;
   }
 
   function onPointerUp(event) {
@@ -72,140 +119,269 @@
     if (Math.abs(delta) >= SWIPE_PX) go(index + (delta < 0 ? 1 : -1));
   }
 
+  function onPointerCancel() {
+    swipeFrom = null;
+  }
+
   async function download() {
+    if (!result) return;
     exporting = true;
     try {
-      await downloadPlan($state.snapshot(session.result), $state.snapshot(session.form));
+      await downloadPlan(
+        $state.snapshot(session.result),
+        $state.snapshot(session.form),
+      );
+    } catch (err) {
+      console.error("PDF generation failed:", err);
+      alert("Failed to generate PDF crop plan. Please try again.");
     } finally {
       exporting = false;
     }
   }
 
-  // Результат не стираем: он сбросится при новом расчёте (TelemetryScreen).
-  function backToCalculation() {
+  function backToFarm() {
     session.collapsed = false;
-    session.activeTab = 'farm';
+    session.activeTab = "farm";
   }
 </script>
 
-<!-- svelte-ignore a11y_no_noninteractive_tabindex, a11y_no_noninteractive_element_interactions -->
-<div
-  class="page"
-  role="region"
-  aria-roledescription="carousel"
-  aria-label="3-year crop rotation, one year per screen"
-  tabindex="0"
-  bind:this={page}
-  onwheel={onWheel}
-  onkeydown={onKeydown}
-  onpointerdown={onPointerDown}
-  onpointerup={onPointerUp}
-  onpointercancel={() => (swipeFrom = null)}
->
-  <div class="bg" aria-hidden="true"></div>
-
-  <div class="hero">
-    <div class="intro">
-      <h2>3-Year Multi-Season<br />Rotation Trajectory</h2>
-      <span class="arrow" aria-hidden="true">↓</span>
-      <p>Previous season: {session.result.previousName}</p>
-    </div>
-
-    <div class="place">
-      <b>{place}</b>
-      <small>{coords}</small>
-    </div>
-
-    <!-- Слот под глобус (делает другой участник): положите компонент сюда -->
-    <div class="globe-slot" aria-hidden="true"></div>
-
-    <svg class="curve" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
-      <path d="M 17 0 C 17 55, 50 35, 50 100" vector-effect="non-scaling-stroke" />
-    </svg>
+{#if !result}
+  <div class="results empty">
+    <p>No crop recommendations available yet.</p>
+    <ActionButton onclick={backToFarm}>Configure farm</ActionButton>
   </div>
+{:else if !showTimeline}
+  <div class="results">
+    <header>
+      <h2>Your Crop Strategy</h2>
+      <p>
+        Based on your field, soil and climate stress test, this is your RECOMMENDED NEXT CROP:
+      </p>
+    </header>
 
-  <div class="viewport">
-    <div class="line" aria-hidden="true"></div>
+    {#if top}
+      <CropFeatureCard item={top} />
+    {/if}
 
-    {#each years as entry, i (entry.year)}
-      {@const side = i % 2 === 0 ? 'left' : 'right'}
-      <section
-        class="slide {side}"
-        class:active={i === index}
-        class:before={i < index}
-        class:after={i > index}
-        role="group"
-        aria-roledescription="slide"
-        aria-label="Year {entry.year} of {years.length}"
-        inert={i !== index}
+    <div class="minis">
+      {#each others as item (item.id)}
+        <CropMiniCard {item} />
+      {/each}
+    </div>
+
+    <div class="results-actions">
+      <ActionButton onclick={openTimeline}>
+        See rotation trajectory timeline →
+      </ActionButton>
+      <ActionButton variant="outline" onclick={download} disabled={exporting}>
+        {exporting ? "Preparing PDF…" : "Download personalised crop plan"}
+      </ActionButton>
+    </div>
+  </div>
+{:else}
+  <div
+    class="page"
+    role="region"
+    aria-roledescription="carousel"
+    aria-label="3-year crop rotation, one year per screen"
+    tabindex="-1"
+    bind:this={page}
+  >
+    <div class="bg" aria-hidden="true"></div>
+
+    <div class="hero">
+      <div class="intro">
+        <h2>3-Year Multi-Season<br />Rotation Trajectory</h2>
+        <span class="arrow" aria-hidden="true">↓</span>
+        <p>Previous season: {result.previousName || "None"}</p>
+      </div>
+
+      <div class="place">
+        <b>{place}</b>
+        <small>{coords}</small>
+      </div>
+
+      <div class="globe-slot" aria-hidden="true"></div>
+
+      <svg
+        class="curve"
+        viewBox="0 0 100 100"
+        preserveAspectRatio="none"
+        aria-hidden="true"
       >
-        <span class="node" aria-hidden="true">{entry.year}</span>
+        <path
+          d="M 17 0 C 17 55, 50 35, 50 100"
+          vector-effect="non-scaling-stroke"
+        />
+      </svg>
+    </div>
 
-        <div class="main">
-          <p class="label">
-            <small>Year {entry.year}</small>
-            <b>{LABELS[i]}</b>
-          </p>
-          <div class="card"><YearSlide item={entry} /></div>
-        </div>
+    <div class="viewport">
+      <div class="line" aria-hidden="true"></div>
 
-        <aside class="note">
-          <strong>Rotation insight</strong>
-          <p>{entry.rotation || entry.why.advisory}</p>
-          <p class="alt">
-            Also considered:
-            {#each entry.options.filter((o) => o.id !== entry.id) as o, k (o.id)}{k ? ', ' : ' '}{o.name} {o.percent}%{/each}
-          </p>
-        </aside>
+      {#each years as entry, i (entry.year)}
+        {@const side = i % 2 === 0 ? "left" : "right"}
+        <section
+          class="slide {side}"
+          class:active={i === index}
+          class:before={i < index}
+          class:after={i > index}
+          role="group"
+          aria-roledescription="slide"
+          aria-label="Year {entry.year} of {years.length}"
+          inert={i !== index}
+        >
+          <span class="node" aria-hidden="true">{entry.year}</span>
 
-        <div class="foot">
-          {#if i === last}
-            <div class="actions">
-              <button type="button" class="btn primary" onclick={download} disabled={exporting}>
-                <svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true">
-                  <path d="M8 2v8m0 0L4.5 6.5M8 10l3.5-3.5M3 13h10" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" />
-                </svg>
-                {exporting ? 'Preparing PDF…' : 'Download crop plan (PDF)'}
+          <div class="main">
+            <p class="label">
+              <small>Year {entry.year}</small>
+              <b>{LABELS[i] ?? `Rotation Stage ${i + 1}`}</b>
+            </p>
+            <div class="card"><YearSlide item={entry} /></div>
+          </div>
+
+          <aside class="note">
+            <strong>Rotation insight</strong>
+            <p>{entry.rotation || entry.why?.advisory || "Agronomically balanced rotation."}</p>
+            {#if entry.options && entry.options.length > 1}
+              <p class="alt">
+                Also considered:
+                {#each entry.options.filter((o) => o.id !== entry.id) as o, k (o.id)}{k ? ", " : " "}{o.name} {o.percent}%{/each}
+              </p>
+            {/if}
+          </aside>
+
+          <div class="foot">
+            {#if i === last}
+              <div class="actions">
+                <button
+                  type="button"
+                  class="btn primary"
+                  onclick={download}
+                  disabled={exporting}
+                >
+                  <svg
+                    viewBox="0 0 16 16"
+                    width="13"
+                    height="13"
+                    aria-hidden="true"
+                  >
+                    <path
+                      d="M8 2v8m0 0L4.5 6.5M8 10l3.5-3.5M3 13h10"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="1.6"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    />
+                  </svg>
+                  {exporting ? "Preparing PDF…" : "Download crop plan (PDF)"}
+                </button>
+                <button type="button" class="btn ghost" onclick={backToResults}>
+                  <span aria-hidden="true">←</span> Back to results
+                </button>
+                <button
+                  type="button"
+                  class="btn ghost"
+                  onclick={backToFarm}
+                >
+                  <span aria-hidden="true">←</span> Back to farm
+                </button>
+              </div>
+            {:else}
+              <button
+                type="button"
+                class="hint"
+                onclick={() => go(index + 1)}
+                tabindex="-1"
+              >
+                Scroll <span aria-hidden="true">↓</span>
               </button>
-              <button type="button" class="btn ghost" onclick={backToCalculation}>
-                <span aria-hidden="true">←</span> Back to calculation
-              </button>
-            </div>
-          {:else}
-            <button type="button" class="hint" onclick={() => go(index + 1)} tabindex="-1">
-              Scroll <span aria-hidden="true">↓</span>
-            </button>
-          {/if}
-        </div>
-      </section>
-    {/each}
+            {/if}
+          </div>
+        </section>
+      {/each}
+    </div>
+
+    <nav class="dots" aria-label="Rotation years">
+      {#each years as entry, i (entry.year)}
+        <button
+          type="button"
+          class:active={i === index}
+          aria-label="Year {entry.year}: {entry.name}"
+          aria-current={i === index ? "step" : undefined}
+          onclick={() => go(i)}
+        ></button>
+      {/each}
+    </nav>
   </div>
-
-  <nav class="dots" aria-label="Rotation years">
-    {#each years as entry, i (entry.year)}
-      <button
-        type="button"
-        class:active={i === index}
-        aria-label="Year {entry.year}: {entry.name}"
-        aria-current={i === index ? 'step' : undefined}
-        onclick={() => go(i)}
-      ></button>
-    {/each}
-  </nav>
-</div>
+{/if}
 
 <style>
+  .results {
+    display: grid;
+    gap: 12px;
+    width: var(--results-width, 387px);
+    max-width: 100%;
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+
+  .results.empty {
+    padding: 60px 0;
+    text-align: center;
+  }
+
+  .results header {
+    display: grid;
+    gap: 4px;
+    margin-bottom: 2px;
+  }
+
+  .results header h2 {
+    margin: 0;
+    font-family: var(--font-display);
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    text-align: left;
+  }
+
+  .results header p {
+    margin: 0;
+    font-size: 9px;
+    line-height: 1.4;
+    color: var(--color-text-dim);
+  }
+
+  .minis {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+  }
+
+  .results-actions {
+    display: grid;
+    gap: 10px;
+    margin-top: 4px;
+    width: 100%;
+  }
+
   .page {
     --hero: clamp(120px, 24vh, 210px);
-    position: relative;
-    height: 100%;
+    position: fixed;
+    inset: var(--header-height) 0 0 0;
+    z-index: 100;
+    height: calc(100vh - var(--header-height));
     overflow: hidden;
     outline: none;
     touch-action: none;
     user-select: none;
   }
 
-  /* Тёмный фон с зерном и редкими «звёздами» */
   .bg {
     position: absolute;
     inset: 0;
@@ -220,7 +396,7 @@
   }
 
   .bg::after {
-    content: '';
+    content: "";
     position: absolute;
     inset: 0;
     opacity: 0.1;
@@ -306,11 +482,9 @@
   .viewport {
     position: absolute;
     inset: var(--hero) 0 0 0;
-    /* без обрезки: уходящий экран растворяется, а не режется жёсткой границей */
     overflow: visible;
   }
 
-  /* Экраны лежат стопкой; активный плавно проявляется, соседние уходят со сдвигом и затуханием */
   .slide {
     --dy: 0px;
     position: absolute;
@@ -344,7 +518,6 @@
     transition-delay: 0.12s, 0s, 0s;
   }
 
-  /* карточка догоняет узел с небольшой задержкой */
   .card {
     transform: translateY(calc(var(--dy) * 0.5));
     transition: transform 1s cubic-bezier(0.22, 0.8, 0.2, 1) 0.05s;
@@ -354,7 +527,6 @@
     transform: none;
   }
 
-  /* Одна непрерывная линия на все экраны, плавно гаснет снизу */
   .line {
     position: absolute;
     top: 0;
@@ -381,7 +553,6 @@
     font-size: 11px;
   }
 
-  /* Карточка и подпись - с одной стороны линии; пояснение - с противоположной */
   .main {
     grid-row: 1 / 3;
     display: grid;
@@ -455,7 +626,7 @@
   }
 
   .note::before {
-    content: '';
+    content: "";
     position: absolute;
     top: 3px;
     width: 7px;
@@ -492,7 +663,6 @@
     grid-row: 3;
     display: grid;
     justify-items: center;
-    /* нижний отступ оставляет воздух над фиксированной подписью CosmicValley */
     padding: 14px 0 44px;
     min-height: 84px;
   }
@@ -531,7 +701,11 @@
     text-transform: uppercase;
     white-space: nowrap;
     cursor: pointer;
-    transition: transform 0.2s ease, background 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease;
+    transition:
+      transform 0.2s ease,
+      background 0.2s ease,
+      box-shadow 0.2s ease,
+      opacity 0.2s ease;
   }
 
   .btn.primary {
@@ -543,7 +717,6 @@
 
   .btn.ghost {
     border: 1px solid var(--color-text-dim);
-    /* непрозрачный фон, чтобы линия не просвечивала */
     background: color-mix(in srgb, var(--color-bg) 80%, #000);
     color: var(--color-text);
   }
@@ -593,7 +766,9 @@
     border-radius: 50%;
     background: transparent;
     cursor: pointer;
-    transition: background 0.3s, transform 0.3s;
+    transition:
+      background 0.3s,
+      transform 0.3s;
   }
 
   .dots button.active {
@@ -601,8 +776,7 @@
     transform: scale(1.3);
   }
 
-  .dots button:focus-visible,
-  .page:focus-visible {
+  .dots button:focus-visible {
     outline: 2px solid var(--color-accent);
     outline-offset: 2px;
   }
@@ -613,7 +787,6 @@
     }
   }
 
-  /* Узкий экран: линия слева, карточка на всю ширину, пояснения скрыты */
   @media (max-width: 720px) {
     .slide {
       grid-template-columns: 1fr;
@@ -622,17 +795,11 @@
       width: 100%;
     }
 
-    .line {
+    .line, .node {
       left: 20px;
     }
 
-    .node {
-      left: 20px;
-    }
-
-    .main,
-    .left .main,
-    .right .main {
+    .main, .left .main, .right .main {
       grid-column: 1;
       padding: 0;
     }
@@ -645,8 +812,7 @@
       margin-left: 0;
     }
 
-    .note,
-    .curve {
+    .note, .curve {
       display: none;
     }
 
@@ -661,17 +827,6 @@
 
     .globe-slot {
       right: 8px;
-    }
-  }
-
-  @media (prefers-reduced-motion: reduce) {
-    .slide,
-    .card {
-      transition-duration: 0.01s;
-    }
-
-    .hint {
-      animation: none;
     }
   }
 </style>

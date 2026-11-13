@@ -1,9 +1,20 @@
 <script>
-  let { tabs, active, onselect, collapsed = $bindable(false) } = $props();
+  let {
+    tabs,
+    active,
+    onselect,
+    collapsed = false,
+    ontoggle,
+  } = $props();
 
   function select(id) {
-    collapsed = false;
     onselect(id);
+  }
+
+  function handleToggle() {
+    if (ontoggle) {
+      ontoggle();
+    }
   }
 </script>
 
@@ -28,7 +39,7 @@
     class="toggle"
     aria-label={collapsed ? 'Expand panel' : 'Collapse panel'}
     aria-expanded={!collapsed}
-    onclick={() => (collapsed = !collapsed)}
+    onclick={handleToggle}
   >
     <svg viewBox="0 0 8 14" aria-hidden="true">
       <path
@@ -65,15 +76,16 @@
     align-items: center;
     justify-content: flex-start;
     width: var(--rail-width);
-    padding: 20px 0 20px;
+    padding: 26px 0;
     border: none;
-    border-radius: 0 18px 18px 0;
+    border-radius: 0 var(--tab-radius) var(--tab-radius) 0;
     background: var(--color-tab);
     color: var(--color-tab-text);
     writing-mode: vertical-rl;
-    font-size: 9px;
-    font-weight: 500;
-    letter-spacing: 0.1em;
+    font-family: var(--font-display);
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
     text-transform: uppercase;
     white-space: nowrap;
     cursor: pointer;
@@ -81,8 +93,8 @@
   }
 
   .tab + .tab {
-    margin-top: -20px;
-    padding-top: 40px;
+    margin-top: calc(var(--tab-radius) * -1);
+    padding-top: calc(26px + var(--tab-radius));
   }
 
   .tab:hover:not(.active) {
@@ -103,7 +115,7 @@
   .toggle {
     position: absolute;
     top: 50%;
-    left: -26px;
+    left: -28px;
     display: grid;
     place-items: center;
     width: 22px;

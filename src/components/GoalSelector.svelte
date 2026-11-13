@@ -23,30 +23,31 @@
   }
 
   legend {
-    margin-bottom: 8px;
+    margin-bottom: 10px;
     padding: 0;
-    font-size: 11px;
+    font-size: 13px;
+    font-weight: 700;
     color: var(--color-text);
   }
 
   .card {
     display: flex;
     flex-direction: column;
-    gap: 3px;
-    padding: 8px 10px;
+    gap: 2px;
+    padding: 7px 12px;
     border: 1px solid var(--color-border-dim);
     border-radius: 6px;
     cursor: pointer;
-    transition: border-color 0.15s, background 0.15s;
+    transition: border-color 0.15s;
   }
 
   .card:hover {
-    border-color: var(--color-text);
+    border-color: var(--color-border-strong);
   }
 
   .card.active {
-    border-color: var(--color-text);
-    background: rgba(255, 255, 255, 0.06);
+    border-color: var(--color-border-strong);
+    box-shadow: inset 0 0 0 1px var(--color-border-strong);
   }
 
   .card:has(input:focus-visible) {
@@ -61,8 +62,8 @@
   }
 
   strong {
-    font-size: 10px;
-    font-weight: 600;
+    font-size: 11px;
+    font-weight: 500;
     color: var(--color-text);
   }
 
