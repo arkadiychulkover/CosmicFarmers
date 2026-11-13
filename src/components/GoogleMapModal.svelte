@@ -184,7 +184,7 @@
         anchor: new google.maps.Point(16, 16)
       },
       animation: google.maps.Animation.DROP,
-      title: 'Выбранная точка'
+      title: 'Selected Point'
     });
 
     map.addListener('click', (e: any) => {
@@ -481,7 +481,7 @@
           on:input={handleSearchInput}
           on:keydown={handleSearchKeydown}
           on:focus={() => { if (suggestions.length > 0) showSuggestions = true; }}
-          placeholder="Поиск города, улицы или объекта (например: Odesa, Kyiv, Tokyo)..."
+          placeholder="Search city, street, or place (e.g. Odesa, Kyiv, Iowa)..."
           class="search-input"
           autocomplete="off"
         />
@@ -494,13 +494,13 @@
               suggestions = [];
               showSuggestions = false;
             }}
-            aria-label="Очистить поиск"
+            aria-label="Clear search"
           >
             ✕
           </button>
         {/if}
 
-        <!-- Кастомный кибер-список подсказок Places API (New) -->
+        <!-- Custom cyber suggestions dropdown for Places API (New) -->
         {#if showSuggestions && suggestions.length > 0}
           <ul class="suggestions-dropdown" role="listbox">
             {#each suggestions as item, idx (item.placeId)}
@@ -526,7 +526,7 @@
           </ul>
         {/if}
       </div>
-      <span class="search-hint">Введите адрес и нажмите Enter (или выберите из списка), либо кликните по карте</span>
+      <span class="search-hint">Enter an address and press Enter (or pick from the list), or click on the map</span>
     </div>
 
     <!-- Map container -->
@@ -534,7 +534,7 @@
       {#if isLoading}
         <div class="map-loader">
           <div class="spinner"></div>
-          <span>Загрузка Google Maps...</span>
+          <span>Loading Google Maps...</span>
         </div>
       {/if}
 
@@ -546,19 +546,19 @@
             <line x1="12" y1="17" x2="12.01" y2="17" />
           </svg>
           <p class="error-msg">{loadError}</p>
-          <span class="error-hint">Проверьте, включены ли Maps JavaScript API и Places API (New) в консоли Google Cloud.</span>
+          <span class="error-hint">Check that Maps JavaScript API and Places API (New) are enabled in Google Cloud Console.</span>
         </div>
       {/if}
 
-      <!-- Вертикальная панель иконок в стиле Google Maps (Кибер-неон, без текста и белых фонов) -->
-      <div class="map-toolbar-vertical" role="toolbar" aria-label="Панель слоев и навигации">
+      <!-- Vertical Google Maps-style icon toolbar (Cyber Neon) -->
+      <div class="map-toolbar-vertical" role="toolbar" aria-label="Map layers and navigation">
         <div class="toolbar-group">
           <button
             type="button"
             class="tool-btn {activeMapType === 'roadmap' ? 'active' : ''}"
             on:click={() => setMapType('roadmap')}
-            title="Неоновая векторная карта"
-            aria-label="Векторная карта"
+            title="Neon Vector Map"
+            aria-label="Neon Vector Map"
           >
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6" />
@@ -571,8 +571,8 @@
             type="button"
             class="tool-btn {activeMapType === 'hybrid' ? 'active' : ''}"
             on:click={() => setMapType('hybrid')}
-            title="Спутниковые снимки"
-            aria-label="Спутниковые снимки"
+            title="Satellite Imagery"
+            aria-label="Satellite Imagery"
           >
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <circle cx="12" cy="12" r="10" />
@@ -585,8 +585,8 @@
             type="button"
             class="tool-btn {activeMapType === 'terrain' ? 'active' : ''}"
             on:click={() => setMapType('terrain')}
-            title="Рельеф местности"
-            aria-label="Рельеф местности"
+            title="Terrain"
+            aria-label="Terrain"
           >
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M8 3l4 8 5-5 6 15H1L8 3z" />
@@ -599,8 +599,8 @@
             type="button"
             class="tool-btn"
             on:click={zoomIn}
-            title="Приблизить (+)"
-            aria-label="Приблизить"
+            title="Zoom In (+)"
+            aria-label="Zoom In"
           >
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <line x1="12" y1="5" x2="12" y2="19" />
@@ -612,8 +612,8 @@
             type="button"
             class="tool-btn"
             on:click={zoomOut}
-            title="Отдалить (-)"
-            aria-label="Отдалить"
+            title="Zoom Out (-)"
+            aria-label="Zoom Out"
           >
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <line x1="5" y1="12" x2="19" y2="12" />
@@ -624,8 +624,8 @@
             type="button"
             class="tool-btn target-btn"
             on:click={centerOnMarker}
-            title="Вернуть маркер в центр"
-            aria-label="Центрировать на маркере"
+            title="Center on Marker"
+            aria-label="Center on Marker"
           >
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <circle cx="12" cy="12" r="3" />
@@ -660,10 +660,10 @@
 
       <div class="action-buttons">
         <button type="button" class="btn cancel-btn" on:click={handleClose}>
-          Отмена
+          Cancel
         </button>
         <button type="button" class="btn confirm-btn" on:click={handleConfirm}>
-          Применить к глобусу
+          Select Point
         </button>
       </div>
     </div>

@@ -1,4 +1,5 @@
 import { resolvePreset } from '../data/presets.js';
+import { fetchNasaDataForCoords } from '../utils/nasaApi.js';
 
 const STORAGE_KEY = 'field-shift-session';
 
@@ -9,9 +10,12 @@ const defaults = {
   collapsed: false,
   theme: 'dark',
   result: null,
+  nasaData: null,
+  nasaLoading: false,
+  nasaError: null,
   form: {
-    lat: 42.0308,
-    lon: -93.6319,
+    lat: null,
+    lon: null,
     predecessor: 'corn',
     goal: 'regeneration',
     soil: 'loam',
@@ -29,6 +33,8 @@ function load() {
     if (!raw) return fresh;
     const saved = JSON.parse(raw);
     const merged = { ...fresh, ...saved, form: { ...fresh.form, ...saved.form } };
+    merged.nasaLoading = false;
+    merged.nasaError = null;
     if (merged.theme !== 'light') merged.theme = 'dark';
     if (merged.activeTab === 'calculating') merged.activeTab = 'telemetry';
     if (merged.activeTab === 'results' && !merged.result?.years?.[0]?.options) {
@@ -52,6 +58,9 @@ $effect.root(() => {
 });
 
 export function applyPreset(preset) {
+  const coords = resolvePreset(preset);
   session.activePresetId = preset.id;
-  Object.assign(session.form, resolvePreset(preset));
+  session.form.lat = coords.lat;
+  session.form.lon = coords.lon;
+  fetchNasaDataForCoords(coords.lat, coords.lon, { bypassCache: preset.id === 'random' });
 }

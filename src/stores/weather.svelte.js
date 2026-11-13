@@ -37,15 +37,42 @@ $effect.root(() => {
   $effect(() => {
     const lat = session.form.lat;
     const lon = session.form.lon;
+    const isRandom = session.activePresetId === 'random';
+
+    if (
+      lat === null ||
+      lon === null ||
+      lat === '' ||
+      lon === '' ||
+      Number.isNaN(Number(lat)) ||
+      Number.isNaN(Number(lon))
+    ) {
+      latitude = null;
+      longitude = null;
+      data = null;
+      loading = false;
+      failed = false;
+      return;
+    }
+
+    // If session.nasaData already populated this coordinate, reuse it immediately
+    if (session.nasaData && session.nasaData.lat === lat && session.nasaData.lon === lon) {
+      data = session.nasaData.weather;
+      latitude = lat;
+      longitude = lon;
+      loading = false;
+      failed = false;
+      return;
+    }
 
     // skip if coordinates didn't change and we already have data
     if (lat === latitude && lon === longitude && data) return;
     latitude  = lat;
     longitude = lon;
 
-    // ── 1. Try to restore from localStorage first ──────────────
-    const cached = loadFromStorage();
-    if (cached && cached.lat === lat && cached.lon === lon && cached.data) {
+    // ── 1. Try to restore from localStorage first (unless Random Field) ──
+    const cached = isRandom ? null : loadFromStorage();
+    if (!isRandom && cached && cached.lat === lat && cached.lon === lon && cached.data) {
       data    = cached.data;
       loading = false;
       failed  = false;
@@ -63,13 +90,14 @@ $effect.root(() => {
         const parsed = parseWeatherResponse(raw);
         data    = parsed;
         loading = false;
-        saveToStorage(lat, lon, parsed);
+        if (!isRandom) {
+          saveToStorage(lat, lon, parsed);
+        }
       })
       .catch((err) => {
         if (cancelled) return;
         console.error('NASA POWER fetch failed', err);
-        // If we have any cached data at all, use it before declaring failure
-        if (cached?.data) {
+        if (!isRandom && cached?.data) {
           data = cached.data;
           loading = false;
         } else {

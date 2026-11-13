@@ -9,13 +9,40 @@
   import { presets } from "../data/presets.js";
   import { cropOptions, soilOptions, goalOptions } from "../data/options.js";
   import { session, applyPreset } from "../stores/session.svelte.js";
+  import { fetchNasaDataForCoords } from "../utils/nasaApi.js";
 
   let isMapModalOpen = $state(false);
+  let lastCoordsKey = $state(null);
+
+  $effect(() => {
+    const lat = session.form.lat;
+    const lon = session.form.lon;
+    const isRandom = session.activePresetId === "random";
+
+    if (
+      lat === null ||
+      lon === null ||
+      lat === "" ||
+      lon === "" ||
+      Number.isNaN(Number(lat)) ||
+      Number.isNaN(Number(lon))
+    ) {
+      return;
+    }
+
+    const key = `${Number(lat).toFixed(4)},${Number(lon).toFixed(4)}`;
+    if (!isRandom && key === lastCoordsKey) return;
+    lastCoordsKey = key;
+
+    fetchNasaDataForCoords(Number(lat), Number(lon), { bypassCache: isRandom });
+  });
 
   function handleMapConfirm(e) {
-    session.form.lat = Number(e.detail.lat.toFixed(4));
-    session.form.lon = Number(e.detail.lng.toFixed(4));
+    const lat = Number(e.detail.lat.toFixed(4));
+    const lon = Number(e.detail.lng.toFixed(4));
     session.activePresetId = null;
+    session.form.lat = lat;
+    session.form.lon = lon;
     isMapModalOpen = false;
   }
 </script>
@@ -43,8 +70,8 @@
     <button
       type="button"
       class="map-icon-btn"
-      title="Google Maps: выбор координат"
-      aria-label="Google Maps: выбор координат"
+      title="Google Maps: select coordinates"
+      aria-label="Google Maps: select coordinates"
       onclick={() => { isMapModalOpen = true; }}
     >
       <svg
@@ -61,8 +88,8 @@
 
   {#if isMapModalOpen}
     <GoogleMapModal
-      initialLat={session.form.lat}
-      initialLng={session.form.lon}
+      initialLat={session.form.lat ?? 50.45}
+      initialLng={session.form.lon ?? 30.52}
       on:close={() => { isMapModalOpen = false; }}
       on:confirm={handleMapConfirm}
     />
