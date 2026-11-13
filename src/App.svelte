@@ -1,94 +1,131 @@
-<script lang="ts">
+<script>
+  import '@fontsource-variable/inter';
+  import './style.css';
+  import Header from './components/Header.svelte';
+  import SideTabs from './components/SideTabs.svelte';
   import Globus from './components/globus.svelte';
-  import GoogleMapModal from './components/GoogleMapModal.svelte';
+  import FarmSoilScreen from './screens/FarmSoilScreen.svelte';
+  import TelemetryScreen from './screens/TelemetryScreen.svelte';
+  import CalculatingScreen from './screens/CalculatingScreen.svelte';
+  import ResultsScreen from './screens/ResultsScreen.svelte';
+  import { session } from './stores/session.svelte.js';
+  import { preloadCropModel } from './lib/crop/index.js';
 
-  let latitude: number | null = null;
-  let longitude: number | null = null;
-  let isMapModalOpen: boolean = false;
+  const tabs = [
+    { id: 'farm', label: 'Farm + Soil' },
+    { id: 'telemetry', label: 'Stress Test + NASA Telemetry' },
+  ];
 
-  function handleMapConfirm(e: CustomEvent<{ lat: number; lng: number; address: string }>) {
-    latitude = e.detail.lat;
-    longitude = e.detail.lng;
-    isMapModalOpen = false;
+  const panelScreen = $derived(session.activeTab === 'results' ? 'telemetry' : session.activeTab);
+  const tabActive = $derived(session.activeTab === 'farm' ? 'farm' : 'telemetry');
+  const showResults = $derived(session.activeTab === 'results' && Boolean(session.result));
+
+  // Грузим ONNX-модель заранее, пока пользователь заполняет форму.
+  preloadCropModel().catch((e) => console.error('Crop model failed to load', e));
+
+  $effect(() => {
+    document.documentElement.dataset.theme = session.theme;
+  });
+
+  function selectTab(id) {
+    if (id === 'telemetry' && session.activeTab === 'results') return;
+    session.activeTab = id;
   }
 </script>
 
-<main class="app-container">
-  <button
-    type="button"
-    class="map-icon-btn"
-    title="Google Maps: выбор координат"
-    aria-label="Google Maps: выбор координат"
-    on:click={() => { isMapModalOpen = true; }}
-  >
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      viewBox="0 -960 960 960"
-      width="24"
-      height="24"
-      fill="currentColor"
-    >
-      <path d="M480-880q27 0 53.5 4.5T585-863l-65 66q-10-2-19.5-2.5T480-800q-101 0-170.5 69.5T240-552q0 71 59 162.5T480-186q122-112 181-203.5T720-552q0-12-1-24t-3-23l66-66q9 26 13.5 54t4.5 59q0 94-68 201.5T533-127q-11 10-25 15t-28 5q-14 0-28-5t-25-15q-65-60-115-117t-83.5-110.5q-33.5-53.5-51-103T160-552q0-150 96.5-239T480-880Zm0 328Zm254-254-46-46-236 236q-6 6-9 13.5t-3 15.5v37q0 13 8.5 21.5T470-520h37q8 0 15.5-3t13.5-9l236-236-38-38Zm66 10 28-28q11-11 11-28t-11-28l-28-28q-11-11-28-11t-28 11l-28 28 84 84Z"/>
-    </svg>
-  </button>
+<div class="app">
+  <Header />
 
-  <Globus {latitude} {longitude} />
+  {#if showResults}
+    <main class="results-page">
+      <ResultsScreen />
+    </main>
+  {:else}
+    <div class="layout">
+      <section class="panel" class:collapsed={session.collapsed}>
+        <div class="content">
+          {#if panelScreen === 'telemetry'}
+            <TelemetryScreen />
+          {:else if panelScreen === 'calculating'}
+            <CalculatingScreen />
+          {:else}
+            <FarmSoilScreen />
+          {/if}
+        </div>
 
-  {#if isMapModalOpen}
-    <GoogleMapModal
-      initialLat={latitude ?? 50.45}
-      initialLng={longitude ?? 30.52}
-      on:close={() => { isMapModalOpen = false; }}
-      on:confirm={handleMapConfirm}
-    />
+        <SideTabs {tabs} active={tabActive} onselect={selectTab} bind:collapsed={session.collapsed} />
+      </section>
+
+      <div class="globe-stage">
+        <Globus
+          width="100%"
+          height="calc(100vh - var(--header-height))"
+          latitude={session.form.lat}
+          longitude={session.form.lon}
+        />
+      </div>
+    </div>
   {/if}
-</main>
+
+  <footer>©CosmicValley, IT STEP Students Team</footer>
+</div>
 
 <style>
-  :global(body) {
-    margin: 0;
-    padding: 0;
-    background-color: #07080b;
-    color: #e2e8f0;
-    font-family: system-ui, -apple-system, sans-serif;
-    overflow-x: hidden;
+  .app {
+    min-height: 100vh;
   }
 
-  .app-container {
-    position: relative;
-    width: 100%;
-    max-width: 960px;
-    margin: 0 auto;
-    padding: 24px 16px;
-    box-sizing: border-box;
+  .layout {
     display: flex;
-    flex-direction: column;
-    align-items: flex-end;
-    gap: 12px;
+    align-items: flex-start;
+    min-height: calc(100vh - var(--header-height));
   }
 
-  .map-icon-btn {
-    display: inline-flex;
+  .panel {
+    position: relative;
+    flex-shrink: 0;
+    width: var(--panel-width);
+    max-width: calc(100vw - var(--rail-width));
+    min-height: calc(100vh - var(--header-height));
+    border-radius: 24px 0 0 0;
+    background: var(--color-panel);
+    transition: width 0.25s ease;
+  }
+
+  .content {
+    padding: 28px 40px 40px 32px;
+  }
+
+  .panel.collapsed {
+    width: var(--panel-collapsed-width);
+  }
+
+  .panel.collapsed .content {
+    display: none;
+  }
+
+  .globe-stage {
+    flex: 1;
+    min-width: 0;
+    height: calc(100vh - var(--header-height));
+    display: flex;
     align-items: center;
     justify-content: center;
-    background: transparent;
-    border: none;
-    color: #cbd5e1;
-    width: 36px;
-    height: 36px;
-    padding: 0;
-    border-radius: 8px;
-    cursor: pointer;
-    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
   }
 
-  .map-icon-btn:hover {
-    color: #00f0ff;
-    filter: drop-shadow(0 0 8px rgba(0, 240, 255, 0.6));
-    transform: translateY(-1px);
+  .results-page {
+    /* полноэкранный вертикальный слайдер: страница не прокручивается */
+    height: calc(100vh - var(--header-height));
   }
 
-  .map-icon-btn:active {
-    transform: scale(0.92);
+  footer {
+    position: fixed;
+    right: 0;
+    bottom: 10px;
+    left: 0;
+    text-align: center;
+    font-size: 8px;
+    color: var(--color-text-dim);
+    pointer-events: none;
   }
 </style>

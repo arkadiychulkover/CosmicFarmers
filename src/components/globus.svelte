@@ -640,11 +640,9 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    background-color: #07080c;
-    border-radius: 14px;
+    background: transparent;
     overflow: hidden;
     user-select: none;
-    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.7);
     cursor: grab;
     touch-action: none;
   }
@@ -667,7 +665,7 @@
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    background: #07080c;
+    background: transparent;
     z-index: 5;
     gap: 14px;
   }
