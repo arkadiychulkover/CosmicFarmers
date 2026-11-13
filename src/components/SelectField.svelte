@@ -107,34 +107,35 @@
   }
 
   .label {
-    font-size: 11px;
+    font-size: 13px;
+    font-weight: 700;
     color: var(--color-text);
   }
 
   .hint {
-    font-size: 9px;
+    font-size: 9.5px;
     line-height: 1.4;
     color: var(--color-text-dim);
   }
 
   .select {
     position: relative;
-    width: 100%;
-    max-width: 340px;
+    width: fit-content;
+    min-width: 150px;
+    max-width: 100%;
   }
 
   .trigger {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 12px;
+    gap: 14px;
     width: 100%;
-    padding: 6px 10px;
-    border: 1px solid var(--color-text);
+    padding: 6px 12px;
+    border: 1px solid var(--color-border-strong);
     border-radius: 6px;
     background: transparent;
     color: var(--color-text);
-    font-family: inherit;
     font-size: 11px;
     text-align: left;
     cursor: pointer;
@@ -166,22 +167,24 @@
     position: absolute;
     top: calc(100% + 2px);
     left: 0;
-    right: 0;
     z-index: 10;
+    width: max-content;
+    min-width: 100%;
+    max-width: 360px;
     margin: 0;
     padding: 0;
     list-style: none;
-    border: 1px solid var(--color-text);
+    border: 1px solid var(--color-border-strong);
     border-radius: 6px;
-    background: var(--color-panel);
     overflow: hidden;
   }
 
   li {
-    padding: 6px 10px;
+    padding: 7px 12px;
+    background: var(--color-option);
+    color: var(--color-text);
     font-size: 11px;
-    color: var(--color-text-dim);
-    border-bottom: 1px solid var(--color-border-dim);
+    border-bottom: 1px solid color-mix(in srgb, var(--color-text) 18%, transparent);
     cursor: pointer;
   }
 
@@ -190,12 +193,10 @@
   }
 
   li.highlighted {
-    color: var(--color-text);
-    background: rgba(255, 255, 255, 0.08);
+    background: var(--color-option-active);
   }
 
   li.selected {
-    color: var(--color-text);
-    font-weight: 600;
+    font-weight: 700;
   }
 </style>

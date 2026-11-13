@@ -4,11 +4,11 @@
     min = 0,
     max = 100,
     step = 1,
-    unit = "",
+    unit = '',
     value = $bindable(),
-    minLabel = "",
-    midLabel = "",
-    maxLabel = "",
+    minLabel = '',
+    midLabel = '',
+    maxLabel = '',
     showRange = false,
   } = $props();
 
@@ -33,19 +33,21 @@
         {min}
         {max}
         {step}
-        bind:value
+        {value}
         onchange={clampInput}
         aria-label="{label} value"
       />
       {#if unit}<span class="unit">{unit}</span>{/if}
     </div>
   </div>
+
   {#if showRange}
     <div class="marks">
       <span>{min}</span>
       <span>{max}</span>
     </div>
   {/if}
+
   <input
     id="slider-{label}"
     class="range"
@@ -78,29 +80,29 @@
   }
 
   label {
-    font-size: 11px;
+    font-size: 13px;
+    font-weight: 500;
     color: var(--color-text);
   }
 
   .value-box {
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 8px;
   }
 
   .unit {
-    font-size: 10px;
-    color: var(--color-text-dim);
+    font-size: 11px;
+    color: var(--color-text);
   }
 
   .number {
-    width: 48px;
+    width: 52px;
     padding: 3px 6px;
-    border: 1px solid var(--color-text-dim);
+    border: 1px solid var(--color-border-dim);
     border-radius: 4px;
-    background: transparent;
+    background: var(--color-field);
     color: var(--color-text);
-    font-family: inherit;
     font-size: 11px;
     text-align: center;
     appearance: textfield;
@@ -114,6 +116,7 @@
   }
 
   .number:focus-visible {
+    border-color: var(--color-border-strong);
     outline: 2px solid var(--color-accent);
     outline-offset: 1px;
   }
@@ -157,7 +160,7 @@
   .marks {
     display: flex;
     justify-content: space-between;
-    font-size: 9px;
+    font-size: 8.5px;
     color: var(--color-text-dim);
   }
 </style>

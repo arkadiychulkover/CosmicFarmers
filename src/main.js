@@ -1,5 +1,6 @@
 import { mount } from 'svelte';
-import '@fontsource-variable/inter';
+import '@fontsource/roboto';
+import '@fontsource/rajdhani';
 import './style.css';
 import App from './App.svelte';
 

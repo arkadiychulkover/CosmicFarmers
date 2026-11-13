@@ -18,34 +18,30 @@
 
 <style>
   .presets {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-    justify-content: center;
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
   }
 
   .preset {
-    padding: 5px 12px;
+    padding: 6px 12px;
     border: 1px solid var(--color-border-dim);
-    border-radius: 999px;
-    background: transparent;
-    color: var(--color-text-dim);
-    font-size: 10px;
-    white-space: nowrap;
+    border-radius: 14px;
+    background: var(--color-field);
+    color: var(--color-text);
+    font-size: 12px;
+    font-weight: 700;
     cursor: pointer;
-    transition:
-      color 0.15s,
-      border-color 0.15s;
+    transition: border-color 0.15s;
   }
 
   .preset:hover {
-    color: var(--color-text);
-    border-color: var(--color-text);
+    border-color: var(--color-border-strong);
   }
 
   .preset.active {
-    color: var(--color-text);
-    border-color: var(--color-text);
+    border-color: var(--color-border-strong);
+    box-shadow: inset 0 0 0 1px var(--color-border-strong);
   }
 
   .preset:focus-visible {

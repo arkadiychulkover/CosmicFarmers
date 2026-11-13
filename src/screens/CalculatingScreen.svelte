@@ -1,39 +1,87 @@
 <script>
-  import { onMount } from 'svelte';
-  import ActionButton from '../components/ActionButton.svelte';
-  import { calculationSteps } from '../data/steps.js';
-  import { runStrategy } from '../api.js';
-  import { session } from '../stores/session.svelte.js';
-  import { weatherStore } from '../stores/weather.svelte.js';
+  import { onMount } from "svelte";
+  import ActionButton from "../components/ActionButton.svelte";
+  import { calculationSteps } from "../data/steps.js";
+  import { runStrategy, getTelemetry } from "../api.js";
+  import { session } from "../stores/session.svelte.js";
+  import { fetchNasaDataForCoords } from "../utils/nasaApi.js";
 
   let current = $state(0);
   let failed = $state(false);
+  let errorMessage = $state("");
 
-  const progress = $derived(Math.round((current / calculationSteps.length) * 100));
+  const totalSteps = $derived(Math.max(1, calculationSteps?.length || 1));
+  const progress = $derived(
+    Math.min(95, Math.round((current / totalSteps) * 100))
+  );
 
   onMount(() => {
     const controller = new AbortController();
-    const input = {
-      ...$state.snapshot(session.form),
-      precipitationAnomaly: session.climate,
-      nasaClimate: weatherStore.cropInput,
-      telemetry: weatherStore.telemetry,
-    };
 
     const timer = setInterval(() => {
-      if (current < calculationSteps.length - 1) current += 1;
+      if (current < totalSteps - 1) {
+        current += 1;
+      }
     }, 700);
 
-    runStrategy(input, { signal: controller.signal })
-      .then((result) => {
+    async function calculate() {
+      try {
+        const { lat, lon } = $state.snapshot(session.form);
+        const expectedLat = Number(Number(lat).toFixed(4));
+        const expectedLon = Number(Number(lon).toFixed(4));
+
+        let nasaData = session.nasaData;
+
+        if (
+          !nasaData ||
+          Math.abs(nasaData.lat - expectedLat) > 0.001 ||
+          Math.abs(nasaData.lon - expectedLon) > 0.001
+        ) {
+          nasaData = await fetchNasaDataForCoords(lat, lon, {
+            signal: controller.signal,
+          });
+        }
+
+        if (controller.signal.aborted) return;
+
+        if (!nasaData) {
+          throw new Error(session.nasaError || "NASA climate data is unavailable.");
+        }
+
+        const telemetry = await getTelemetry(lat, lon, { signal: controller.signal });
+        if (controller.signal.aborted) return;
+
+        if (!telemetry) {
+          throw new Error("Telemetry data is unavailable.");
+        }
+
+        const input = {
+          ...$state.snapshot(session.form),
+          nasaClimate: nasaData,
+          telemetry,
+          precipitationAnomaly: session.climate.precipitation,
+        };
+
+        const result = await runStrategy(input, {
+          signal: controller.signal,
+        });
+
+        if (controller.signal.aborted) return;
+
         session.result = result;
         session.collapsed = true;
-        session.activeTab = 'results';
-      })
-      .catch((error) => {
-        if (error.name !== 'AbortError') failed = true;
-      })
-      .finally(() => clearInterval(timer));
+        session.activeTab = "results";
+      } catch (error) {
+        if (error.name === "AbortError") return;
+        console.error("Strategy calculation failed:", error);
+        failed = true;
+        errorMessage = error.message || "Unknown calculation error.";
+      } finally {
+        clearInterval(timer);
+      }
+    }
+
+    calculate();
 
     return () => {
       controller.abort();
@@ -41,8 +89,8 @@
     };
   });
 
-  function backToTelemetry() {
-    session.activeTab = 'telemetry';
+  function cancelCalculation() {
+    session.activeTab = session.result ? "results" : "farm";
   }
 </script>
 
@@ -50,7 +98,9 @@
   <h2>Calculating Strategy</h2>
 
   {#if failed}
-    <p class="message">Calculation failed. Go back and try again.</p>
+    <p class="message" role="alert">
+      Calculation failed: {errorMessage}
+    </p>
   {:else}
     <div
       class="bar"
@@ -74,8 +124,8 @@
   {/if}
 
   <div class="actions">
-    <ActionButton variant="outline" onclick={backToTelemetry}>
-      {failed ? '← Back to telemetry' : 'Cancel'}
+    <ActionButton variant="outline" onclick={cancelCalculation}>
+      {failed ? "← Back to farm" : "Cancel"}
     </ActionButton>
   </div>
 </div>
@@ -103,7 +153,7 @@
 
   .fill {
     height: 100%;
-    background: var(--color-text);
+    background: var(--color-accent);
     transition: width 0.4s ease;
   }
 
@@ -120,7 +170,7 @@
     align-items: center;
     gap: 12px;
     padding: 8px 0;
-    font-size: 11px;
+    font-size: 12px;
     color: var(--color-text-dim);
   }
 
@@ -144,12 +194,12 @@
   }
 
   .complete .mark {
-    border-color: var(--color-chart-green);
-    background: var(--color-chart-green);
+    border-color: var(--color-tone-good);
+    background: var(--color-tone-good);
   }
 
   .complete .mark::after {
-    content: '';
+    content: "";
     width: 3px;
     height: 6px;
     margin-bottom: 1px;
@@ -159,7 +209,7 @@
   }
 
   .actions {
-    width: 70%;
+    width: 75%;
     margin: 0 auto;
   }
 

@@ -1,18 +1,59 @@
 <script>
   import TelemetryCard from '../components/TelemetryCard.svelte';
-  import ClimateSlider from '../components/ClimateSlider.svelte';
+  import ClimateTable from '../components/ClimateTable.svelte';
   import ActionButton from '../components/ActionButton.svelte';
   import FieldProfileStatus from '../components/FieldProfileStatus.svelte';
   import PrecipitationChart from '../components/charts/PrecipitationChart.svelte';
   import TemperatureChart from '../components/charts/TemperatureChart.svelte';
   import SolarGauge from '../components/charts/SolarGauge.svelte';
   import GddBar from '../components/charts/GddBar.svelte';
-  import { weatherStore } from '../stores/weather.svelte.js';
+  import { getTelemetry } from '../api.js';
   import { session } from '../stores/session.svelte.js';
 
-  const telemetry = $derived(weatherStore.telemetry);
-  const loading   = $derived(weatherStore.loading);
-  const failed    = $derived(weatherStore.failed);
+  let telemetry = $state(null);
+  let loading = $state(true);
+  let failed = $state(false);
+
+  const columns = $derived([
+    {
+      key: 'temperature',
+      label: 'Temperature, °C',
+      value: telemetry ? telemetry.temperature.mean : '—',
+    },
+    {
+      key: 'precipitation',
+      label: 'Precipitation, mm',
+      value: telemetry ? telemetry.precipitation.total : '—',
+    },
+    {
+      key: 'solar',
+      label: 'Solar Irradiance, MJ/m²/day',
+      value: telemetry ? telemetry.solar.value : '—',
+    },
+  ]);
+
+  $effect(() => {
+    const { lat, lon } = session.form;
+    let cancelled = false;
+    loading = true;
+    failed = false;
+
+    getTelemetry(lat, lon)
+      .then((data) => {
+        if (cancelled) return;
+        telemetry = data;
+        loading = false;
+      })
+      .catch(() => {
+        if (cancelled) return;
+        failed = true;
+        loading = false;
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  });
 
   function precipitationNote(pct) {
     const sign = pct >= 0 ? '+' : '';
@@ -89,12 +130,7 @@
   {/if}
 
   <h2>Climate Risk Simulator</h2>
-  <ClimateSlider
-    label="Precipitation Anomaly Stress-Test"
-    minLabel="Extreme Drought"
-    maxLabel="Excessive Rainfall"
-    bind:value={session.climate}
-  />
+  <ClimateTable {columns} bind:anomalies={session.climate} />
 
   <div class="actions">
     <ActionButton onclick={calculate}>Calculate the Strategy →</ActionButton>
@@ -107,7 +143,7 @@
 <style>
   .screen {
     display: grid;
-    gap: 24px;
+    gap: 22px;
   }
 
   .status {
@@ -132,7 +168,7 @@
   .actions {
     display: grid;
     gap: 10px;
-    width: 70%;
+    width: 75%;
     margin: 0 auto;
   }
 </style>
