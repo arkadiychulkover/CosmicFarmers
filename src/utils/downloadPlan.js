@@ -46,7 +46,6 @@ export async function downloadPlan(result, form) {
   const doc = new jsPDF({ unit: 'mm', format: 'a4' });
   const { margin } = PAGE;
 
-  // ── Страница 1: сводка ────────────────────────────────────────
   let y = margin + 4;
   doc.setFont('helvetica', 'bold').setFontSize(20).setTextColor(30);
   doc.text('FIELD SHIFT', margin, y);
@@ -76,7 +75,6 @@ export async function downloadPlan(result, form) {
   }
   doc.line(margin, y, margin + CONTENT_W, y);
 
-  // ── Страницы 2..N: по одному году ────────────────────────────
   const photos = await Promise.all(result.years.map((e) => loadPhoto(cropImage(e.id), CONTENT_W / 70)));
 
   result.years.forEach((entry, i) => {
@@ -106,7 +104,6 @@ export async function downloadPlan(result, form) {
     paragraph(doc, entry.options.map((o) => `${o.name} ${o.percent}%`).join('   |   '), margin, py + 2, { size: 10, color: 70 });
   });
 
-  // Нумерация страниц
   const total = doc.getNumberOfPages();
   for (let p = 1; p <= total; p++) {
     doc.setPage(p).setFont('helvetica', 'normal').setFontSize(8).setTextColor(150);
