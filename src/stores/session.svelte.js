@@ -1,7 +1,8 @@
 import { resolvePreset } from '../data/presets.js';
 import { fetchNasaDataForCoords } from '../utils/nasaApi.js';
 
-const STORAGE_KEY = 'field-shift-session';
+const SESSION_KEY = 'field-shift-session';
+const LOCATION_SOIL_KEY = 'field-shift-location-soil';
 
 const defaults = {
   activeTab: 'farm',
@@ -32,49 +33,103 @@ const defaults = {
   },
 };
 
+function safeParse(raw) {
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
+}
+
+function applyLocationAndSoil(target, saved) {
+  if (!saved || typeof saved !== 'object') return;
+  const form = saved.form && typeof saved.form === 'object' ? saved.form : saved;
+  for (const key of ['lat', 'lon', 'soil', 'ph', 'n', 'p', 'k']) {
+    if (form[key] === undefined || form[key] === null || form[key] === '') continue;
+    target.form[key] = form[key];
+  }
+}
+
+function mergeSession(fresh, saved) {
+  const savedClimate = saved.climate && typeof saved.climate === 'object' ? saved.climate : {};
+
+  const merged = {
+    ...fresh,
+    ...saved,
+    form: { ...fresh.form, ...saved.form },
+    climate: { ...fresh.climate, ...savedClimate },
+  };
+
+  if (typeof saved.climate === 'number') {
+    merged.climate.precipitation = saved.climate;
+  }
+
+  merged.nasaLoading = false;
+  merged.nasaError = null;
+  if (!merged.activePresetId || merged.activePresetId === 'random') {
+    merged.nasaData = null;
+  }
+
+  if (merged.theme !== 'light') merged.theme = 'dark';
+
+  if (merged.activeTab === 'calculating') {
+    merged.activeTab = 'telemetry';
+  }
+
+  if (
+    merged.activeTab === 'results' &&
+    (!merged.result?.years?.[0]?.options || !merged.result?.recommendations)
+  ) {
+    merged.activeTab = 'telemetry';
+  }
+
+  return merged;
+}
+
 function load() {
   const fresh = structuredClone(defaults);
 
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return fresh;
+  const fromSession = safeParse(sessionStorage.getItem(SESSION_KEY));
+  if (fromSession) return mergeSession(fresh, fromSession);
 
-    const saved = JSON.parse(raw);
-    const savedClimate = saved.climate && typeof saved.climate === 'object' ? saved.climate : {};
-
-    const merged = {
-      ...fresh,
-      ...saved,
-      form: { ...fresh.form, ...saved.form },
-      climate: { ...fresh.climate, ...savedClimate },
-    };
-
-    if (typeof saved.climate === 'number') {
-      merged.climate.precipitation = saved.climate;
-    }
-
-    merged.nasaLoading = false;
-    merged.nasaError = null;
-    if (!merged.activePresetId || merged.activePresetId === 'random') {
-      merged.nasaData = null;
-    }
-
-    if (merged.theme !== 'light') merged.theme = 'dark';
-
-    if (merged.activeTab === 'calculating') {
-      merged.activeTab = 'telemetry';
-    }
-
-    if (
-      merged.activeTab === 'results' &&
-      (!merged.result?.years?.[0]?.options || !merged.result?.recommendations)
-    ) {
-      merged.activeTab = 'telemetry';
-    }
-
-    return merged;
-  } catch {
+  const persisted = safeParse(localStorage.getItem(LOCATION_SOIL_KEY));
+  if (persisted) {
+    applyLocationAndSoil(fresh, persisted);
     return fresh;
+  }
+
+  const legacy = safeParse(localStorage.getItem(SESSION_KEY));
+  if (legacy) applyLocationAndSoil(fresh, legacy);
+  return fresh;
+}
+
+function writeSessionSnapshot(snapshot) {
+  try {
+    sessionStorage.setItem(SESSION_KEY, JSON.stringify(snapshot));
+  } catch (err) {
+    console.warn('Failed to save session state:', err);
+  }
+}
+
+function persistLocationAndSoil() {
+  try {
+    const { form } = session;
+    localStorage.setItem(
+      LOCATION_SOIL_KEY,
+      JSON.stringify({
+        lat: form.lat,
+        lon: form.lon,
+        soil: form.soil,
+        ph: form.ph,
+        n: form.n,
+        p: form.p,
+        k: form.k,
+      }),
+    );
+    localStorage.removeItem(SESSION_KEY);
+  } catch (err) {
+    console.warn('Failed to persist location and soil:', err);
   }
 }
 
@@ -86,14 +141,18 @@ $effect.root(() => {
     const snapshot = $state.snapshot(session);
     if (saveTimer) clearTimeout(saveTimer);
     saveTimer = setTimeout(() => {
-      try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(snapshot));
-      } catch (err) {
-        console.warn('Failed to save session state:', err);
-      }
+      writeSessionSnapshot(snapshot);
     }, 300);
   });
 });
+
+if (typeof window !== 'undefined') {
+  window.addEventListener('pagehide', () => {
+    if (saveTimer) clearTimeout(saveTimer);
+    writeSessionSnapshot($state.snapshot(session));
+    persistLocationAndSoil();
+  });
+}
 
 let coordRequestSeq = 0;
 
