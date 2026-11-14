@@ -24,6 +24,7 @@
 
   const result = $derived($session.result);
   const recommendations = $derived(result?.recommendations ?? []);
+  const indicators = $derived(result?.indicators ?? []);
   const top = $derived(recommendations[0] ?? null);
   const others = $derived(recommendations.slice(1));
   const years = $derived(result?.years ?? []);
@@ -155,6 +156,19 @@
         Based on your field, soil and climate stress test, this is your RECOMMENDED NEXT CROP:
       </p>
     </header>
+
+    {#if indicators.length}
+      <div class="indicators" aria-label="3-year rotation impact summary">
+        {#each indicators as ind (ind.key)}
+          <div class="ind-card">
+            <span class="ind-label">{ind.label}</span>
+            <strong class="ind-val">{ind.value}</strong>
+            <div class="ind-bar"><span style:width="{ind.score}%"></span></div>
+            <small class="ind-note">{ind.note}</small>
+          </div>
+        {/each}
+      </div>
+    {/if}
 
     {#if top}
       <CropFeatureCard item={top} />
@@ -337,6 +351,56 @@
     margin: 0;
     font-size: 9px;
     line-height: 1.4;
+    color: var(--color-text-dim);
+  }
+
+  .indicators {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .ind-card {
+    display: grid;
+    gap: 4px;
+    padding: 8px 10px;
+    border: 1px solid var(--color-border-dim);
+    border-radius: 6px;
+    background: var(--color-panel);
+  }
+
+  .ind-label {
+    font-size: 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--color-text-dim);
+  }
+
+  .ind-val {
+    font-family: var(--font-display);
+    font-size: 13px;
+    font-weight: 600;
+    line-height: 1.1;
+    color: var(--color-accent);
+  }
+
+  .ind-bar {
+    height: 4px;
+    border-radius: 2px;
+    background: color-mix(in srgb, var(--color-bg) 70%, #000);
+    overflow: hidden;
+  }
+
+  .ind-bar span {
+    display: block;
+    height: 100%;
+    border-radius: 2px;
+    background: var(--color-accent);
+  }
+
+  .ind-note {
+    font-size: 8px;
+    line-height: 1.2;
     color: var(--color-text-dim);
   }
 
