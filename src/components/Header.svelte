@@ -1,10 +1,10 @@
 <script>  import { githubUrl } from '../data/links.js';
   import { session } from '../stores/session.svelte.js';
 
-  const light = $derived(session.theme === 'light');
+  const light = $derived($session.theme === 'light');
 
   function toggleTheme() {
-    session.theme = light ? 'dark' : 'light';
+    $session.theme = light ? 'dark' : 'light';
   }
 </script>
 

@@ -46,9 +46,8 @@
     - Показывать высоту над уровнем моря (м) и уклон поля (%) в профиле поля.
     - При высоком уклоне (>5–8%) добавлять предупреждение о риске водной эрозии (SRTM Runoff Risk) и бонус культурам, укрепляющим почву.
 
-- [ ] **Задача 2.3: Заменить синтетическую формулу почвы на реальные почвенные данные (USDA WSS / SSURGO / SoilGrids)**
-  - **Проблема:** `deriveSoilAndNutrients()` в [`src/utils/nasaApi.js`](./src/utils/nasaApi.js) выдумывает почву по широте.
-  - **Как реализовать:** Подключить запрос к REST API почвенных данных (например, ISRIC SoilGrids API для всего мира и/или USDA NRCS Soil Data Access API для США) для получения реального `pH`, содержания органического углерода (азота) и текстуры почвы (`sandy`, `loam`, `clay`/`chernozem`), оставив текущую формулу как надежный fallback.
+- [x] **Задача 2.3: Заменить синтетическую формулу почвы на реальные почвенные данные (USDA WSS / SSURGO / SoilGrids)**
+  - **Статус:** ✅ Выполнено. В [`src/utils/nasaApi.js`](./src/utils/nasaApi.js) добавлен `fetchSoilGrids()` (ISRIC SoilGrids v2.0 по слоям `0-5cm` и `5-15cm`: `phh2o`, `nitrogen`, `soc`, `sand`, `silt`, `clay`) с таймаутом 6.5 с и автоматическим fallback на `deriveSoilAndNutrients()` для городских/недоступных точек.
 
 - [ ] **Задача 2.4: Спутниковые слои NASA GIBS (MODIS NDVI / SMAP / IMERG) на карте выбора поля**
   - **Как реализовать:** В [`src/components/GoogleMapModal.svelte`](./src/components/GoogleMapModal.svelte) добавить кнопки переключения бесплатных спутниковых слоев **NASA GIBS (Global Imagery Browse Services)** (не требуют API-ключа, стандартный тайловый слой `ImageMapType` в Google Maps):

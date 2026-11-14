@@ -1,8 +1,8 @@
+import { writable, get } from 'svelte/store';
 import { resolvePreset } from '../data/presets.js';
 import { fetchNasaDataForCoords } from '../utils/nasaApi.js';
 
 const SESSION_KEY = 'field-shift-session';
-const LOCATION_SOIL_KEY = 'field-shift-location-soil';
 
 const defaults = {
   activeTab: 'farm',
@@ -20,6 +20,7 @@ const defaults = {
   nasaData: null,
   nasaLoading: false,
   nasaError: null,
+  savedAt: null,
   form: {
     lat: 42.0308,
     lon: -93.6319,
@@ -42,128 +43,98 @@ function safeParse(raw) {
   }
 }
 
-function applyLocationAndSoil(target, saved) {
-  if (!saved || typeof saved !== 'object') return;
-  const form = saved.form && typeof saved.form === 'object' ? saved.form : saved;
-  for (const key of ['lat', 'lon', 'soil', 'ph', 'n', 'p', 'k']) {
-    if (form[key] === undefined || form[key] === null || form[key] === '') continue;
-    target.form[key] = form[key];
-  }
+function hasValidForecast(data) {
+  return Boolean(data?.result?.years?.[0]?.options && data?.result?.recommendations);
 }
 
-function mergeSession(fresh, saved) {
-  const savedClimate = saved.climate && typeof saved.climate === 'object' ? saved.climate : {};
+function readSavedSession() {
+  if (typeof localStorage === 'undefined') return null;
+  const saved = safeParse(localStorage.getItem(SESSION_KEY));
+  return hasValidForecast(saved) ? saved : null;
+}
 
+function load() {
+  const fresh = structuredClone(defaults);
+  const saved = readSavedSession();
+  if (!saved) return fresh;
+
+  const savedClimate = saved.climate && typeof saved.climate === 'object' ? saved.climate : {};
   const merged = {
     ...fresh,
     ...saved,
     form: { ...fresh.form, ...saved.form },
     climate: { ...fresh.climate, ...savedClimate },
+    nasaLoading: false,
+    nasaError: null,
+    activeTab: 'results',
+    collapsed: true,
   };
 
   if (typeof saved.climate === 'number') {
     merged.climate.precipitation = saved.climate;
   }
-
-  merged.nasaLoading = false;
-  merged.nasaError = null;
-  if (!merged.activePresetId || merged.activePresetId === 'random') {
-    merged.nasaData = null;
-  }
-
   if (merged.theme !== 'light') merged.theme = 'dark';
-
-  if (merged.activeTab === 'calculating') {
-    merged.activeTab = 'telemetry';
-  }
-
-  if (
-    merged.activeTab === 'results' &&
-    (!merged.result?.years?.[0]?.options || !merged.result?.recommendations)
-  ) {
-    merged.activeTab = 'telemetry';
-  }
 
   return merged;
 }
 
-function load() {
-  const fresh = structuredClone(defaults);
+export const savedSession = writable(readSavedSession());
+export const session = writable(load());
 
-  const fromSession = safeParse(sessionStorage.getItem(SESSION_KEY));
-  if (fromSession) return mergeSession(fresh, fromSession);
-
-  const persisted = safeParse(localStorage.getItem(LOCATION_SOIL_KEY));
-  if (persisted) {
-    applyLocationAndSoil(fresh, persisted);
-    return fresh;
-  }
-
-  const legacy = safeParse(localStorage.getItem(SESSION_KEY));
-  if (legacy) applyLocationAndSoil(fresh, legacy);
-  return fresh;
-}
-
-function writeSessionSnapshot(snapshot) {
+export function saveCompletedSession(snapshot = get(session)) {
+  if (typeof localStorage === 'undefined' || !hasValidForecast(snapshot)) return;
+  const payload = {
+    ...snapshot,
+    nasaLoading: false,
+    nasaError: null,
+    savedAt: new Date().toISOString(),
+  };
   try {
-    sessionStorage.setItem(SESSION_KEY, JSON.stringify(snapshot));
+    localStorage.setItem(SESSION_KEY, JSON.stringify(payload));
+    savedSession.set(payload);
   } catch (err) {
     console.warn('Failed to save session state:', err);
   }
 }
 
-function persistLocationAndSoil() {
+export function clearSavedSession() {
+  if (typeof localStorage === 'undefined') return;
   try {
-    const { form } = session;
-    localStorage.setItem(
-      LOCATION_SOIL_KEY,
-      JSON.stringify({
-        lat: form.lat,
-        lon: form.lon,
-        soil: form.soil,
-        ph: form.ph,
-        n: form.n,
-        p: form.p,
-        k: form.k,
-      }),
-    );
     localStorage.removeItem(SESSION_KEY);
-  } catch (err) {
-    console.warn('Failed to persist location and soil:', err);
-  }
+    savedSession.set(null);
+  } catch {}
 }
 
-export const session = $state(load());
-
-let saveTimer = null;
-$effect.root(() => {
-  $effect(() => {
-    const snapshot = $state.snapshot(session);
-    if (saveTimer) clearTimeout(saveTimer);
-    saveTimer = setTimeout(() => {
-      writeSessionSnapshot(snapshot);
-    }, 300);
+let lastSavedKey = null;
+session.subscribe((current) => {
+  if (current.activeTab !== 'results' || !hasValidForecast(current)) return;
+  const key = JSON.stringify({
+    form: current.form,
+    climate: current.climate,
+    theme: current.theme,
+    result: current.result,
   });
+  if (key === lastSavedKey) return;
+  lastSavedKey = key;
+  saveCompletedSession(current);
 });
-
-if (typeof window !== 'undefined') {
-  window.addEventListener('pagehide', () => {
-    if (saveTimer) clearTimeout(saveTimer);
-    writeSessionSnapshot($state.snapshot(session));
-    persistLocationAndSoil();
-  });
-}
 
 let coordRequestSeq = 0;
 
 export function applyNasaPayloadToForm(payload) {
   if (!payload) return;
-  session.nasaData = payload;
-  session.form.ph = payload.ph;
-  session.form.soil = payload.soil;
-  session.form.n = payload.n;
-  session.form.p = payload.p;
-  session.form.k = payload.k;
+  session.update((s) => ({
+    ...s,
+    nasaData: payload,
+    form: {
+      ...s.form,
+      ph: payload.ph,
+      soil: payload.soil,
+      n: payload.n,
+      p: payload.p,
+      k: payload.k,
+    },
+  }));
 }
 
 export async function loadCoordsIntoSession(lat, lon, { presetId = null } = {}) {
@@ -172,14 +143,20 @@ export async function loadCoordsIntoSession(lat, lon, { presetId = null } = {}) 
   if (Number.isNaN(numLat) || Number.isNaN(numLon)) return;
 
   const seq = ++coordRequestSeq;
-  session.activePresetId = presetId;
-  session.coordsEditable = false;
-  session.customSoilEdited = false;
-  session.form.lat = numLat;
-  session.form.lon = numLon;
-  session.nasaData = null;
-  session.nasaLoading = true;
-  session.nasaError = null;
+  session.update((s) => ({
+    ...s,
+    activePresetId: presetId,
+    coordsEditable: false,
+    customSoilEdited: false,
+    nasaData: null,
+    nasaLoading: true,
+    nasaError: null,
+    form: {
+      ...s.form,
+      lat: numLat,
+      lon: numLon,
+    },
+  }));
 
   const isCachedPreset = Boolean(presetId && presetId !== 'random');
 
@@ -194,10 +171,16 @@ export async function loadCoordsIntoSession(lat, lon, { presetId = null } = {}) 
     }
   } catch (err) {
     if (seq !== coordRequestSeq) return;
-    session.nasaError = err?.message || 'Failed to load climate data for chosen location';
+    session.update((s) => ({
+      ...s,
+      nasaError: err?.message || 'Failed to load climate data for chosen location',
+    }));
   } finally {
     if (seq === coordRequestSeq) {
-      session.nasaLoading = false;
+      session.update((s) => ({
+        ...s,
+        nasaLoading: false,
+      }));
     }
   }
 }

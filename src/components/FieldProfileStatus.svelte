@@ -8,18 +8,18 @@
   }
 
   const name = $derived(
-    presets.find((p) => p.id === session.activePresetId)?.label ?? 'Custom field'
+    presets.find((p) => p.id === $session.activePresetId)?.label ?? 'Custom field'
   );
-  const crop = $derived(shortLabel(cropOptions, session.form.predecessor));
-  const soil = $derived(shortLabel(soilOptions, session.form.soil));
+  const crop = $derived(shortLabel(cropOptions, $session.form.predecessor));
+  const soil = $derived(shortLabel(soilOptions, $session.form.soil));
 </script>
 
 <div class="profile" role="status" aria-live="polite">
   <div class="badge">
     <strong>{name}</strong>
-    <span>Lat: {session.form.lat}, Lon: {session.form.lon}</span>
+    <span>Lat: {$session.form.lat}, Lon: {$session.form.lon}</span>
     <span>Previous Crop: {crop}</span>
-    <span>Soil: {soil} (pH {session.form.ph})</span>
+    <span>Soil: {soil} (pH {$session.form.ph})</span>
   </div>
 
   <div class="pill">
