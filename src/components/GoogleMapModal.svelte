@@ -38,6 +38,16 @@
 
   let activeMapType: 'roadmap' | 'hybrid' | 'terrain' = 'roadmap';
 
+  type GibsLayerId = 'ndvi' | 'soil' | 'lst';
+
+  const gibsLayers: Record<GibsLayerId, { title: string; id: string; matrix: string; maxZoom: number; opacity: number }> = {
+    ndvi: { title: 'MODIS NDVI', id: 'MODIS_Terra_NDVI_8Day', matrix: 'GoogleMapsCompatible_Level9', maxZoom: 9, opacity: 0.75 },
+    soil: { title: 'SMAP Soil Moisture', id: 'SMAP_L4_Analyzed_Surface_Soil_Moisture', matrix: 'GoogleMapsCompatible_Level6', maxZoom: 6, opacity: 0.75 },
+    lst: { title: 'MODIS Land Surface Temperature', id: 'MODIS_Terra_L3_Land_Surface_Temp_8Day_Day', matrix: 'GoogleMapsCompatible_Level7', maxZoom: 7, opacity: 0.75 }
+  };
+
+  let activeGibsLayer: GibsLayerId | null = null;
+
   const darkMapStyle = [
     { elementType: 'geometry', stylers: [{ color: '#090d14' }] },
     { elementType: 'labels.text.stroke', stylers: [{ color: '#06080d' }, { weight: 3 }] },
@@ -373,6 +383,64 @@
     }
   }
 
+  function createGibsMapType(layer: { id: string; matrix: string; maxZoom: number; opacity: number }) {
+    const google = (window as any).google;
+    return {
+      tileSize: new google.maps.Size(256, 256),
+      minZoom: 0,
+      maxZoom: 22,
+      opacity: layer.opacity,
+      getTile(coord: { x: number; y: number }, zoom: number, doc: Document) {
+        const div = doc.createElement('div');
+        div.style.width = '256px';
+        div.style.height = '256px';
+        div.style.overflow = 'hidden';
+        div.style.position = 'relative';
+        div.style.pointerEvents = 'none';
+
+        const tilesCount = Math.pow(2, zoom);
+        if (coord.y < 0 || coord.y >= tilesCount) return div;
+        const x = ((coord.x % tilesCount) + tilesCount) % tilesCount;
+
+        const diff = Math.max(0, zoom - layer.maxZoom);
+        const z = zoom - diff;
+        const scale = Math.pow(2, diff);
+        const tx = Math.floor(x / scale);
+        const ty = Math.floor(coord.y / scale);
+
+        const img = doc.createElement('img');
+        img.src = `https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/${layer.id}/default/default/${layer.matrix}/${z}/${ty}/${tx}.png`;
+        img.alt = '';
+        img.draggable = false;
+        img.style.position = 'absolute';
+        img.style.width = `${256 * scale}px`;
+        img.style.height = `${256 * scale}px`;
+        img.style.left = `${-(x - tx * scale) * 256}px`;
+        img.style.top = `${-(coord.y - ty * scale) * 256}px`;
+        img.style.imageRendering = diff > 0 ? 'pixelated' : 'auto';
+        img.onerror = () => { img.style.display = 'none'; };
+        div.appendChild(img);
+        return div;
+      }
+    };
+  }
+
+  function clearGibsOverlay() {
+    if (map && map.overlayMapTypes) map.overlayMapTypes.clear();
+  }
+
+  function toggleGibsLayer(id: GibsLayerId) {
+    const google = (window as any).google;
+    if (!map || !google) return;
+    clearGibsOverlay();
+    if (activeGibsLayer === id) {
+      activeGibsLayer = null;
+      return;
+    }
+    activeGibsLayer = id;
+    map.overlayMapTypes.push(createGibsMapType(gibsLayers[id]));
+  }
+
   function setMapType(type: 'roadmap' | 'hybrid' | 'terrain') {
     const google = (window as any).google;
     if (!map || !google) return;
@@ -593,6 +661,48 @@
         <div class="toolbar-group">
           <button
             type="button"
+            class="tool-btn {activeGibsLayer === 'ndvi' ? 'active' : ''}"
+            onclick={() => toggleGibsLayer('ndvi')}
+            title="NASA MODIS NDVI — vegetation"
+            aria-label="NASA MODIS NDVI vegetation layer"
+            aria-pressed={activeGibsLayer === 'ndvi'}
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.5 19 2c1 2 2 4.2 2 8 0 5.5-4.8 10-10 10z" />
+              <path d="M2 21c0-3 1.9-5.5 6-7" />
+            </svg>
+          </button>
+
+          <button
+            type="button"
+            class="tool-btn {activeGibsLayer === 'soil' ? 'active' : ''}"
+            onclick={() => toggleGibsLayer('soil')}
+            title="NASA SMAP — soil moisture"
+            aria-label="NASA SMAP soil moisture layer"
+            aria-pressed={activeGibsLayer === 'soil'}
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M12 2.7s6 6.3 6 10.8a6 6 0 0 1-12 0C6 9 12 2.7 12 2.7z" />
+            </svg>
+          </button>
+
+          <button
+            type="button"
+            class="tool-btn {activeGibsLayer === 'lst' ? 'active' : ''}"
+            onclick={() => toggleGibsLayer('lst')}
+            title="NASA MODIS — land surface temperature"
+            aria-label="NASA MODIS land surface temperature layer"
+            aria-pressed={activeGibsLayer === 'lst'}
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M14 14.8V4a2 2 0 0 0-4 0v10.8a4 4 0 1 0 4 0z" />
+            </svg>
+          </button>
+        </div>
+
+        <div class="toolbar-group">
+          <button
+            type="button"
             class="tool-btn"
             onclick={zoomIn}
             title="Zoom In (+)"
@@ -634,6 +744,13 @@
           </button>
         </div>
       </div>
+
+      {#if activeGibsLayer}
+        <div class="gibs-badge">
+          <span class="gibs-dot"></span>
+          NASA GIBS · {gibsLayers[activeGibsLayer].title}
+        </div>
+      {/if}
 
       <div bind:this={mapContainer} class="map-container"></div>
     </div>
@@ -1105,5 +1222,30 @@
     to {
       opacity: 1;
     }
+  }
+
+  .gibs-badge {
+    position: absolute;
+    left: 16px;
+    bottom: 16px;
+    z-index: 5;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 12px;
+    border-radius: 8px;
+    background: rgba(6, 8, 13, 0.85);
+    border: 1px solid rgba(57, 255, 20, 0.45);
+    color: #e2e8f0;
+    font-size: 12px;
+    pointer-events: none;
+  }
+
+  .gibs-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #39ff14;
+    box-shadow: 0 0 8px #39ff14;
   }
 </style>
