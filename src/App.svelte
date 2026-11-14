@@ -1,9 +1,8 @@
 <script>  import '@fontsource/roboto/400.css';
-  import '@fontsource/roboto/500.css';
+  import '@fontsource/roboto/600.css';
   import '@fontsource/roboto/700.css';
-  import '@fontsource/rajdhani/500.css';
-  import '@fontsource/rajdhani/600.css';
-  import '@fontsource/rajdhani/700.css';
+  import '@fontsource/advent-pro/600.css';
+  import '@fontsource/advent-pro/700.css';
   import './style.css';
   import Header from './components/Header.svelte';
   import SideTabs from './components/SideTabs.svelte';
@@ -202,7 +201,7 @@
   }
 
   .content {
-    padding: 24px 54px 40px var(--content-left);
+    padding: 32px 60px 40px var(--content-left);
   }
 
   .panel.collapsed {
@@ -331,7 +330,8 @@
     bottom: 10px;
     left: 0;
     text-align: center;
-    font-size: 9px;
+    font-size: 8px;
+    line-height: 1;
     color: var(--color-text-dim);
     pointer-events: none;
     z-index: 1;
