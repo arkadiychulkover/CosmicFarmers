@@ -62,8 +62,8 @@
       <stop offset="100%" stop-color="#7DD3FC" stop-opacity="0.05" />
     </linearGradient>
   </defs>
-  <text x="0" y="12" class="axis">{Math.round(max)}</text>
-  <text x="4" y={axisY} class="axis">0</text>
+  <text x="0" y={top} dominant-baseline="central" class="axis">{Math.round(max)}</text>
+  <text x="0" y={axisY} dominant-baseline="central" class="axis">0</text>
   <line x1={padL} y1={top} x2={width - padR} y2={top} class="maxline" />
   <path d={area} fill="url(#precip-area)" />
   <line x1={padL} y1={axisY} x2={width - padR} y2={axisY} class="baseline" />
