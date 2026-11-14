@@ -46,12 +46,12 @@
   .edge,
   .mile {
     fill: var(--color-card-text);
-    font-size: 8px;
+    font-size: 9px;
+    font-weight: 700;
   }
 
   .value {
     font-size: 12px;
-    font-weight: 700;
     font-weight: 700;
   }
 </style>

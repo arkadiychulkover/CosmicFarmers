@@ -388,7 +388,8 @@
     bottom: 10px;
     left: 0;
     text-align: center;
-    font-size: 8px;
+    font-size: 9px;
+    font-weight: 700;
     line-height: 1;
     color: var(--color-text-dim);
     pointer-events: none;

@@ -5,7 +5,10 @@
   const cx = 58;
   const cy = 64;
   const radius = 40;
-  const optimalRadius = 47;
+  const bandWidth = 8;
+  const bandGap = 1.5;
+  const gapFraction = bandGap / (Math.PI * radius);
+  const optimalRadius = radius + bandWidth / 2 + bandWidth;
 
   const segments = [
     { from: 0, to: 0.1, color: '#293751' },
@@ -31,6 +34,12 @@
     return `M ${x1} ${y1} A ${r} ${r} 0 0 1 ${x2} ${y2}`;
   }
 
+  function segmentArc(from, to) {
+    const start = from <= 0 ? from : from + gapFraction / 2;
+    const end = to >= 1 ? to : to - gapFraction / 2;
+    return arc(start, end, radius);
+  }
+
   const optimalFrom = $derived(Math.min(1, Math.max(0, optimalMin / max)));
   const optimalTo = $derived(Math.min(1, Math.max(optimalFrom, optimalMax / max)));
   const marker = $derived(point(Math.min(1, Math.max(0, numVal / max)), radius));
@@ -39,20 +48,22 @@
 <div class="gauge">
   <svg viewBox="0 0 130 82" role="img" aria-label="Solar irradiance gauge">
     {#each segments as segment (`${segment.from}`)}
-      <path d={arc(segment.from, segment.to, radius)} stroke={segment.color} class="band" />
+      <path d={segmentArc(segment.from, segment.to)} stroke={segment.color} class="band" />
     {/each}
     <path d={arc(optimalFrom, optimalTo, optimalRadius)} class="optimal-arc" />
     <circle cx={marker[0]} cy={marker[1]} r="3.2" class="marker" />
-    <text x={cx} y="58" text-anchor="middle" class="number">{numVal.toFixed(1)}</text>
     <text x="8" y="76" class="edge">0</text>
     <text x="86" y="76" class="edge">25+</text>
-    <text x={cx} y="76" text-anchor="middle" class="edge">MJ/m²/day</text>
   </svg>
   <div class="optimal">
-    <p>Optimal PAR zone</p>
-    <strong>{optimalMin.toFixed(1)}–{optimalMax.toFixed(1)}</strong>
-    <span>MJ/m²/day</span>
-    <em>High energy · optimal</em>
+    <div class="block">
+      <p>Optimal PAR zone</p>
+      <div class="rest">
+        <strong>{optimalMin.toFixed(1)}–{optimalMax.toFixed(1)}</strong>
+        <span>MJ/m²/day</span>
+        <em>High energy · optimal</em>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -82,7 +93,7 @@
   .optimal-arc {
     stroke: #b2ff9e;
     stroke-width: 3;
-    stroke-linecap: round;
+    stroke-linecap: butt;
   }
 
   .marker {
@@ -91,17 +102,29 @@
     stroke-width: 1.5;
   }
 
-  .number {
-    fill: #f3e474;
-    font-family: var(--font-display);
-    font-size: 16px;
-    font-weight: 600;
-  }
-
   .edge {
     fill: var(--color-card-dim);
     font-family: var(--font-body);
-    font-size: 8px;
+    font-size: 9px;
+    font-weight: 700;
+  }
+
+  .optimal {
+    display: flex;
+    justify-content: flex-end;
+  }
+
+  .block {
+    display: flex;
+    flex-direction: column;
+    width: max-content;
+    max-width: 100%;
+  }
+
+  .rest {
+    width: 0;
+    min-width: 100%;
+    text-align: left;
   }
 
   .optimal p,
@@ -113,10 +136,15 @@
 
   .optimal p {
     color: #b2ff9e;
-    font-size: 8px;
-    font-weight: 400;
-    letter-spacing: 0;
+    font-family: var(--font-display);
+    font-size: 16px;
+    font-weight: 600;
+    font-stretch: 75%;
+    letter-spacing: -0.03em;
     line-height: 1;
+    margin-bottom: 0.75em;
+    text-align: left;
+    white-space: nowrap;
     text-transform: uppercase;
   }
 
@@ -138,11 +166,13 @@
 
   .optimal span {
     color: var(--color-card-dim);
-    font-size: 8px;
+    font-size: 9px;
+    font-weight: 700;
   }
 
   .optimal em {
     color: #f3e474;
     font-size: 12px;
   }
+
 </style>
