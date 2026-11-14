@@ -1,4 +1,6 @@
-<script>  import { onMount } from "svelte";
+<script>
+  import { onMount } from "svelte";
+  import { goto, replace } from "@mateothegreat/svelte5-router";
   import ActionButton from "../components/ActionButton.svelte";
   import { calculationSteps } from "../data/steps.js";
   import { runStrategy, getTelemetry } from "../api.js";
@@ -74,7 +76,7 @@
 
         $session.result = result;
         $session.collapsed = true;
-        $session.activeTab = "results";
+        replace("/results");
       } catch (error) {
         if (error.name === "AbortError") return;
         console.error("Strategy calculation failed:", error);
@@ -94,7 +96,13 @@
   });
 
   function cancelCalculation() {
-    $session.activeTab = $session.result ? "results" : "farm";
+    if ($session.result) {
+      $session.collapsed = true;
+      replace("/results");
+    } else {
+      $session.collapsed = false;
+      goto("/");
+    }
   }
 </script>
 
