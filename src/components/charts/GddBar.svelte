@@ -1,5 +1,4 @@
-<script>
-  let { value = 0, max = 3000 } = $props();
+<script>  let { value = 0, max = 3000 } = $props();
 
   const barX = 6;
   const barWidth = 108;
@@ -23,8 +22,7 @@
   <text x={barX + barWidth} y="52" text-anchor="end" class="label">{max.toLocaleString('en-US')}</text>
 </svg>
 
-<style>
-  svg {
+<style>  svg {
     display: block;
     width: 100%;
     height: auto;

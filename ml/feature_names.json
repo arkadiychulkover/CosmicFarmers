@@ -1,0 +1,20 @@
+[
+  "N",
+  "P",
+  "K",
+  "ph",
+  "T2M",
+  "T2M_MAX",
+  "T2M_MIN",
+  "RH2M",
+  "PRECTOTCORR",
+  "ALLSKY_SFC_SW_DWN",
+  "GDD",
+  "WS2M",
+  "GWETTOP",
+  "GWETROOT",
+  "TS",
+  "EVPTRNS",
+  "ELEVATION",
+  "SLOPE"
+]

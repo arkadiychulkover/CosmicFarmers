@@ -1,5 +1,4 @@
-<script>
-  import ActionButton from "../components/ActionButton.svelte";
+<script>  import ActionButton from "../components/ActionButton.svelte";
   import CropFeatureCard from "../components/CropFeatureCard.svelte";
   import CropMiniCard from "../components/CropMiniCard.svelte";
   import YearSlide from "../components/YearSlide.svelte";
@@ -12,19 +11,14 @@
     "Follow-Up Crop",
     "Cycle Completion",
   ];
-  const SWIPE_PX = 50;
-  const WHEEL_MIN = 15;
-  const LOCK_MS = 850;
 
   let showTimeline = $state(false);
   let page = $state();
   let index = $state(0);
   let exporting = $state(false);
-
-  let lockUntil = 0;
-  let lastWheel = 0;
-  let armed = true;
-  let swipeFrom = null;
+  let slideEls = $state([]);
+  let reveals = $state([1, 0, 0]);
+  let scrollRaf = null;
 
   const result = $derived(session.result);
   const recommendations = $derived(result?.recommendations ?? []);
@@ -47,27 +41,68 @@
     );
   });
 
+  function updateScrollProgress() {
+    if (!page || !years.length) return;
+    const vp = page.getBoundingClientRect();
+    const enterStart = vp.bottom - 20;
+    const enterEnd = vp.top + vp.height * 0.45;
+    const span = Math.max(1, enterStart - enterEnd);
+    const vpCenter = vp.top + vp.height * 0.45;
+
+    let closestIdx = 0;
+    let closestDist = Infinity;
+    const nextReveals = years.map((_, i) => {
+      const el = slideEls[i];
+      if (!el) return i === 0 ? 1 : 0;
+      const r = el.getBoundingClientRect();
+      const raw = (enterStart - r.top) / span;
+      const p = Math.min(1, Math.max(0, raw));
+
+      const centerDist = Math.abs(r.top + r.height * 0.4 - vpCenter);
+      if (centerDist < closestDist) {
+        closestDist = centerDist;
+        closestIdx = i;
+      }
+      return Number(p.toFixed(4));
+    });
+
+    reveals = nextReveals;
+    index = closestIdx;
+  }
+
+  function handleTimelineScroll() {
+    if (scrollRaf) return;
+    scrollRaf = requestAnimationFrame(() => {
+      scrollRaf = null;
+      updateScrollProgress();
+    });
+  }
+
   $effect(() => {
     if (!page) return;
     page.focus();
-    page.addEventListener("wheel", onWheel, { passive: false });
-    page.addEventListener("keydown", onKeydown);
-    page.addEventListener("pointerdown", onPointerDown);
-    page.addEventListener("pointerup", onPointerUp);
-    page.addEventListener("pointercancel", onPointerCancel);
+    updateScrollProgress();
+    page.addEventListener("scroll", handleTimelineScroll, { passive: true });
+    window.addEventListener("resize", handleTimelineScroll, { passive: true });
 
     return () => {
-      page.removeEventListener("wheel", onWheel);
-      page.removeEventListener("keydown", onKeydown);
-      page.removeEventListener("pointerdown", onPointerDown);
-      page.removeEventListener("pointerup", onPointerUp);
-      page.removeEventListener("pointercancel", onPointerCancel);
+      if (scrollRaf) {
+        cancelAnimationFrame(scrollRaf);
+        scrollRaf = null;
+      }
+      page.removeEventListener("scroll", handleTimelineScroll);
+      window.removeEventListener("resize", handleTimelineScroll);
     };
   });
 
   function openTimeline() {
     index = 0;
+    reveals = years.map((_, i) => (i === 0 ? 1 : 0));
     showTimeline = true;
+    requestAnimationFrame(() => {
+      if (page) page.scrollTop = 0;
+      updateScrollProgress();
+    });
   }
 
   function backToResults() {
@@ -75,52 +110,12 @@
   }
 
   function go(i) {
-    index = Math.min(Math.max(i, 0), last);
-  }
-
-  function onWheel(event) {
-    event.preventDefault();
-    const now = performance.now();
-    if (now - lastWheel > 100) armed = true;
-    lastWheel = now;
-    if (now < lockUntil) {
-      armed = false;
-      return;
+    const targetIdx = Math.min(Math.max(i, 0), last);
+    const el = slideEls[targetIdx];
+    if (el) {
+      el.scrollIntoView({ behavior: "smooth", block: "center" });
     }
-    if (!armed || Math.abs(event.deltaY) < WHEEL_MIN) return;
-    armed = false;
-    lockUntil = now + LOCK_MS;
-    go(index + (event.deltaY > 0 ? 1 : -1));
-  }
-
-  function onKeydown(event) {
-    if (event.target instanceof HTMLElement && event.target.closest("button, a, input")) {
-      return;
-    }
-
-    const next = ["ArrowDown", "PageDown", " "];
-    const prev = ["ArrowUp", "PageUp"];
-    if (next.includes(event.key)) go(index + 1);
-    else if (prev.includes(event.key)) go(index - 1);
-    else if (event.key === "Home") go(0);
-    else if (event.key === "End") go(last);
-    else return;
-    event.preventDefault();
-  }
-
-  function onPointerDown(event) {
-    swipeFrom = event.target?.closest("button, a") ? null : event.clientY;
-  }
-
-  function onPointerUp(event) {
-    if (swipeFrom === null) return;
-    const delta = event.clientY - swipeFrom;
-    swipeFrom = null;
-    if (Math.abs(delta) >= SWIPE_PX) go(index + (delta < 0 ? 1 : -1));
-  }
-
-  function onPointerCancel() {
-    swipeFrom = null;
+    index = targetIdx;
   }
 
   async function download() {
@@ -223,13 +218,11 @@
         {@const side = i % 2 === 0 ? "left" : "right"}
         <section
           class="slide {side}"
-          class:active={i === index}
-          class:before={i < index}
-          class:after={i > index}
+          bind:this={slideEls[i]}
+          style:--reveal={reveals[i] ?? (i === 0 ? 1 : 0)}
           role="group"
           aria-roledescription="slide"
           aria-label="Year {entry.year} of {years.length}"
-          inert={i !== index}
         >
           <span class="node" aria-hidden="true">{entry.year}</span>
 
@@ -251,57 +244,46 @@
               </p>
             {/if}
           </aside>
-
-          <div class="foot">
-            {#if i === last}
-              <div class="actions">
-                <button
-                  type="button"
-                  class="btn primary"
-                  onclick={download}
-                  disabled={exporting}
-                >
-                  <svg
-                    viewBox="0 0 16 16"
-                    width="13"
-                    height="13"
-                    aria-hidden="true"
-                  >
-                    <path
-                      d="M8 2v8m0 0L4.5 6.5M8 10l3.5-3.5M3 13h10"
-                      fill="none"
-                      stroke="currentColor"
-                      stroke-width="1.6"
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                    />
-                  </svg>
-                  {exporting ? "Preparing PDF…" : "Download crop plan (PDF)"}
-                </button>
-                <button type="button" class="btn ghost" onclick={backToResults}>
-                  <span aria-hidden="true">←</span> Back to results
-                </button>
-                <button
-                  type="button"
-                  class="btn ghost"
-                  onclick={backToFarm}
-                >
-                  <span aria-hidden="true">←</span> Back to farm
-                </button>
-              </div>
-            {:else}
-              <button
-                type="button"
-                class="hint"
-                onclick={() => go(index + 1)}
-                tabindex="-1"
-              >
-                Scroll <span aria-hidden="true">↓</span>
-              </button>
-            {/if}
-          </div>
         </section>
       {/each}
+
+      <div class="foot">
+        <div class="actions">
+          <button
+            type="button"
+            class="btn primary"
+            onclick={download}
+            disabled={exporting}
+          >
+            <svg
+              viewBox="0 0 16 16"
+              width="13"
+              height="13"
+              aria-hidden="true"
+            >
+              <path
+                d="M8 2v8m0 0L4.5 6.5M8 10l3.5-3.5M3 13h10"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.6"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+            </svg>
+            {exporting ? "Preparing PDF…" : "Download crop plan (PDF)"}
+          </button>
+          <button type="button" class="btn ghost" onclick={backToResults}>
+            <span aria-hidden="true">←</span> Back to results
+          </button>
+          <button
+            type="button"
+            class="btn ghost"
+            onclick={backToFarm}
+          >
+            <span aria-hidden="true">←</span> Back to farm
+          </button>
+        </div>
+      </div>
     </div>
 
     <nav class="dots" aria-label="Rotation years">
@@ -318,8 +300,7 @@
   </div>
 {/if}
 
-<style>
-  .results {
+<style>  .results {
     display: grid;
     gap: 12px;
     width: var(--results-width, 387px);
@@ -376,15 +357,19 @@
     inset: var(--header-height) 0 0 0;
     z-index: 100;
     height: calc(100vh - var(--header-height));
-    overflow: hidden;
+    overflow-y: auto;
+    overflow-x: hidden;
+    overscroll-behavior: contain;
     outline: none;
-    touch-action: none;
-    user-select: none;
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-border-dim) transparent;
   }
 
   .bg {
-    position: absolute;
-    inset: 0;
+    position: fixed;
+    inset: var(--header-height) 0 0 0;
+    z-index: 0;
+    pointer-events: none;
     background:
       radial-gradient(1.2px 1.2px at 12% 22%, rgba(255, 255, 255, 0.45), transparent),
       radial-gradient(1px 1px at 78% 12%, rgba(255, 255, 255, 0.35), transparent),
@@ -404,8 +389,7 @@
   }
 
   .hero {
-    position: absolute;
-    inset: 0 0 auto 0;
+    position: relative;
     height: var(--hero);
     z-index: 2;
     pointer-events: none;
@@ -480,51 +464,60 @@
   }
 
   .viewport {
-    position: absolute;
-    inset: var(--hero) 0 0 0;
+    position: relative;
+    z-index: 2;
+    padding: 12px 0 64px;
     overflow: visible;
   }
 
   .slide {
-    --dy: 0px;
-    position: absolute;
-    inset: 0;
+    --reveal: 1;
+    --slide-dir: -1;
+    --note-dir: 1;
+    position: relative;
     display: grid;
     grid-template-columns: 1fr 1fr;
-    grid-template-rows: auto minmax(0, 1fr) auto;
+    grid-template-rows: auto auto;
     width: min(1000px, 100%);
-    margin: 0 auto;
-    opacity: 0;
-    transform: translateY(var(--dy));
-    transition:
-      opacity 0.55s ease,
-      transform 0.9s cubic-bezier(0.22, 0.8, 0.2, 1),
-      visibility 0s linear 0.9s;
-    visibility: hidden;
+    margin: 0 auto 56px;
+  }
+
+  .slide.right {
+    --slide-dir: 1;
+    --note-dir: -1;
+  }
+
+  .main {
+    grid-row: 1 / 3;
+    display: grid;
+    grid-template-rows: auto auto;
+    gap: 10px;
+    padding-block: 0 8px;
+    opacity: calc(0.08 + 0.92 * var(--reveal));
+    transform: translate3d(
+      calc((1 - var(--reveal)) * var(--slide-dir) * 56px),
+      calc((1 - var(--reveal)) * 28px),
+      0
+    );
     will-change: transform, opacity;
   }
 
-  .slide.before {
-    --dy: -90px;
-  }
-
-  .slide.after {
-    --dy: 90px;
-  }
-
-  .slide.active {
-    opacity: 1;
-    visibility: visible;
-    transition-delay: 0.12s, 0s, 0s;
-  }
-
-  .card {
-    transform: translateY(calc(var(--dy) * 0.5));
-    transition: transform 1s cubic-bezier(0.22, 0.8, 0.2, 1) 0.05s;
-  }
-
-  .slide.active .card {
-    transform: none;
+  .note {
+    position: relative;
+    grid-row: 2;
+    align-self: end;
+    max-width: 240px;
+    margin-bottom: 24px;
+    font-size: 8px;
+    line-height: 1.5;
+    color: var(--color-text-dim);
+    opacity: calc(0.08 + 0.92 * var(--reveal));
+    transform: translate3d(
+      calc((1 - var(--reveal)) * var(--note-dir) * 36px),
+      calc((1 - var(--reveal)) * 20px),
+      0
+    );
+    will-change: transform, opacity;
   }
 
   .line {
@@ -533,8 +526,8 @@
     bottom: 0;
     left: 50%;
     border-left: 1px solid var(--color-border-dim);
-    -webkit-mask-image: linear-gradient(to bottom, #000 82%, transparent);
-    mask-image: linear-gradient(to bottom, #000 82%, transparent);
+    -webkit-mask-image: linear-gradient(to bottom, #000 88%, transparent);
+    mask-image: linear-gradient(to bottom, #000 88%, transparent);
   }
 
   .node {
@@ -551,15 +544,6 @@
     border-radius: 50%;
     background: color-mix(in srgb, var(--color-bg) 80%, #000);
     font-size: 11px;
-  }
-
-  .main {
-    grid-row: 1 / 3;
-    display: grid;
-    grid-template-rows: auto minmax(0, 1fr);
-    gap: 10px;
-    min-height: 0;
-    padding-block: 0 8px;
   }
 
   .left .main {
@@ -594,23 +578,10 @@
   .card {
     width: 100%;
     max-width: 420px;
-    min-height: 0;
-    max-height: 560px;
   }
 
   .left .card {
     margin-left: auto;
-  }
-
-  .note {
-    position: relative;
-    grid-row: 2;
-    align-self: end;
-    max-width: 240px;
-    margin-bottom: 24px;
-    font-size: 8px;
-    line-height: 1.5;
-    color: var(--color-text-dim);
   }
 
   .left .note {
@@ -659,23 +630,11 @@
   }
 
   .foot {
-    grid-column: 1 / 3;
-    grid-row: 3;
+    position: relative;
+    z-index: 2;
     display: grid;
     justify-items: center;
-    padding: 14px 0 44px;
-    min-height: 84px;
-  }
-
-  .hint {
-    border: 0;
-    background: transparent;
-    font-size: 9px;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    color: var(--color-text-dim);
-    cursor: pointer;
-    animation: nudge 1.8s ease-in-out infinite;
+    padding: 8px 16px 32px;
   }
 
   .actions {
@@ -749,10 +708,10 @@
   }
 
   .dots {
-    position: absolute;
+    position: fixed;
     top: 50%;
     right: 18px;
-    z-index: 3;
+    z-index: 5;
     display: grid;
     gap: 10px;
     transform: translateY(-50%);

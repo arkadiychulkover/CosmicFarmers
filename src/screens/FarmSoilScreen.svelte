@@ -1,5 +1,4 @@
-<script>
-  import Presets from '../components/Presets.svelte';
+<script>  import Presets from '../components/Presets.svelte';
   import NumberField from '../components/NumberField.svelte';
   import SelectField from '../components/SelectField.svelte';
   import GoalSelector from '../components/GoalSelector.svelte';
@@ -8,13 +7,12 @@
   import GoogleMapModal from '../components/GoogleMapModal.svelte';
   import { presets } from '../data/presets.js';
   import { cropOptions, soilOptions, goalOptions } from '../data/options.js';
-  import { session, applyPreset } from '../stores/session.svelte.js';
-  import { fetchNasaDataForCoords } from '../utils/nasaApi.js';
+  import { session, applyPreset, loadCoordsIntoSession } from '../stores/session.svelte.js';
 
   let isMapOpen = $state(false);
 
   function coordinatesEdited() {
-    session.activePresetId = null;
+    loadCoordsIntoSession(session.form.lat, session.form.lon);
   }
 
   function openMap() {
@@ -27,31 +25,8 @@
 
   async function handleMapConfirm(event) {
     const detail = event?.detail || event || {};
-    const lat = Number(Number(detail.lat).toFixed(4));
-    const lon = Number(Number(detail.lng).toFixed(4));
-
-    session.form.lat = lat;
-    session.form.lon = lon;
-    session.activePresetId = null;
     isMapOpen = false;
-
-    session.nasaLoading = true;
-    session.nasaError = null;
-    try {
-      const payload = await fetchNasaDataForCoords(lat, lon);
-      if (payload) {
-        session.nasaData = payload;
-        session.form.ph = payload.ph;
-        session.form.soil = payload.soil;
-        session.form.n = payload.n;
-        session.form.p = payload.p;
-        session.form.k = payload.k;
-      }
-    } catch (err) {
-      session.nasaError = err?.message || 'Failed to load climate data for chosen location';
-    } finally {
-      session.nasaLoading = false;
-    }
+    await loadCoordsIntoSession(detail.lat, detail.lng);
   }
 </script>
 
@@ -135,8 +110,7 @@
   />
 {/if}
 
-<style>
-  .screen {
+<style>  .screen {
     display: grid;
     gap: 22px;
   }

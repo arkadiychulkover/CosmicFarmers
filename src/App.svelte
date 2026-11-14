@@ -1,5 +1,4 @@
-<script>
-  import '@fontsource/roboto/400.css';
+<script>  import '@fontsource/roboto/400.css';
   import '@fontsource/roboto/500.css';
   import '@fontsource/roboto/700.css';
   import '@fontsource/rajdhani/500.css';
@@ -19,7 +18,7 @@
 
   const preset = $derived(presets.find((p) => p.id === session.activePresetId && p.values));
   const place = $derived(preset ? preset.label : 'Custom field');
-  
+
   const tabs = [
     { id: 'farm', label: 'Farm + Soil' },
     { id: 'telemetry', label: 'Stress Test + NASA Telemetry' },
@@ -95,12 +94,12 @@
 
     <div class="globe-stage">
 
-      
+
       <div class="globe-stage" class:collapsed={session.collapsed}>
         <div class="globe-stage-text-location-container" class:collapsed={session.collapsed}>
         <span class="globe-stage-text-location">{place.toUpperCase()}</span>
         <span class="s-QDAv-o1wJ_oy">
-          {Math.trunc(session.form.lat??0)}°{Math.abs(((session.form.lat??0)%1*60).toFixed(2))}'N 
+          {Math.trunc(session.form.lat??0)}°{Math.abs(((session.form.lat??0)%1*60).toFixed(2))}'N
           {Math.trunc(session.form.lon??0)}°{Math.abs((session.form.lon??0)%1*60).toFixed(2)}'E
         </span>
         </div>
@@ -122,8 +121,7 @@
   <footer>©CosmicValley, IT STEP Students Team</footer>
 </div>
 
-<style>
-  .app {
+<style>  .app {
     min-height: 100vh;
   }
 
@@ -168,7 +166,7 @@
     align-items: center;
     justify-content: center;
   }
-  
+
 .globe-stage.collapsed {
   flex-direction: row;
   align-self: stretch;
@@ -201,8 +199,28 @@
     z-index: 10;
     width: var(--results-width, 387px);
     max-width: calc(100vw - 120px);
+    max-height: calc(100vh - var(--header-height) - 32px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding-right: 6px;
+    padding-bottom: 16px;
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-border-dim) transparent;
     pointer-events: auto;
     animation: fadeIn 0.25s ease;
+  }
+
+  .results-overlay::-webkit-scrollbar {
+    width: 5px;
+  }
+
+  .results-overlay::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .results-overlay::-webkit-scrollbar-thumb {
+    background: var(--color-border-dim);
+    border-radius: 999px;
   }
 
   @keyframes fadeIn {
@@ -212,7 +230,7 @@
     }
     to {
       opacity: 1;
-      transform: translateY(0);
+      transform: none;
     }
   }
 

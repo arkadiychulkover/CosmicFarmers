@@ -1,5 +1,4 @@
-<script lang="ts">
-  import { onMount, onDestroy, createEventDispatcher } from 'svelte';
+<script lang="ts">  import { onMount, onDestroy, createEventDispatcher } from 'svelte';
 
   export let apiKey: string = 'AIzaSyBKj8CqToLMmorTvvQc_cqgbGtvVoYAxO4';
   export let initialLat: number = 50.45;
@@ -666,8 +665,7 @@
   </div>
 </div>
 
-<style>
-  .modal-backdrop {
+<style>  .modal-backdrop {
     position: fixed;
     inset: 0;
     background: rgba(0, 0, 0, 0.78);

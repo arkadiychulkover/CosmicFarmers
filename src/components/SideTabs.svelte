@@ -1,5 +1,4 @@
-<script>
-  let {
+<script>  let {
     tabs,
     active,
     onselect,
@@ -54,8 +53,7 @@
   </button>
 </div>
 
-<style>
-  .rail {
+<style>  .rail {
     position: absolute;
     top: 0;
     bottom: 0;
