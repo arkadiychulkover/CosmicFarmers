@@ -1,4 +1,6 @@
-<script>  import ActionButton from "../components/ActionButton.svelte";
+<script>
+  import { goto } from "@mateothegreat/svelte5-router";
+  import ActionButton from "../components/ActionButton.svelte";
   import CropFeatureCard from "../components/CropFeatureCard.svelte";
   import CropMiniCard from "../components/CropMiniCard.svelte";
   import YearSlide from "../components/YearSlide.svelte";
@@ -136,7 +138,7 @@
 
   function backToFarm() {
     $session.collapsed = false;
-    $session.activeTab = "farm";
+    goto("/");
   }
 </script>
 

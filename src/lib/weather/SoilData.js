@@ -128,9 +128,9 @@ export function parseWeatherResponse(weatherData) {
     return Math.round(sum);
   });
 
-  const monthlyTemp = MONTH_KEYS.map((m) => {
+  const monthlyMean = (param) => MONTH_KEYS.map((m) => {
     let sum = 0, count = 0;
-    for (const [date, val] of Object.entries(dp.T2M || {})) {
+    for (const [date, val] of Object.entries(param || {})) {
       if (date.slice(4, 6) === m && val !== ex && Number.isFinite(val)) {
         sum += val;
         count++;
@@ -138,6 +138,10 @@ export function parseWeatherResponse(weatherData) {
     }
     return count ? Number((sum / count).toFixed(1)) : 0;
   });
+
+  const monthlyTemp = monthlyMean(dp.T2M);
+  const monthlyTempMax = monthlyMean(dp.T2M_MAX);
+  const monthlyTempMin = monthlyMean(dp.T2M_MIN);
 
   const totalPrecip = monthlyPrecip.reduce((a, b) => a + b, 0);
 
@@ -205,7 +209,15 @@ export function parseWeatherResponse(weatherData) {
     temperature: {
       mean: Number(meanTemp.toFixed(1)),
       monthly: monthlyTemp,
+      maxMean: Number(averageWithException(Object.values(dp.T2M_MAX || {}), ex).toFixed(1)),
+      minMean: Number(averageWithException(Object.values(dp.T2M_MIN || {}), ex).toFixed(1)),
+      monthlyMax: monthlyTempMax,
+      monthlyMin: monthlyTempMin,
       heatDays,
+    },
+    atmosphere: {
+      rh2m: Number(averageWithException(Object.values(dp.RH2M || {}), ex).toFixed(1)),
+      ws2m: Number(averageWithException(Object.values(dp.WS2M || {}), ex).toFixed(2)),
     },
     solar: {
       value: Number(solarVal.toFixed(1)),
