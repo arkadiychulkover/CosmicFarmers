@@ -1,8 +1,3 @@
-/**
- * Описания культур модели (ключи = classes.json) для UI и PDF.
- * soil / climate / advisory - фрагменты, из которых strategy.js собирает тексты с цифрами пользователя.
- * climate - продолжение фразы "<N> mm seasonal rainfall and <M> GDD ...".
- */
 export const CROP_INFO = {
     apple: { name: 'Apple (Malus domestica)', tag: 'Cool-Climate Orchard Perennial', soil: 'Prefers deep, well-drained loam with steady potassium supply', climate: 'meet the chill hours and moderate summer heat that quality fruit set needs', advisory: 'A multi-year orchard commitment; rotate only at replanting' },
     banana: { name: 'Banana (Musa spp.)', tag: 'Warm-Season Perennial Fruit', soil: 'Draws heavily on potassium and organic matter in deep, moist soil', climate: 'deliver the sustained warmth and moisture of a frost-free season', advisory: 'Needs frost-free conditions and wind shelter' },

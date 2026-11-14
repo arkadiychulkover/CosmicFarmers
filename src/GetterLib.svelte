@@ -1,11 +1,4 @@
 <script>
-/**
- * GetterLib.svelte — component demonstrating SoilData class & weather fetching.
- *
- * Core implementation lives in:
- *   src/lib/weather/SoilData.js    (SoilData class, getWeather, parseWeatherResponse)
- *   src/stores/weather.svelte.js   (reactive store used across screens with localStorage persistence)
- */
 import { SoilData, getWeather } from './lib/weather/SoilData.js';
 
 export { SoilData, getWeather };
@@ -16,16 +9,13 @@ let error = $state(null);
 
 async function init() {
   try {
-    // 1. Try to retrieve from localStorage first
     const hasCached = await soil.retrive();
     if (hasCached && soil.isinit) {
       loading = false;
       return;
     }
 
-    // 2. Fetch fresh NASA POWER data for coordinate point (50.0, 30.0)
     await soil.dataInit(getWeather, 30.0, 50.0);
-    // 3. Store in localStorage
     await soil.store();
     loading = false;
   } catch (e) {

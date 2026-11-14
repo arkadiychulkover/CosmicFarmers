@@ -1,18 +1,7 @@
-/**
- * NASA POWER API weather data fetcher & SoilData store.
- *
- * Provides:
- * - Real growing season daily parameters (T2M, T2M_MAX, T2M_MIN, RH2M, PRECTOTCORR, ALLSKY_SFC_SW_DWN, WS2M)
- * - Real 10-year historical average precipitation calculation
- * - Monthly breakdown for growing season (Apr - Oct)
- * - SoilData class with localStorage persistence (store/retrive)
- */
-
 export const MONTHS = ['Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct'];
 const MONTH_KEYS = ['04', '05', '06', '07', '08', '09', '10'];
 const DAYS_IN_MONTH = { '04': 30, '05': 31, '06': 30, '07': 31, '08': 31, '09': 30, '10': 31 };
 
-// ── helper math ────────────────────────────────────────────────
 export const averageWithException = (arr, ex = -999) => {
   let sum = 0, count = 0;
   for (const v of arr) {
@@ -47,11 +36,9 @@ export const minWithException = (arr, ex = -999) =>
 export function getSeasonYear() {
   const now = new Date();
   const year = now.getFullYear();
-  // If current date is November or later, current year's season is complete; otherwise use previous year
   return (now.getMonth() > 9 || (now.getMonth() === 9 && now.getDate() >= 31)) ? year : year - 1;
 }
 
-// ── NASA POWER fetch ───────────────────────────────────────────
 /**
  * Fetches:
  * 1. Daily parameters for the growing season (Apr 1 to Oct 31)
@@ -88,19 +75,17 @@ export async function getWeather(longitude, latitude) {
     fetch(monthlyUrl).then((r) => {
       if (!r.ok) throw new Error(`Monthly NASA POWER error: ${r.status}`);
       return r.json();
-    }).catch(() => null), // fallback gracefully if monthly fails
+    }).catch(() => null),
   ]);
 
   return { daily: dailyRes, monthly: monthlyRes, seasonYear };
 }
 
-// ── Parsed result object ───────────────────────────────────────
 export function parseWeatherResponse(weatherData) {
   const { daily, monthly, seasonYear = getSeasonYear() } = weatherData;
   const ex = daily.header?.fill_value ?? -999;
   const dp = daily.properties.parameter;
 
-  // Monthly breakdown for precipitation & temperature
   const monthlyPrecip = MONTH_KEYS.map((m) => {
     const prefix = `${seasonYear}${m}`;
     let sum = 0;
@@ -126,7 +111,6 @@ export function parseWeatherResponse(weatherData) {
 
   const totalPrecip = monthlyPrecip.reduce((a, b) => a + b, 0);
 
-  // Heat stress days: days with maximum temperature >= 32°C
   let heatDays = 0;
   for (const [, val] of Object.entries(dp.T2M_MAX)) {
     if (val !== ex && Number.isFinite(val) && val >= 32) {
@@ -134,8 +118,7 @@ export function parseWeatherResponse(weatherData) {
     }
   }
 
-  // 10-year historical average precipitation calculation
-  let historicalAverage = 620; // safe fallback
+  let historicalAverage = 620;
   if (monthly?.properties?.parameter?.PRECTOTCORR) {
     const mp = monthly.properties.parameter.PRECTOTCORR;
     let tenYrSum = 0;
@@ -191,7 +174,6 @@ export function parseWeatherResponse(weatherData) {
     gdd: {
       value: Math.round(gddVal),
     },
-    // Raw scalar features for CropInput / ML model
     t2m: meanTemp,
     t2m_max: averageWithException(Object.values(dp.T2M_MAX), ex),
     t2m_min: averageWithException(Object.values(dp.T2M_MIN), ex),
@@ -203,7 +185,6 @@ export function parseWeatherResponse(weatherData) {
   };
 }
 
-// ── SoilData class (with full reactive state & localStorage) ───
 export class SoilData {
   #longitude;
   #latitude;

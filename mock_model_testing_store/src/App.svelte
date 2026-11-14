@@ -20,7 +20,6 @@
         previousCrop = PRESETS[presetName].previousCrop;
     }
 
-    // Выгрузить данные в store без ответа - как будто пользователь прошёл 1 экран.
     function pushToStore() {
         lastRequest.set({ params: { ...params }, previousCrop });
         plan = null; ms = null; error = '';

@@ -66,7 +66,7 @@ print(f"Accuracy: {accuracy_score(y_test, rf.predict(X_test)) * 100:.2f}%")
 onx = convert_sklearn(
     rf,
     initial_types=[("input", FloatTensorType([None, len(FEATURES)]))],
-    options={id(rf): {"zipmap": False}},  # probabilities как тензор, без словарей
+    options={id(rf): {"zipmap": False}},
     target_opset=15,
 )
 
@@ -78,7 +78,6 @@ cls.mkdir(parents=True, exist_ok=True)
 (cls / "features.json").write_text(json.dumps(FEATURES, indent=2))
 print("classes:", len(rf.classes_))
 
-# эталон для сверки в JS-тестах: sklearn-вероятности на первых 5 строках
 gold = [
     {"x": X.iloc[i].tolist(), "p": rf.predict_proba(X.iloc[[i]])[0].tolist()}
     for i in range(5)
