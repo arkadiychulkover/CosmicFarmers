@@ -3,7 +3,7 @@ import { CROP_INFO } from './cropInfo.js';
 import { PREDECESSOR_TO_MODEL } from './predecessors.js';
 import { cropOptions, soilOptions } from '../../data/options.js';
 import { ROTATION_MATRIX } from './rotationData.js';
-import { goalNote } from './goalData.js';
+import { goalNote, telemetryNote, computePlanIndicators } from './goalData.js';
 
 const MIN_CALC_MS = 1800;
 const SEASON_MONTHS = 8;
@@ -120,7 +120,8 @@ function toViewModel(plan, input, params) {
     const winner = y.options?.find((o) => o.crop === y.crop) || y.options?.[0] || { percent: 0 };
     const rotation = rotationNote(y.previousCrop, y.crop);
     const goalMsg = goalNote(input.goal, y.crop);
-    const advisory = [info.advisory, rotation, goalMsg].filter(Boolean).join(' ');
+    const telMsg = telemetryNote(input.goal, params, y.crop);
+    const advisory = [info.advisory, rotation, goalMsg, telMsg].filter(Boolean).join(' ');
 
     return {
       year: y.year,
@@ -154,7 +155,8 @@ function toViewModel(plan, input, params) {
       advisory: 'Consult local agronomic extension',
     };
     const goalMsg = goalNote(input.goal, option.crop);
-    const advisory = [info.advisory, goalMsg].filter(Boolean).join(' ');
+    const telMsg = telemetryNote(input.goal, params, option.crop);
+    const advisory = [info.advisory, goalMsg, telMsg].filter(Boolean).join(' ');
 
     return {
       id: option.crop,
@@ -171,11 +173,15 @@ function toViewModel(plan, input, params) {
     };
   });
 
+  const prevModelCrop = PREDECESSOR_TO_MODEL[input.predecessor] ?? null;
+  const indicators = computePlanIndicators(years, params, prevModelCrop);
+
   return {
     version: 2,
     goal: input.goal || 'regeneration',
     previousName: label(cropOptions, input.predecessor),
     candidates: plan.candidates || [],
+    indicators,
     recommendations,
     years,
   };

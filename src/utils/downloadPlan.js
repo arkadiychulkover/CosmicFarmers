@@ -83,6 +83,20 @@ export async function downloadPlan(result, form) {
   }
   doc.line(margin, y, margin + CONTENT_W, y);
 
+  if (Array.isArray(result.indicators) && result.indicators.length) {
+    y += 10;
+    y = paragraph(doc, '3-YEAR PLAN IMPACT SUMMARY', margin, y, { size: 9, style: 'bold', color: 120 }) + 2;
+    for (const ind of result.indicators) {
+      y = paragraph(
+        doc,
+        `${ind.label}: ${ind.value} (${ind.score}/100) - ${ind.note}`,
+        margin,
+        y + 2,
+        { size: 10, color: 50 },
+      );
+    }
+  }
+
 
   const photos = await Promise.all(result.years.map((e) => loadPhoto(cropImage(e.id), CONTENT_W / 70)));
 
