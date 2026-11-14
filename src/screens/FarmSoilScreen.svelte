@@ -12,7 +12,7 @@
   let isMapOpen = $state(false);
 
   function coordinatesEdited() {
-    loadCoordsIntoSession(session.form.lat, session.form.lon);
+    loadCoordsIntoSession($session.form.lat, $session.form.lon);
   }
 
   function openMap() {
@@ -33,7 +33,7 @@
 <div class="screen">
   <h2>Calculate Optimal Rotation Strategy</h2>
 
-  <Presets {presets} activeId={session.activePresetId} onselect={applyPreset} />
+  <Presets {presets} activeId={$session.activePresetId} onselect={applyPreset} />
 
   <div class="coords">
     <NumberField
@@ -42,7 +42,7 @@
       max={90}
       step={0.0001}
       oncommit={coordinatesEdited}
-      bind:value={session.form.lat}
+      bind:value={$session.form.lat}
     />
     <NumberField
       label="Longitude"
@@ -50,7 +50,7 @@
       max={180}
       step={0.0001}
       oncommit={coordinatesEdited}
-      bind:value={session.form.lon}
+      bind:value={$session.form.lon}
     />
     <button
       type="button"
@@ -71,10 +71,10 @@
     label="Previous Season Crop (Predecessor)"
     hint="Select the crop harvested in the last cycle to calculate nutrient carryover and pest/disease break requirements."
     options={cropOptions}
-    bind:value={session.form.predecessor}
+    bind:value={$session.form.predecessor}
   />
 
-  <GoalSelector label="Primary Management Goal" options={goalOptions} bind:value={session.form.goal} />
+  <GoalSelector label="Primary Management Goal" options={goalOptions} bind:value={$session.form.goal} />
 
   <SliderField
     label="Soil Reaction (pH Level)"
@@ -85,24 +85,24 @@
     minLabel="Acidic"
     midLabel="Neutral"
     maxLabel="Alkaline"
-    bind:value={session.form.ph}
+    bind:value={$session.form.ph}
   />
 
-  <SelectField label="Soil Type" options={soilOptions} bind:value={session.form.soil} />
+  <SelectField label="Soil Type" options={soilOptions} bind:value={$session.form.soil} />
 
-  <SliderField label="Available Nitrogen (N)" max={200} unit="mg/kg" bind:value={session.form.n} />
-  <SliderField label="Available Phosphorus (P)" max={150} unit="mg/kg" bind:value={session.form.p} />
-  <SliderField label="Exchangeable Potassium (K)" max={300} unit="mg/kg" bind:value={session.form.k} />
+  <SliderField label="Available Nitrogen (N)" max={200} unit="mg/kg" bind:value={$session.form.n} />
+  <SliderField label="Available Phosphorus (P)" max={150} unit="mg/kg" bind:value={$session.form.p} />
+  <SliderField label="Exchangeable Potassium (K)" max={300} unit="mg/kg" bind:value={$session.form.k} />
 
   <div class="actions">
-    <ActionButton onclick={() => (session.activeTab = 'telemetry')}>Stress Test →</ActionButton>
+    <ActionButton onclick={() => ($session.activeTab = 'telemetry')}>Stress Test →</ActionButton>
   </div>
 </div>
 
 {#if isMapOpen}
   <GoogleMapModal
-    initialLat={Number(session.form.lat) || 50.45}
-    initialLng={Number(session.form.lon) || 30.52}
+    initialLat={Number($session.form.lat) || 50.45}
+    initialLng={Number($session.form.lon) || 30.52}
     on:close={handleMapClose}
     on:confirm={handleMapConfirm}
     onclose={handleMapClose}

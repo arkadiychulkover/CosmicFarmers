@@ -16,7 +16,7 @@
   import { preloadCropModel } from './lib/crop/index.js';
   import { presets } from './data/presets.js';
 
-  const preset = $derived(presets.find((p) => p.id === session.activePresetId && p.values));
+  const preset = $derived(presets.find((p) => p.id === $session.activePresetId && p.values));
   const place = $derived(preset ? preset.label : 'Custom field');
 
   const tabs = [
@@ -27,42 +27,42 @@
   let previousTab = $state('telemetry');
 
   const panelScreen = $derived.by(() => {
-    if (session.activeTab === 'calculating') return 'calculating';
-    if (session.activeTab === 'farm') return 'farm';
-    if (session.activeTab === 'telemetry') return 'telemetry';
+    if ($session.activeTab === 'calculating') return 'calculating';
+    if ($session.activeTab === 'farm') return 'farm';
+    if ($session.activeTab === 'telemetry') return 'telemetry';
     return previousTab || 'telemetry';
   });
 
   const tabActive = $derived(
-    session.activeTab === 'farm'
+    $session.activeTab === 'farm'
       ? 'farm'
-      : session.activeTab === 'telemetry'
+      : $session.activeTab === 'telemetry'
       ? 'telemetry'
-      : (session.collapsed ? null : panelScreen)
+      : ($session.collapsed ? null : panelScreen)
   );
 
   preloadCropModel().catch((e) => console.error('Crop model failed to load', e));
 
   $effect(() => {
-    document.documentElement.dataset.theme = session.theme;
+    document.documentElement.dataset.theme = $session.theme;
   });
 
   function selectTab(id) {
     previousTab = id;
-    session.activeTab = id;
-    session.collapsed = false;
+    $session.activeTab = id;
+    $session.collapsed = false;
   }
 
   function toggleCollapse() {
-    if (session.collapsed) {
-      session.collapsed = false;
-      if (session.activeTab === 'results') {
-        session.activeTab = previousTab || 'telemetry';
+    if ($session.collapsed) {
+      $session.collapsed = false;
+      if ($session.activeTab === 'results') {
+        $session.activeTab = previousTab || 'telemetry';
       }
     } else {
-      session.collapsed = true;
-      if (session.result) {
-        session.activeTab = 'results';
+      $session.collapsed = true;
+      if ($session.result) {
+        $session.activeTab = 'results';
       }
     }
   }
@@ -72,7 +72,7 @@
   <Header />
 
   <div class="layout">
-    <section class="panel" class:collapsed={session.collapsed}>
+    <section class="panel" class:collapsed={$session.collapsed}>
       <div class="content">
         {#if panelScreen === 'telemetry'}
           <TelemetryScreen />
@@ -87,7 +87,7 @@
         {tabs}
         active={tabActive}
         onselect={selectTab}
-        collapsed={session.collapsed}
+        collapsed={$session.collapsed}
         ontoggle={toggleCollapse}
       />
     </section>
@@ -95,21 +95,21 @@
     <div class="globe-stage">
 
 
-      <div class="globe-stage" class:collapsed={session.collapsed}>
-        <div class="globe-stage-text-location-container" class:collapsed={session.collapsed}>
+      <div class="globe-stage" class:collapsed={$session.collapsed}>
+        <div class="globe-stage-text-location-container" class:collapsed={$session.collapsed}>
         <span class="globe-stage-text-location">{place.toUpperCase()}</span>
         <span class="s-QDAv-o1wJ_oy">
-          {Math.trunc(session.form.lat??0)}°{Math.abs(((session.form.lat??0)%1*60).toFixed(2))}'N
-          {Math.trunc(session.form.lon??0)}°{Math.abs((session.form.lon??0)%1*60).toFixed(2)}'E
+          {Math.trunc($session.form.lat??0)}°{Math.abs((($session.form.lat??0)%1*60).toFixed(2))}'N
+          {Math.trunc($session.form.lon??0)}°{Math.abs(($session.form.lon??0)%1*60).toFixed(2)}'E
         </span>
         </div>
         <Globus
           width="100%"
           height="calc(100vh - var(--header-height))"
-          latitude={session.form.lat}
-          longitude={session.form.lon}
+          latitude={$session.form.lat}
+          longitude={$session.form.lon}
         />
-        {#if session.activeTab === 'results' && session.result && session.collapsed}
+        {#if $session.activeTab === 'results' && $session.result && $session.collapsed}
         <div class="results-overlay">
           <ResultsScreen />
         </div>

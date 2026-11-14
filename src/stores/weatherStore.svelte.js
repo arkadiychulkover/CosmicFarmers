@@ -1,85 +1,7 @@
+import { writable } from 'svelte/store';
 import { MONTHS } from '../lib/weather/SoilData.js';
 import { session } from './session.svelte.js';
 import { fetchNasaDataForCoords } from '../utils/nasaApi.js';
-
-let data = $state(null);
-let loading = $state(false);
-let failed = $state(false);
-let currentLat = null;
-let currentLon = null;
-
-$effect.root(() => {
-  $effect(() => {
-    const lat = session.form.lat;
-    const lon = session.form.lon;
-    const presetId = session.activePresetId;
-    const isCachedPreset = Boolean(presetId && presetId !== 'random');
-
-    if (
-      lat === null || lon === null ||
-      lat === '' || lon === '' ||
-      Number.isNaN(Number(lat)) || Number.isNaN(Number(lon))
-    ) {
-      data = null;
-      loading = false;
-      failed = false;
-      return;
-    }
-
-    if (
-      session.nasaData &&
-      Math.abs(session.nasaData.lat - Number(lat)) < 0.001 &&
-      Math.abs(session.nasaData.lon - Number(lon)) < 0.001
-    ) {
-      data = session.nasaData.weather;
-      currentLat = lat;
-      currentLon = lon;
-      loading = false;
-      failed = false;
-      return;
-    }
-
-    if (session.nasaLoading) {
-      loading = true;
-      failed = false;
-      return;
-    }
-
-    if (lat === currentLat && lon === currentLon && data) return;
-    currentLat = lat;
-    currentLon = lon;
-
-    let cancelled = false;
-    loading = true;
-    failed = false;
-
-    fetchNasaDataForCoords(lat, lon, {
-      presetId,
-      bypassCache: !isCachedPreset,
-    })
-      .then((payload) => {
-        if (cancelled) return;
-        if (payload) {
-          data = payload.weather;
-          session.nasaData = payload;
-          loading = false;
-        } else {
-          failed = true;
-          loading = false;
-        }
-      })
-      .catch((err) => {
-        if (cancelled) return;
-        console.error('Weather sync error:', err);
-        failed = true;
-        loading = false;
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  });
-});
 
 function buildTelemetry(d) {
   if (!d || !d.precipitation || !d.temperature) return null;
@@ -106,9 +28,82 @@ function buildTelemetry(d) {
   };
 }
 
-export const weatherStore = {
-  get data() { return data; },
-  get loading() { return loading; },
-  get failed() { return failed; },
-  get telemetry() { return buildTelemetry(data); },
-};
+export const weatherStore = writable({
+  data: null,
+  loading: false,
+  failed: false,
+  telemetry: null,
+});
+
+let currentLat = null;
+let currentLon = null;
+let requestSeq = 0;
+
+session.subscribe(($session) => {
+  const lat = $session.form.lat;
+  const lon = $session.form.lon;
+  const presetId = $session.activePresetId;
+  const isCachedPreset = Boolean(presetId && presetId !== 'random');
+
+  if (
+    lat === null || lon === null ||
+    lat === '' || lon === '' ||
+    Number.isNaN(Number(lat)) || Number.isNaN(Number(lon))
+  ) {
+    weatherStore.set({ data: null, loading: false, failed: false, telemetry: null });
+    return;
+  }
+
+  if (
+    $session.nasaData &&
+    Math.abs($session.nasaData.lat - Number(lat)) < 0.001 &&
+    Math.abs($session.nasaData.lon - Number(lon)) < 0.001
+  ) {
+    const d = $session.nasaData.weather;
+    currentLat = lat;
+    currentLon = lon;
+    weatherStore.set({
+      data: d,
+      loading: false,
+      failed: false,
+      telemetry: buildTelemetry(d),
+    });
+    return;
+  }
+
+  if ($session.nasaLoading) {
+    weatherStore.update((w) => ({ ...w, loading: true, failed: false }));
+    return;
+  }
+
+  if (lat === currentLat && lon === currentLon) return;
+  currentLat = lat;
+  currentLon = lon;
+
+  const seq = ++requestSeq;
+  weatherStore.update((w) => ({ ...w, loading: true, failed: false }));
+
+  fetchNasaDataForCoords(lat, lon, {
+    presetId,
+    bypassCache: !isCachedPreset,
+  })
+    .then((payload) => {
+      if (seq !== requestSeq) return;
+      if (payload) {
+        session.update((s) => ({ ...s, nasaData: payload }));
+        weatherStore.set({
+          data: payload.weather,
+          loading: false,
+          failed: false,
+          telemetry: buildTelemetry(payload.weather),
+        });
+      } else {
+        weatherStore.update((w) => ({ ...w, failed: true, loading: false }));
+      }
+    })
+    .catch((err) => {
+      if (seq !== requestSeq) return;
+      console.error('Weather sync error:', err);
+      weatherStore.update((w) => ({ ...w, failed: true, loading: false }));
+    });
+});
