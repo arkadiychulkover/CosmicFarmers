@@ -1,6 +1,5 @@
 import { writable, get } from 'svelte/store';
 
-/** Выдуманные тестовые поля (НЕ из csv). Ключи = признаки модели. */
 export const PRESETS = {
     'Влажные тропики': {
         previousCrop: 'rice',
@@ -20,10 +19,8 @@ export const PRESETS = {
     },
 };
 
-/** Содержимое "localStorage": последний запрос (или null). Сюда UI выгружает данные. */
 export const lastRequest = writable(null);
 
-/** Реализация LastRequestRepository поверх Svelte-store (вместо localStorage). */
 export const mockRepository = {
     loadLast: () => get(lastRequest),
     saveLast: (record) => lastRequest.set(record),
