@@ -105,14 +105,14 @@
   }
 
   .label {
-    font-size: 13px;
-    font-weight: 700;
+    font-size: 16px;
+    font-weight: 600;
     color: var(--color-text);
   }
 
   .hint {
-    font-size: 9.5px;
-    line-height: 1.4;
+    font-size: 8px;
+    line-height: 1;
     color: var(--color-text-dim);
   }
 
@@ -134,7 +134,7 @@
     border-radius: 6px;
     background: transparent;
     color: var(--color-text);
-    font-size: 11px;
+    font-size: 12px;
     text-align: left;
     cursor: pointer;
   }
@@ -181,7 +181,7 @@
     padding: 7px 12px;
     background: var(--color-option);
     color: var(--color-text);
-    font-size: 11px;
+    font-size: 12px;
     border-bottom: 1px solid color-mix(in srgb, var(--color-text) 18%, transparent);
     cursor: pointer;
   }

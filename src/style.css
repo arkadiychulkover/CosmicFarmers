@@ -2,54 +2,55 @@
   color-scheme: dark;
 
   --font-body: 'Roboto', system-ui, sans-serif;
-  --font-display: 'Rajdhani', 'Roboto', system-ui, sans-serif;
+  --font-display: 'Advent Pro', 'Roboto', system-ui, sans-serif;
 
-  --color-bg: #0b1220;
-  --color-panel: #293857;
-  --color-card: #6d7c9c;
-  --color-card-text: #f2f5fb;
-  --color-card-dim: #dbe2f0;
-  --color-field: #2f3f60;
-  --color-option: #6d7c9c;
-  --color-option-active: #27374f;
-  --color-tab: #6d7c9c;
-  --color-tab-hover: #8190ae;
-  --color-tab-text: #1f2b45;
+  --color-bg: #0b1524;
+  --color-panel: #293751;
+  --color-card: #6d7d99;
+  --color-card-text: #f1edea;
+  --color-card-dim: #cbc9c7;
+  --color-field: #0b1524;
+  --color-option: #6d7d99;
+  --color-option-active: #293751;
+  --color-tab: #6d7d99;
+  --color-tab-hover: #0b1524;
+  --color-tab-text: #0b1524;
   --color-tab-active: var(--color-panel);
-  --color-text: #f2f5fb;
-  --color-text-dim: #aab6cf;
-  --color-border-dim: #6d7c9c;
-  --color-border-strong: #ffffff;
-  --color-accent: #b3ff9e;
+  --color-text: #f1edea;
+  --color-text-dim: #cbc9c7;
+  --color-border-dim: #6d7d99;
+  --color-border-strong: #f1edea;
+  --color-accent: #b2ff9e;
 
-  --color-button: #b3ff9e;
-  --color-button-hover: #7dbf6b;
-  --color-button-text: #0d1a24;
-  --color-button-disabled: #a9c6a2;
-  --color-button-disabled-text: #55654f;
+  --color-button: #b2ff9e;
+  --color-button-hover: #b2ff9e;
+  --color-button-text: #0b1524;
+  --color-button-disabled: #cbc9c7;
+  --color-button-disabled-text: #0b1524;
 
-  --color-switch-track: #1e2a44;
-  --color-switch-thumb: #d9dde6;
-  --color-switch-dots: #1e2a44;
+  --color-switch-track: #0b1524;
+  --color-switch-thumb: #f1edea;
+  --color-switch-dots: #0b1524;
 
-  --color-chart-blue: #6ec6f5;
-  --color-chart-orange: #f4a940;
-  --color-chart-red: #ee6a5f;
-  --color-chart-green: #8fd67a;
+  --color-danger: #bd4e4e;
+  --color-chart-blue: #6d7d99;
+  --color-chart-orange: #ffb26b;
+  --color-chart-red: #bd4e4e;
+  --color-chart-green: #b2ff9e;
 
-  --color-result-card: #293857;
-  --color-result-text: #f2f5fb;
-  --color-result-dim: #c5cee2;
-  --color-result-match: #b3ff9e;
-  --color-tone-good: #b3ff9e;
-  --color-tone-warn: #f5e36c;
+  --color-result-card: #293751;
+  --color-result-text: #f1edea;
+  --color-result-dim: #cbc9c7;
+  --color-result-match: #b2ff9e;
+  --color-tone-good: #b2ff9e;
+  --color-tone-warn: #f3e474;
 
   --header-height: 124px;
-  --panel-width: 648px;
+  --panel-width: 860px;
   --panel-collapsed-width: 36px;
-  --rail-width: 36px;
+  --rail-width: 51px;
   --tab-radius: 28px;
-  --content-left: 119px;
+  --content-left: 152px;
   --results-offset: 118px;
   --results-width: 387px;
 }
@@ -72,7 +73,7 @@
   --color-text-dim: #4a5873;
   --color-border-dim: #7d8bab;
   --color-border-strong: #14203a;
-  --color-accent: #3f8f2a;
+  --color-accent: #b2ff9e;
 
   --color-switch-track: #aab6cf;
   --color-switch-thumb: #14203a;
@@ -81,9 +82,9 @@
   --color-result-card: #c9d3e6;
   --color-result-text: #14203a;
   --color-result-dim: #33425f;
-  --color-result-match: #2f7d1e;
-  --color-tone-good: #3f8f2a;
-  --color-tone-warn: #c9a700;
+  --color-result-match: #b2ff9e;
+  --color-tone-good: #b2ff9e;
+  --color-tone-warn: #f3e474;
 }
 
 *,
@@ -109,8 +110,9 @@ h2 {
   margin: 0;
   text-align: center;
   font-family: var(--font-display);
-  font-size: 18px;
+  font-size: 24px;
   font-weight: 600;
-  letter-spacing: 0.04em;
+  letter-spacing: 0;
+  line-height: 1;
   text-transform: uppercase;
 }

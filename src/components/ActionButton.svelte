@@ -24,9 +24,10 @@
     border: 2px solid transparent;
     border-radius: 999px;
     font-family: var(--font-display);
-    font-size: 15px;
-    font-weight: 600;
-    letter-spacing: 0.04em;
+    font-size: 16px;
+    font-weight: 700;
+    letter-spacing: 0;
+    line-height: 1;
     text-transform: uppercase;
     cursor: pointer;
     transition: background 0.15s, color 0.15s, border-color 0.15s;
@@ -55,6 +56,19 @@
     background: var(--color-button-disabled);
     color: var(--color-button-disabled-text);
     cursor: not-allowed;
+  }
+
+  .surface {
+    background: var(--color-panel);
+    color: var(--color-text);
+    border-color: var(--color-border-dim);
+  }
+
+  .surface:hover:not(:disabled),
+  .surface:active:not(:disabled) {
+    background: var(--color-panel);
+    color: var(--color-text);
+    border-color: var(--color-border-strong);
   }
 
   .outline {

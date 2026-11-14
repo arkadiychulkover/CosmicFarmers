@@ -25,7 +25,7 @@
     padding: 6px 12px;
     border: 1px solid var(--color-border-dim);
     border-radius: 14px;
-    background: var(--color-field);
+    background: var(--color-panel);
     color: var(--color-text);
     font-size: 12px;
     font-weight: 700;

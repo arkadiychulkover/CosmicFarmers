@@ -31,8 +31,8 @@
   }
 
   label {
-    font-size: 13px;
-    font-weight: 700;
+    font-size: 16px;
+    font-weight: 600;
     color: var(--color-text);
   }
 
@@ -41,9 +41,9 @@
     padding: 6px 12px;
     border: 1px solid var(--color-border-dim);
     border-radius: 6px;
-    background: var(--color-field);
+    background: var(--color-panel);
     color: var(--color-text);
-    font-size: 11px;
+    font-size: 12px;
     appearance: textfield;
     -moz-appearance: textfield;
   }

@@ -76,6 +76,11 @@
 
   <GoalSelector label="Primary Management Goal" options={goalOptions} bind:value={$session.form.goal} />
 
+  <div class="soil-warning">
+    <h3>Soil Metrics</h3>
+    <p>Satellite data may be inaccurate, make your own measurements and tune it for more accurate results.</p>
+  </div>
+
   <SliderField
     label="Soil Reaction (pH Level)"
     min={4.5}
@@ -85,17 +90,18 @@
     minLabel="Acidic"
     midLabel="Neutral"
     maxLabel="Alkaline"
+    mark={$session.autoSoil.ph}
     bind:value={$session.form.ph}
   />
 
   <SelectField label="Soil Type" options={soilOptions} bind:value={$session.form.soil} />
 
-  <SliderField label="Available Nitrogen (N)" max={200} unit="mg/kg" bind:value={$session.form.n} />
-  <SliderField label="Available Phosphorus (P)" max={150} unit="mg/kg" bind:value={$session.form.p} />
-  <SliderField label="Exchangeable Potassium (K)" max={300} unit="mg/kg" bind:value={$session.form.k} />
+  <SliderField label="Available Nitrogen (N)" max={200} unit="mg/kg" mark={$session.autoSoil.n} bind:value={$session.form.n} />
+  <SliderField label="Available Phosphorus (P)" max={150} unit="mg/kg" mark={$session.autoSoil.p} bind:value={$session.form.p} />
+  <SliderField label="Exchangeable Potassium (K)" max={300} unit="mg/kg" mark={$session.autoSoil.k} bind:value={$session.form.k} />
 
   <div class="actions">
-    <ActionButton onclick={() => ($session.activeTab = 'telemetry')}>Stress Test →</ActionButton>
+    <ActionButton variant="surface" onclick={() => ($session.activeTab = 'telemetry')}>Stress Test →</ActionButton>
   </div>
 </div>
 
@@ -130,7 +136,7 @@
     padding: 0;
     border: 1px solid var(--color-border-dim);
     border-radius: 6px;
-    background: var(--color-field);
+    background: var(--color-panel);
     color: var(--color-accent);
     cursor: pointer;
     transition: all 0.15s ease;
@@ -138,9 +144,9 @@
 
   .map-btn:hover {
     border-color: var(--color-accent);
-    background: color-mix(in srgb, var(--color-accent) 15%, transparent);
+    background: var(--color-panel);
     color: var(--color-accent);
-    box-shadow: 0 0 10px rgba(0, 240, 255, 0.25);
+    box-shadow: none;
   }
 
   .map-btn:active {
@@ -157,9 +163,33 @@
     height: 17px;
   }
 
+  .soil-warning {
+    display: grid;
+    gap: 4px;
+    text-align: center;
+  }
+
+  .soil-warning h3 {
+    margin: 0;
+    font-family: var(--font-display);
+    font-size: 20px;
+    font-weight: 600;
+    letter-spacing: 0;
+    line-height: 1;
+    text-transform: uppercase;
+  }
+
+  .soil-warning p {
+    margin: 0;
+    color: var(--color-text-dim);
+    font-size: 8px;
+    line-height: 1;
+  }
+
   .actions {
     width: 50%;
     min-width: 220px;
     margin: 6px auto 0;
   }
+
 </style>

@@ -1,69 +1,81 @@
-<script>  let { values = [], months = [], heatDays = 0, threshold = 32 } = $props();
+<script>
+  let { values = [], months = [], heatDays = 0, threshold = 32 } = $props();
 
-  const width = 120;
-  const height = 60;
-  const padX = 6;
-  const top = 6;
-  const bottom = 40;
-  const scaleMax = 36;
+  const width = 250;
+  const height = 108;
+  const padL = 28;
+  const padR = 8;
+  const top = 16;
+  const axisY = 72;
+  const scaleMax = 40;
 
   function yFor(temp) {
-    return bottom - (Math.max(0, temp) / scaleMax) * (bottom - top);
+    return axisY - (Math.max(0, temp) / scaleMax) * (axisY - top);
   }
 
-  const safeValues = $derived(Array.isArray(values) && values.length > 0 ? values : [0, 0, 0, 0, 0, 0, 0]);
-  const safeMonths = $derived(Array.isArray(months) && months.length > 0 ? months : ['Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct']);
+  const safeValues = $derived(Array.isArray(values) && values.length ? values : [0]);
+  const safeMonths = $derived(Array.isArray(months) && months.length ? months : []);
   const points = $derived(
-    safeValues.map((v, i) => ({
-      x: padX + (i / Math.max(1, safeValues.length - 1)) * (width - padX * 2),
-      y: yFor(v),
-    }))
+    safeValues.map((value, index) => ({
+      x: padL + (index / Math.max(1, safeValues.length - 1)) * (width - padL - padR),
+      y: yFor(value),
+    })),
   );
-  const line = $derived(points.map((p) => `${p.x},${p.y}`).join(' '));
-  const safeHeatDays = $derived(Math.min(Math.max(0, Math.round(heatDays) || 0), 14));
-  const squares = $derived(Array.from({ length: safeHeatDays }, (_, i) => i));
+  const line = $derived(points.map((point) => `${point.x},${point.y}`).join(' '));
+  const area = $derived(`${padL},${axisY} ${line} ${width - padR},${axisY}`);
+  const marks = $derived([0, Math.floor((safeMonths.length - 1) / 2), safeMonths.length - 1]);
+  const squares = $derived(Array.from({ length: Math.min(Math.max(0, Math.round(heatDays) || 0), 12) }, (_, index) => index));
 </script>
 
 <svg viewBox="0 0 {width} {height}" role="img" aria-label="Monthly temperature and heat stress days">
-  <line x1={padX} y1={yFor(threshold)} x2={width - padX} y2={yFor(threshold)} class="threshold" />
+  <polygon points={area} class="area" />
+  <line x1={padL} y1={yFor(threshold)} x2={width - padR} y2={yFor(threshold)} class="threshold" />
+  <text x="0" y={yFor(threshold) + 3} class="tick">{threshold}°C</text>
   <polyline points={line} class="line" />
-  {#each points as p, i (safeMonths[i] ?? i)}
-    <circle cx={p.x} cy={p.y} r="1.4" class="dot" />
-    <text x={p.x} y="48" text-anchor="middle" class="label">{safeMonths[i] ?? ''}</text>
+  {#each points as point, index (safeMonths[index] ?? index)}
+    {#if marks.includes(index)}
+      <text x={point.x} y={axisY + 12} text-anchor="middle" class="month">{safeMonths[index] ?? ''}</text>
+    {/if}
   {/each}
-  {#each squares as s (s)}
-    <rect x={padX + s * 6} y="53" width="4" height="4" class="heat" />
+  <text x="0" y="96" class="note">{squares.length} / ≈210 days &gt;32°C</text>
+  <text x={width} y="96" text-anchor="end" class="note">Count only · not dates</text>
+  {#each squares as square (square)}
+    <rect x={2 + square * 8} y="98" width="6" height="8" rx="1" class="heat" />
   {/each}
 </svg>
 
-<style>  svg {
+<style>
+  svg {
     display: block;
     width: 100%;
     height: auto;
   }
 
-  .threshold {
-    stroke: var(--color-chart-red);
-    stroke-width: 0.5;
-    stroke-dasharray: 2 2;
+  .area {
+    fill: #ffb26b;
+    opacity: 0.28;
   }
 
   .line {
     fill: none;
-    stroke: var(--color-chart-orange);
-    stroke-width: 1.2;
+    stroke: #ffb26b;
+    stroke-width: 1.8;
   }
 
-  .dot {
-    fill: var(--color-chart-orange);
+  .threshold {
+    stroke: #f3e474;
+    stroke-width: 1;
+    stroke-dasharray: 3 3;
   }
 
-  .label {
-    fill: var(--color-text-dim);
-    font-size: 5px;
+  .tick,
+  .month,
+  .note {
+    fill: var(--color-card-text);
+    font-size: 8px;
   }
 
   .heat {
-    fill: var(--color-chart-red);
+    fill: #f3e474;
   }
 </style>
