@@ -73,6 +73,22 @@ function series(block, name, fill) {
   return values;
 }
 
+function dailyPair(meanValues, maxValues, fill) {
+  const dates = Object.keys(meanValues)
+    .filter((date) => meanValues[date] !== fill && Number.isFinite(meanValues[date]))
+    .sort();
+  return {
+    dates,
+    daily: dates.map((date) => Number(Number(meanValues[date]).toFixed(1))),
+    dailyMax: dates.map((date) => {
+      const value = maxValues[date];
+      return value !== fill && Number.isFinite(value)
+        ? Number(Number(value).toFixed(1))
+        : Number(Number(meanValues[date]).toFixed(1));
+    }),
+  };
+}
+
 function monthMeans(values, fill, digits = 1) {
   return MONTH_KEYS.map((month) => {
     let sum = 0;
@@ -142,7 +158,7 @@ export async function loadPrecipitation(lat, lon, signal) {
 
 export async function loadTemperature(lat, lon, signal) {
   const cached = cachedPayload(lat, lon)?.weather?.temperature;
-  if (cached?.monthly?.length) {
+  if (cached?.daily?.length && cached?.dailyMax?.length) {
     return { months: MONTHS, ...cached };
   }
 
@@ -157,6 +173,8 @@ export async function loadTemperature(lat, lon, signal) {
     months: MONTHS,
     mean: Number(averageWithException(Object.values(t2m), fill).toFixed(1)),
     monthly: monthMeans(t2m, fill),
+    monthlyMax: monthMeans(t2mMax, fill),
+    ...dailyPair(t2m, t2mMax, fill),
     heatDays,
   };
 }

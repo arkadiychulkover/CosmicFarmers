@@ -160,7 +160,9 @@
     >
       {#if cards.temp.data}
         <TemperatureChart
-          values={cards.temp.data.monthly}
+          values={cards.temp.data.daily?.length ? cards.temp.data.daily : cards.temp.data.monthly}
+          maxValues={cards.temp.data.dailyMax?.length ? cards.temp.data.dailyMax : cards.temp.data.monthlyMax}
+          dates={cards.temp.data.dates}
           months={cards.temp.data.months}
           heatDays={cards.temp.data.heatDays}
         />

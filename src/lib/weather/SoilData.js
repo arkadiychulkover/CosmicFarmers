@@ -139,6 +139,17 @@ export function parseWeatherResponse(weatherData) {
     return count ? Number((sum / count).toFixed(1)) : 0;
   });
 
+  const monthlyTempMax = MONTH_KEYS.map((m) => {
+    let sum = 0, count = 0;
+    for (const [date, val] of Object.entries(dp.T2M_MAX || {})) {
+      if (date.slice(4, 6) === m && val !== ex && Number.isFinite(val)) {
+        sum += val;
+        count++;
+      }
+    }
+    return count ? Number((sum / count).toFixed(1)) : 0;
+  });
+
   const totalPrecip = monthlyPrecip.reduce((a, b) => a + b, 0);
 
 
@@ -205,6 +216,7 @@ export function parseWeatherResponse(weatherData) {
     temperature: {
       mean: Number(meanTemp.toFixed(1)),
       monthly: monthlyTemp,
+      monthlyMax: monthlyTempMax,
       heatDays,
     },
     solar: {
