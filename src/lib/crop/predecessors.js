@@ -1,8 +1,8 @@
 export const PREDECESSOR_TO_MODEL = {
     corn: 'maize',
-    soybean: 'mungbean',
-    'winter-wheat': 'rice',
-    'spring-barley': 'rice',
-    sunflower: null,
+    soybean: 'soybean',
+    'winter-wheat': 'wheat',
+    'spring-barley': 'barley',
+    sunflower: 'sunflower',
     fallow: null,
 };

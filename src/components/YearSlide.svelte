@@ -1,5 +1,4 @@
-<script>
-  import MatchBadge from './MatchBadge.svelte';
+<script>  import MatchBadge from './MatchBadge.svelte';
   import { cropImage } from '../data/crops.js';
 
   let { item } = $props();
@@ -41,11 +40,10 @@
   </div>
 </article>
 
-<style>
-  .card {
+<style>  .card {
     display: flex;
     flex-direction: column;
-    height: 100%;
+    height: auto;
     overflow: hidden;
     border-radius: 22px;
     background: var(--color-result-card);
@@ -55,8 +53,8 @@
 
   .photo {
     position: relative;
-    flex: 1 1 120px;
-    min-height: 70px;
+    flex: 0 0 auto;
+    height: 165px;
     background-size: cover;
     background-position: center;
   }

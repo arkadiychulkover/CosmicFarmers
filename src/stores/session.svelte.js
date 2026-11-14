@@ -55,6 +55,9 @@ function load() {
 
     merged.nasaLoading = false;
     merged.nasaError = null;
+    if (!merged.activePresetId || merged.activePresetId === 'random') {
+      merged.nasaData = null;
+    }
 
     if (merged.theme !== 'light') merged.theme = 'dark';
 
@@ -92,33 +95,55 @@ $effect.root(() => {
   });
 });
 
-export async function applyPreset(preset) {
-  const coords = resolvePreset(preset);
+let coordRequestSeq = 0;
 
-  session.activePresetId = preset.id;
+export function applyNasaPayloadToForm(payload) {
+  if (!payload) return;
+  session.nasaData = payload;
+  session.form.ph = payload.ph;
+  session.form.soil = payload.soil;
+  session.form.n = payload.n;
+  session.form.p = payload.p;
+  session.form.k = payload.k;
+}
+
+export async function loadCoordsIntoSession(lat, lon, { presetId = null } = {}) {
+  const numLat = Number(Number(lat).toFixed(4));
+  const numLon = Number(Number(lon).toFixed(4));
+  if (Number.isNaN(numLat) || Number.isNaN(numLon)) return;
+
+  const seq = ++coordRequestSeq;
+  session.activePresetId = presetId;
   session.coordsEditable = false;
   session.customSoilEdited = false;
-  session.form.lat = coords.lat;
-  session.form.lon = coords.lon;
+  session.form.lat = numLat;
+  session.form.lon = numLon;
+  session.nasaData = null;
   session.nasaLoading = true;
   session.nasaError = null;
 
-  try {
-    const payload = await fetchNasaDataForCoords(coords.lat, coords.lon, {
-      bypassCache: preset.id === 'random',
-    });
+  const isCachedPreset = Boolean(presetId && presetId !== 'random');
 
+  try {
+    const payload = await fetchNasaDataForCoords(numLat, numLon, {
+      presetId,
+      bypassCache: !isCachedPreset,
+    });
+    if (seq !== coordRequestSeq) return;
     if (payload) {
-      session.nasaData = payload;
-      session.form.ph = payload.ph;
-      session.form.soil = payload.soil;
-      session.form.n = payload.n;
-      session.form.p = payload.p;
-      session.form.k = payload.k;
+      applyNasaPayloadToForm(payload);
     }
   } catch (err) {
-    session.nasaError = err?.message || 'Failed to load climate preset';
+    if (seq !== coordRequestSeq) return;
+    session.nasaError = err?.message || 'Failed to load climate data for chosen location';
   } finally {
-    session.nasaLoading = false;
+    if (seq === coordRequestSeq) {
+      session.nasaLoading = false;
+    }
   }
+}
+
+export async function applyPreset(preset) {
+  const coords = resolvePreset(preset);
+  await loadCoordsIntoSession(coords.lat, coords.lon, { presetId: preset.id });
 }

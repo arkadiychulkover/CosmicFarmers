@@ -1,5 +1,4 @@
-<script>
-  import MatchBadge from './MatchBadge.svelte';
+<script>  import MatchBadge from './MatchBadge.svelte';
   import { cropImage } from '../data/crops.js';
 
   let { item = {} } = $props();
@@ -28,8 +27,7 @@
   {/if}
 </article>
 
-<style>
-  .card {
+<style>  .card {
     display: flex;
     flex-direction: column;
     justify-content: space-between;

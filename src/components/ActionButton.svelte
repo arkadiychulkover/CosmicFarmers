@@ -1,5 +1,4 @@
-<script>
-  let { variant = 'primary', disabled = false, loading = false, onclick, children } = $props();
+<script>  let { variant = 'primary', disabled = false, loading = false, onclick, children } = $props();
 </script>
 
 <button
@@ -15,8 +14,7 @@
   {/if}
 </button>
 
-<style>
-  .btn {
+<style>  .btn {
     display: flex;
     align-items: center;
     justify-content: center;

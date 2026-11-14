@@ -1,5 +1,4 @@
-<script>
-  let { value = 0, max = 30, optimalMin = 16, optimalMax = 22 } = $props();
+<script>  let { value = 0, max = 30, optimalMin = 16, optimalMax = 22 } = $props();
 
   const numVal = $derived(Number(value) || 0);
   const valuePct = $derived(Math.min(100, Math.max(0, (numVal / max) * 100)));
@@ -26,8 +25,7 @@
   <text x="60" y="61" text-anchor="middle" class="unit">Optimal: {optimalMin}–{optimalMax}</text>
 </svg>
 
-<style>
-  svg {
+<style>  svg {
     display: block;
     width: 100%;
     height: auto;

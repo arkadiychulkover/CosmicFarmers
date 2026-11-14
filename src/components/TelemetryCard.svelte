@@ -1,5 +1,4 @@
-<script>
-  let { title, value = '', unit = '', rows = [], note = '', children } = $props();
+<script>  let { title, value = '', unit = '', rows = [], note = '', children } = $props();
 </script>
 
 <article class="card">
@@ -26,8 +25,7 @@
   </div>
 </article>
 
-<style>
-  .card {
+<style>  .card {
     --color-text-dim: var(--color-card-dim);
     --color-border-dim: #b7c2da;
 

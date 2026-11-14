@@ -1,5 +1,4 @@
-<script>
-  import { githubUrl } from '../data/links.js';
+<script>  import { githubUrl } from '../data/links.js';
   import { session } from '../stores/session.svelte.js';
 
   const light = $derived(session.theme === 'light');
@@ -48,8 +47,7 @@
   </div>
 </header>
 
-<style>
-  .header {
+<style>  .header {
     display: grid;
     grid-template-columns: 1fr auto 1fr;
     align-items: start;

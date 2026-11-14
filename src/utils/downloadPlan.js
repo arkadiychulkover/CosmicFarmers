@@ -4,14 +4,14 @@ const PAGE = { w: 210, h: 297, margin: 18 };
 const CONTENT_W = PAGE.w - PAGE.margin * 2;
 const CAPTIONS = ['Recommended next crop', 'Follow-up crop', 'Cycle completion'];
 
-/** Стандартные шрифты PDF не содержат часть Unicode: оставляем безопасный набор. */
+
 const safe = (text) =>
   String(text)
     .replace(/[–—]/g, '-')
     .replace(/→/g, '->')
     .replace(/[^\x20-\x7E°±×]/g, '');
 
-/** webp -> JPEG data URL, обрезанный "cover" под заданное соотношение сторон (jsPDF не читает webp). */
+
 async function loadPhoto(url, ratio) {
   if (!url) return null;
   try {
@@ -40,11 +40,12 @@ function paragraph(doc, text, x, y, { size = 10, style = 'normal', color = 40, w
   return y + lines.length * size * 0.45;
 }
 
-/** Генерация PDF целиком на стороне пользователя; jsPDF подгружается только по клику. */
+
 export async function downloadPlan(result, form) {
   const { jsPDF } = await import('jspdf');
   const doc = new jsPDF({ unit: 'mm', format: 'a4' });
   const { margin } = PAGE;
+
 
   let y = margin + 4;
   doc.setFont('helvetica', 'bold').setFontSize(20).setTextColor(30);
@@ -53,8 +54,15 @@ export async function downloadPlan(result, form) {
 
   y += 8;
   y = paragraph(doc, 'FIELD PROFILE', margin, y, { size: 9, style: 'bold', color: 120 }) + 1;
+  const goalTitle = form.goal === 'water'
+    ? 'Water Conservation'
+    : form.goal === 'yield'
+    ? 'Maximum Yield'
+    : 'Soil Regeneration';
+
   for (const line of [
     `Location: lat ${form.lat}, lon ${form.lon}`,
+    `Primary management goal: ${goalTitle}`,
     `Soil: pH ${form.ph}; N ${form.n}, P ${form.p}, K ${form.k} mg/kg`,
     `Previous season: ${result.previousName}`,
   ]) {
@@ -74,6 +82,7 @@ export async function downloadPlan(result, form) {
     y += 3;
   }
   doc.line(margin, y, margin + CONTENT_W, y);
+
 
   const photos = await Promise.all(result.years.map((e) => loadPhoto(cropImage(e.id), CONTENT_W / 70)));
 
@@ -103,6 +112,7 @@ export async function downloadPlan(result, form) {
     py = paragraph(doc, 'CANDIDATES CONSIDERED THIS YEAR', margin, py + 3, { size: 8, style: 'bold', color: 120 });
     paragraph(doc, entry.options.map((o) => `${o.name} ${o.percent}%`).join('   |   '), margin, py + 2, { size: 10, color: 70 });
   });
+
 
   const total = doc.getNumberOfPages();
   for (let p = 1; p <= total; p++) {
