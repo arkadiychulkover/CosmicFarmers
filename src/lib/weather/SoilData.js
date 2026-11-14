@@ -1,8 +1,23 @@
+export const DAYS_IN_MONTH = {
+  '01': 31, '02': 28, '03': 31, '04': 30, '05': 31, '06': 30,
+  '07': 31, '08': 31, '09': 30, '10': 31, '11': 30, '12': 31,
+};
+
 export const MONTHS = ['Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct'];
 export const MONTH_KEYS = ['03', '04', '05', '06', '07', '08', '09', '10'];
-export const DAYS_IN_MONTH = { '03': 31, '04': 30, '05': 31, '06': 30, '07': 31, '08': 31, '09': 30, '10': 31 };
 export const SEASON_MONTHS = 8;
 
+export function getSeasonMonths(lat) {
+  return Number(lat) < 0
+    ? ['Sep', 'Oct', 'Nov', 'Dec', 'Jan', 'Feb', 'Mar', 'Apr']
+    : ['Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct'];
+}
+
+export function getSeasonMonthKeys(lat) {
+  return Number(lat) < 0
+    ? ['09', '10', '11', '12', '01', '02', '03', '04']
+    : ['03', '04', '05', '06', '07', '08', '09', '10'];
+}
 
 export const averageWithException = (arr, ex = -999) => {
   let sum = 0, count = 0;
@@ -31,14 +46,12 @@ export const maxWithException = (arr, ex = -999) =>
 export const minWithException = (arr, ex = -999) =>
   arr.reduce((a, b) => (a !== ex && Number.isFinite(b) && b !== ex ? (b < a ? b : a) : a), Infinity);
 
-
 export function getSeasonYear() {
   const now = new Date();
   const year = now.getFullYear();
   const candidate = (now.getMonth() > 9 || (now.getMonth() === 9 && now.getDate() >= 31)) ? year : year - 1;
   return Math.min(candidate, 2024);
 }
-
 
 export async function fetchSrtmTerrain(latitude, longitude, { signal, strict = false } = {}) {
   try {
@@ -68,7 +81,6 @@ export async function fetchSrtmTerrain(latitude, longitude, { signal, strict = f
     return { elevation: 180.0, slope: 1.5 };
   }
 }
-
 
 export async function getWeather(longitude, latitude, { signal } = {}) {
   const seasonYear = getSeasonYear();
@@ -108,17 +120,20 @@ export async function getWeather(longitude, latitude, { signal } = {}) {
     fetchSrtmTerrain(latitude, longitude, { signal }),
   ]);
 
-  return { daily: dailyRes, monthly: monthlyRes, srtm: srtmRes, seasonYear };
+  return { daily: dailyRes, monthly: monthlyRes, srtm: srtmRes, seasonYear, latitude: numLat, longitude: Number(longitude) };
 }
-
 
 export function parseWeatherResponse(weatherData) {
   const { daily, monthly, srtm, seasonYear = getSeasonYear() } = weatherData;
+  const lat = Number(weatherData.latitude ?? weatherData.lat ?? daily?.geometry?.coordinates?.[1] ?? 0);
+  const isSouth = lat < 0;
+  const monthKeys = getSeasonMonthKeys(lat);
+  const seasonMonths = getSeasonMonths(lat);
+
   const ex = daily.header?.fill_value ?? -999;
   const dp = daily.properties.parameter;
 
-
-  const monthlyPrecip = MONTH_KEYS.map((m) => {
+  const monthlyPrecip = monthKeys.map((m) => {
     let sum = 0;
     for (const [date, val] of Object.entries(dp.PRECTOTCORR || {})) {
       if (date.slice(4, 6) === m && val !== ex && Number.isFinite(val)) {
@@ -128,7 +143,7 @@ export function parseWeatherResponse(weatherData) {
     return Math.round(sum);
   });
 
-  const monthlyMean = (param) => MONTH_KEYS.map((m) => {
+  const monthlyMean = (param) => monthKeys.map((m) => {
     let sum = 0, count = 0;
     for (const [date, val] of Object.entries(param || {})) {
       if (date.slice(4, 6) === m && val !== ex && Number.isFinite(val)) {
@@ -145,14 +160,12 @@ export function parseWeatherResponse(weatherData) {
 
   const totalPrecip = monthlyPrecip.reduce((a, b) => a + b, 0);
 
-
   let heatDays = 0;
   for (const [, val] of Object.entries(dp.T2M_MAX || {})) {
     if (val !== ex && Number.isFinite(val) && val >= 32) {
       heatDays++;
     }
   }
-
 
   let historicalAverage = 680;
   if (monthly?.properties?.parameter?.PRECTOTCORR) {
@@ -163,8 +176,10 @@ export function parseWeatherResponse(weatherData) {
     for (let y = seasonYear - 9; y <= seasonYear; y++) {
       let ySum = 0;
       let hasData = false;
-      for (const [m, days] of Object.entries(DAYS_IN_MONTH)) {
-        const val = mp[`${y}${m}`];
+      for (const m of monthKeys) {
+        const yearKey = isSouth && ['09', '10', '11', '12'].includes(m) ? y - 1 : y;
+        const days = DAYS_IN_MONTH[m] || 30;
+        const val = mp[`${yearKey}${m}`];
         if (val !== undefined && val !== ex && Number.isFinite(val)) {
           ySum += val * days;
           hasData = true;
@@ -199,7 +214,7 @@ export function parseWeatherResponse(weatherData) {
 
   return {
     seasonYear,
-    months: MONTHS,
+    months: seasonMonths,
     precipitation: {
       total: totalPrecip,
       monthly: monthlyPrecip,
@@ -254,4 +269,3 @@ export function parseWeatherResponse(weatherData) {
     daily_t2m: t2mArr,
   };
 }
-
