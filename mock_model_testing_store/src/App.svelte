@@ -1,5 +1,4 @@
-<script>
-    import { onMount } from 'svelte';
+<script>    import { onMount } from 'svelte';
     import { createCropService, preloadCropModel, modelStatus } from './lib/crop/index.js';
     import { CROP_CLASSES, FEATURE_ORDER } from './lib/crop/features.js';
     import { PRESETS, lastRequest, mockRepository } from './mockStore.js';
@@ -20,7 +19,7 @@
         previousCrop = PRESETS[presetName].previousCrop;
     }
 
-    // Выгрузить данные в store без ответа - как будто пользователь прошёл 1 экран.
+
     function pushToStore() {
         lastRequest.set({ params: { ...params }, previousCrop });
         plan = null; ms = null; error = '';
@@ -89,8 +88,7 @@
     {/if}
 </main>
 
-<style>
-    main { font-family: system-ui, sans-serif; max-width: 760px; margin: 2rem auto; padding: 0 1rem; }
+<style>    main { font-family: system-ui, sans-serif; max-width: 760px; margin: 2rem auto; padding: 0 1rem; }
     .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: .5rem; margin: 1rem 0; }
     label { display: flex; flex-direction: column; font-size: .85rem; gap: .2rem; margin-bottom: .5rem; }
     pre { background: #f4f4f4; padding: .75rem; overflow: auto; font-size: .8rem; }

@@ -1,5 +1,4 @@
-<script>
-  let { presets, activeId = null, onselect } = $props();
+<script>  let { presets, activeId = null, onselect } = $props();
 </script>
 
 <div class="presets" role="group" aria-label="Quick presets">
@@ -16,8 +15,7 @@
   {/each}
 </div>
 
-<style>
-  .presets {
+<style>  .presets {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
     gap: 10px;

@@ -1,5 +1,4 @@
-<script>
-  import TelemetryCard from '../components/TelemetryCard.svelte';
+<script>  import TelemetryCard from '../components/TelemetryCard.svelte';
   import ClimateTable from '../components/ClimateTable.svelte';
   import ActionButton from '../components/ActionButton.svelte';
   import FieldProfileStatus from '../components/FieldProfileStatus.svelte';
@@ -140,8 +139,7 @@
   </div>
 </div>
 
-<style>
-  .screen {
+<style>  .screen {
     display: grid;
     gap: 22px;
   }

@@ -1,5 +1,4 @@
-<script>
-  import { presets } from '../data/presets.js';
+<script>  import { presets } from '../data/presets.js';
   import { cropOptions, soilOptions } from '../data/options.js';
   import { session } from '../stores/session.svelte.js';
 
@@ -29,8 +28,7 @@
   </div>
 </div>
 
-<style>
-  .profile {
+<style>  .profile {
     display: grid;
     gap: 16px;
     justify-items: start;

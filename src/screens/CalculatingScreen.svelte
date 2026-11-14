@@ -1,5 +1,4 @@
-<script>
-  import { onMount } from "svelte";
+<script>  import { onMount } from "svelte";
   import ActionButton from "../components/ActionButton.svelte";
   import { calculationSteps } from "../data/steps.js";
   import { runStrategy, getTelemetry } from "../api.js";
@@ -37,7 +36,11 @@
           Math.abs(nasaData.lat - expectedLat) > 0.001 ||
           Math.abs(nasaData.lon - expectedLon) > 0.001
         ) {
+          const presetId = session.activePresetId;
+          const isCachedPreset = Boolean(presetId && presetId !== "random");
           nasaData = await fetchNasaDataForCoords(lat, lon, {
+            presetId,
+            bypassCache: !isCachedPreset,
             signal: controller.signal,
           });
         }
@@ -59,6 +62,7 @@
           ...$state.snapshot(session.form),
           nasaClimate: nasaData,
           telemetry,
+          climateAnomalies: $state.snapshot(session.climate),
           precipitationAnomaly: session.climate.precipitation,
         };
 
@@ -130,8 +134,7 @@
   </div>
 </div>
 
-<style>
-  .screen {
+<style>  .screen {
     display: grid;
     gap: 24px;
   }

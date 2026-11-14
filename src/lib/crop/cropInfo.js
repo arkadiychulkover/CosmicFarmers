@@ -1,8 +1,3 @@
-/**
- * Описания культур модели (ключи = classes.json) для UI и PDF.
- * soil / climate / advisory - фрагменты, из которых strategy.js собирает тексты с цифрами пользователя.
- * climate - продолжение фразы "<N> mm seasonal rainfall and <M> GDD ...".
- */
 export const CROP_INFO = {
     apple: { name: 'Apple (Malus domestica)', tag: 'Cool-Climate Orchard Perennial', soil: 'Prefers deep, well-drained loam with steady potassium supply', climate: 'meet the chill hours and moderate summer heat that quality fruit set needs', advisory: 'A multi-year orchard commitment; rotate only at replanting' },
     banana: { name: 'Banana (Musa spp.)', tag: 'Warm-Season Perennial Fruit', soil: 'Draws heavily on potassium and organic matter in deep, moist soil', climate: 'deliver the sustained warmth and moisture of a frost-free season', advisory: 'Needs frost-free conditions and wind shelter' },
@@ -26,4 +21,9 @@ export const CROP_INFO = {
     pomegranate: { name: 'Pomegranate (Punica granatum)', tag: 'Drought-Hardy Fruit Shrub', soil: 'Tolerates poorer, drier and slightly saline soil', climate: 'thrive in hot, dry summers with mild winters', advisory: 'Low water demand; a multi-year planting' },
     rice: { name: 'Rice (Oryza sativa)', tag: 'High-Water Staple Cereal', soil: 'Uses nitrogen heavily and tolerates puddled, waterlogged soil', climate: 'rely on abundant rainfall or irrigation and a hot, humid season', advisory: 'Needs reliable water; rotates well with pulses' },
     watermelon: { name: 'Watermelon (Citrullus lanatus)', tag: 'Hot-Season Cucurbit', soil: 'Grows best on light, sandy loam with moderate fertility', climate: 'reward a long, hot season with ample sunshine', advisory: 'Rotate away from other cucurbits for 3+ years' },
+    wheat: { name: 'Wheat (Triticum aestivum)', tag: 'Temperate Staple Cereal', soil: 'Thrives in fertile loam and chernozem with balanced N-P-K and neutral pH', climate: 'align with a moderate, temperate growing season and reliable spring moisture', advisory: 'Excellent rotation partner after legumes (soybean, lentil, chickpea) or oilseeds' },
+    soybean: { name: 'Soybean (Glycine max)', tag: 'Nitrogen-Fixing Oilseed Legume', soil: 'Symbiotically fixes atmospheric nitrogen and enriches soil fertility for subsequent cereals', climate: 'support warm growing degree days and moderate summer rainfall', advisory: 'Ideal break crop before corn or wheat; reduces cereal pest and rootworm carryover' },
+    sunflower: { name: 'Sunflower (Helianthus annuus)', tag: 'Deep-Rooted Drought-Hardy Oilseed', soil: 'Extracts nutrients and moisture from deep subsoil layers via a strong taproot', climate: 'suited to sunny, warm continental seasons with low-to-moderate rainfall', advisory: 'High drought resilience; allow a 4-year break before replanting sunflower to prevent Sclerotinia' },
+    barley: { name: 'Barley (Hordeum vulgare)', tag: 'Short-Season Resilient Cereal', soil: 'Tolerates wider pH ranges and lighter or moderately dry soils better than wheat', climate: 'fit a shorter, cooler maturity window with modest water demand', advisory: 'Fast canopy closure suppresses weeds; rotates well with legumes and canola' },
+    rapeseed: { name: 'Rapeseed / Canola (Brassica napus)', tag: 'Cool-Temperate Oilseed Break Crop', soil: 'Deep taproot breaks subsoil compaction and scavenges residual nitrogen', climate: 'favor cool-to-moderate temperatures during flowering and pod fill', advisory: 'Natural biofumigation effect reduces cereal root diseases in wheat/barley rotations' },
 };

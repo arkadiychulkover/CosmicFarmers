@@ -1,4 +1,3 @@
-// Копирует актуальный код модуля и .onnx из корня проекта в песочницу (папки в .gitignore).
 import { cpSync, rmSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 

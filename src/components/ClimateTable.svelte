@@ -1,5 +1,4 @@
-<script>
-  let { columns, anomalies = $bindable(), min = -50, max = 50 } = $props();
+<script>  let { columns, anomalies = $bindable(), min = -50, max = 50 } = $props();
 
   function commit(key, event) {
     let n = Number(event.currentTarget.value);
@@ -50,8 +49,7 @@
   </tbody>
 </table>
 
-<style>
-  table {
+<style>  table {
     width: 100%;
     border-collapse: separate;
     border-spacing: 8px 6px;
