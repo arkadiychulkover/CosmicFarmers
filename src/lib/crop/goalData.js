@@ -100,6 +100,186 @@ export function getGoalMultipliers(goal, classes) {
 }
 
 
+const SOIL_STABILIZING_CROPS = new Set([
+  'pigeonpeas',
+  'chickpea',
+  'lentil',
+  'mungbean',
+  'blackgram',
+  'mothbeans',
+  'soybean',
+  'barley',
+  'wheat',
+  'apple',
+  'orange',
+  'mango',
+  'pomegranate',
+  'coffee',
+  'coconut',
+  'grapes',
+]);
+
+const ROW_EROSION_RISK_CROPS = new Set([
+  'maize',
+  'cotton',
+  'sunflower',
+  'watermelon',
+  'muskmelon',
+]);
+
+
+export function getTelemetryMultipliers(goal, params, classes) {
+  const n = classes.length;
+  const arr = new Float32Array(n);
+  arr.fill(1.0);
+  if (!params) return arr;
+
+  const gwetroot = Number(params.GWETROOT);
+  const slope = Number(params.SLOPE);
+  const hasWaterDeficit = goal === 'water' && Number.isFinite(gwetroot) && gwetroot < 0.35;
+  const highSlope = Number.isFinite(slope) && slope > 8;
+  const elevatedSlope = !highSlope && Number.isFinite(slope) && slope > 5;
+
+  for (let i = 0; i < n; i++) {
+    const crop = classes[i];
+    let mult = 1.0;
+
+    if (hasWaterDeficit) {
+      const w = GOAL_WEIGHTS.water[crop] ?? 1.0;
+      if (w >= 1.25) mult *= 1.25;
+      else if (w <= 0.75) mult *= 0.75;
+    }
+
+    if (highSlope) {
+      if (SOIL_STABILIZING_CROPS.has(crop)) mult *= 1.25;
+      else if (ROW_EROSION_RISK_CROPS.has(crop)) mult *= 0.85;
+    } else if (elevatedSlope) {
+      if (SOIL_STABILIZING_CROPS.has(crop)) mult *= 1.15;
+      else if (ROW_EROSION_RISK_CROPS.has(crop)) mult *= 0.92;
+    }
+
+    arr[i] = mult;
+  }
+  return arr;
+}
+
+
+export function telemetryNote(goal, params, cropId) {
+  if (!params) return '';
+  const notes = [];
+  const gwetroot = Number(params.GWETROOT);
+  const slope = Number(params.SLOPE);
+
+  if (goal === 'water' && Number.isFinite(gwetroot) && gwetroot < 0.35) {
+    const w = GOAL_WEIGHTS.water[cropId] ?? 1.0;
+    if (w >= 1.25) {
+      notes.push(`SMAP root-zone deficit (GWETROOT ${gwetroot.toFixed(2)} < 0.35): drought-tolerant priority boost.`);
+    } else if (w <= 0.75) {
+      notes.push(`SMAP root-zone deficit (GWETROOT ${gwetroot.toFixed(2)} < 0.35): penalized due to high water demand.`);
+    }
+  }
+
+  if (Number.isFinite(slope) && slope > 5) {
+    if (SOIL_STABILIZING_CROPS.has(cropId)) {
+      notes.push(`SRTM runoff protection (slope ${slope.toFixed(1)}%): erosion-control root/canopy bonus.`);
+    } else if (ROW_EROSION_RISK_CROPS.has(cropId)) {
+      notes.push(`SRTM runoff warning (slope ${slope.toFixed(1)}%): contour tillage & residue cover recommended.`);
+    }
+  }
+
+  return notes.join(' ');
+}
+
+
+function clamp(v, min, max) {
+  return Math.min(max, Math.max(min, v));
+}
+
+
+export function computePlanIndicators(years = [], params = {}, previousCrop = null) {
+  if (!years.length) return [];
+
+  const ids = years.map((y) => y.id || y.crop).filter(Boolean);
+  const count = Math.max(1, ids.length);
+
+  const avgWater = ids.reduce((s, id) => s + (GOAL_WEIGHTS.water[id] ?? 1.0), 0) / count;
+  const avgRegen = ids.reduce((s, id) => s + (GOAL_WEIGHTS.regeneration[id] ?? 1.0), 0) / count;
+  const avgYield = ids.reduce((s, id) => s + (GOAL_WEIGHTS.yield[id] ?? 1.0), 0) / count;
+
+  const gwetroot = Number(params?.GWETROOT);
+  const evptrns = Number(params?.EVPTRNS);
+  const slope = Number(params?.SLOPE);
+
+  const baselineWater = previousCrop && GOAL_WEIGHTS.water[previousCrop] !== undefined
+    ? GOAL_WEIGHTS.water[previousCrop]
+    : 0.85;
+  const deltaWater = avgWater - baselineWater;
+
+  const deficitPenalty = Number.isFinite(gwetroot) && gwetroot < 0.35 && avgWater < 1.05 ? 10 : 0;
+  const etPenalty = Number.isFinite(evptrns) && evptrns > 4.5 && avgWater < 1.0 ? 6 : 0;
+  const waterScore = Math.round(clamp(55 + deltaWater * 95 - deficitPenalty - etPenalty, 25, 98));
+  const waterDiffPct = Math.round((deltaWater / Math.max(0.35, baselineWater)) * 100);
+  const waterValue = waterDiffPct > 0
+    ? `+${waterDiffPct}% saved`
+    : waterDiffPct < 0
+    ? `+${Math.abs(waterDiffPct)}% use`
+    : '0% diff';
+  const baselineLabel = previousCrop && GOAL_WEIGHTS.water[previousCrop] !== undefined
+    ? `vs 3-yr ${previousCrop}`
+    : 'vs baseline';
+  const waterNote = Number.isFinite(gwetroot) && gwetroot < 0.35
+    ? `${baselineLabel} · SMAP deficit (${gwetroot.toFixed(2)})`
+    : Number.isFinite(evptrns)
+    ? `${baselineLabel} · ET ${evptrns.toFixed(1)} mm/d`
+    : baselineLabel;
+
+  const stabilizingCount = ids.filter((id) => SOIL_STABILIZING_CROPS.has(id)).length;
+  const nFixingCount = ids.filter((id) => (GOAL_WEIGHTS.regeneration[id] ?? 1.0) >= 1.35).length;
+  const slopeBonus = Number.isFinite(slope) && slope > 5 && stabilizingCount >= 2 ? 8 : 0;
+  const soilScore = Math.round(clamp(50 + (avgRegen - 0.95) * 90 + nFixingCount * 6 + slopeBonus, 28, 98));
+  const soilValue = nFixingCount >= 2
+    ? `+${nFixingCount} N-fixers`
+    : nFixingCount === 1
+    ? 'N-balanced'
+    : 'Cover needed';
+  const soilNote = Number.isFinite(slope) && slope > 5
+    ? `Slope ${slope.toFixed(1)}% · ${stabilizingCount}/3 safe`
+    : `${stabilizingCount}/3 soil-cover crops`;
+
+  const marketScore = Math.round(clamp(48 + (avgYield - 0.95) * 95, 30, 98));
+  const marketValue = avgYield >= 1.22
+    ? 'High demand'
+    : avgYield >= 1.05
+    ? 'Steady yield'
+    : 'Niche / cover';
+  const marketNote = `3-yr commercial index ${marketScore}/100`;
+
+  return [
+    {
+      key: 'water',
+      label: 'Water Efficiency',
+      value: waterValue,
+      score: waterScore,
+      note: waterNote,
+    },
+    {
+      key: 'soil',
+      label: 'Soil Health',
+      value: soilValue,
+      score: soilScore,
+      note: soilNote,
+    },
+    {
+      key: 'market',
+      label: 'Market Viability',
+      value: marketValue,
+      score: marketScore,
+      note: marketNote,
+    },
+  ];
+}
+
+
 export function goalNote(goal, cropId) {
   const k = GOAL_WEIGHTS[goal]?.[cropId] ?? 1.0;
   if (k >= 1.25) {
