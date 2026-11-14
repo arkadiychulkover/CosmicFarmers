@@ -1,10 +1,103 @@
 import { getWeather, parseWeatherResponse } from '../lib/weather/SoilData.js';
 
-export const WEATHER_CACHE_KEY = 'nasa-preset-cache-v3';
+export const WEATHER_CACHE_KEY = 'nasa-preset-cache-v4';
+const SOILGRIDS_TIMEOUT_MS = 6500;
 const inflightRequests = new Map();
 
 function clamp(value, min, max) {
   return Math.min(max, Math.max(min, value));
+}
+
+function meanSoilGridsLayer(layers, name) {
+  const layer = layers?.find((l) => l.name === name);
+  if (!layer) return null;
+  const dFactor = Number(layer.unit_measure?.d_factor) || 1;
+  const vals = (layer.depths || [])
+    .map((d) => d?.values?.mean)
+    .filter((v) => v !== null && v !== undefined && Number.isFinite(Number(v)))
+    .map((v) => Number(v) / dFactor);
+  if (!vals.length) return null;
+  return vals.reduce((a, b) => a + b, 0) / vals.length;
+}
+
+export async function fetchSoilGrids(lat, lon, { signal } = {}) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), SOILGRIDS_TIMEOUT_MS);
+  const onParentAbort = () => controller.abort();
+  signal?.addEventListener('abort', onParentAbort, { once: true });
+
+  try {
+    const params = new URLSearchParams({
+      lon: Number(lon).toFixed(4),
+      lat: Number(lat).toFixed(4),
+      value: 'mean',
+    });
+    for (const prop of ['phh2o', 'nitrogen', 'soc', 'sand', 'silt', 'clay']) {
+      params.append('property', prop);
+    }
+    params.append('depth', '0-5cm');
+    params.append('depth', '5-15cm');
+
+    const res = await fetch(`https://rest.isric.org/soilgrids/v2.0/properties/query?${params}`, {
+      signal: controller.signal,
+    });
+    if (!res.ok) return null;
+
+    const json = await res.json();
+    const layers = json?.properties?.layers;
+    if (!Array.isArray(layers) || !layers.length) return null;
+
+    const phRaw = meanSoilGridsLayer(layers, 'phh2o');
+    const clayPct = meanSoilGridsLayer(layers, 'clay');
+    const sandPct = meanSoilGridsLayer(layers, 'sand');
+    const siltPct = meanSoilGridsLayer(layers, 'silt');
+    const totalNGkg = meanSoilGridsLayer(layers, 'nitrogen');
+    const socGkg = meanSoilGridsLayer(layers, 'soc');
+
+    if (phRaw === null && clayPct === null && sandPct === null && totalNGkg === null) {
+      return null;
+    }
+
+    const ph = phRaw !== null ? Number(clamp(phRaw, 4.5, 8.5).toFixed(1)) : 6.5;
+    const sand = sandPct ?? 35;
+    const clay = clayPct ?? 25;
+    const silt = siltPct ?? Math.max(0, 100 - sand - clay);
+    const soc = socGkg ?? 15;
+    const totalN = totalNGkg ?? 1.8;
+
+    let soil = 'loam';
+    if (sand >= 55 && clay < 20) {
+      soil = 'sandy';
+    } else if (soc >= 22 && ph >= 6.0 && ph <= 7.8 && clay >= 18) {
+      soil = 'chernozem';
+    }
+
+    const phAvail = clamp(1 - Math.abs(ph - 6.6) * 0.15, 0.55, 1.0);
+    const n = Math.round(clamp(totalN * 42 + soc * 0.9, 25, 200));
+    const p = Math.round(clamp((32 + soc * 1.6 + clay * 0.35) * phAvail, 15, 150));
+    const k = Math.round(clamp(22 + clay * 1.1 + silt * 0.45 + soc * 0.35, 20, 110));
+
+    return {
+      ph,
+      soil,
+      n,
+      p,
+      k,
+      soilSource: 'ISRIC SoilGrids v2.0',
+      soilMeta: {
+        clayPct: Number(clay.toFixed(1)),
+        sandPct: Number(sand.toFixed(1)),
+        siltPct: Number(silt.toFixed(1)),
+        socGkg: Number(soc.toFixed(1)),
+        totalNGkg: Number(totalN.toFixed(2)),
+      },
+    };
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timer);
+    signal?.removeEventListener('abort', onParentAbort);
+  }
 }
 
 export function deriveSoilAndNutrients(parsed, lat, lon) {
@@ -37,7 +130,15 @@ export function deriveSoilAndNutrients(parsed, lat, lon) {
   const p = Math.round(clamp(72 * bonus * moistureFactor * tempOrganicFactor, 15, 150));
   const k = Math.round(clamp(58 * (soil === 'sandy' ? 0.65 : soil === 'chernozem' ? 1.18 : 1.0) * (0.85 + 0.15 * moistureFactor), 20, 110));
 
-  return { ph: Number(ph.toFixed(1)), soil, n, p, k };
+  return {
+    ph: Number(ph.toFixed(1)),
+    soil,
+    n,
+    p,
+    k,
+    soilSource: 'NASA Climate Heuristic',
+    soilMeta: null,
+  };
 }
 
 function buildPayload(lat, lon, weather, derived, seasonYear) {
@@ -56,6 +157,8 @@ function buildPayload(lat, lon, weather, derived, seasonYear) {
     N: derived.n,
     P: derived.p,
     K: derived.k,
+    soilSource: derived.soilSource ?? 'NASA Climate Heuristic',
+    soilMeta: derived.soilMeta ?? null,
     T2M: t2m,
     T2M_MAX: Number(weather.t2m_max) || 25,
     T2M_MIN: Number(weather.t2m_min) || 5,
@@ -97,11 +200,11 @@ function readPresetCache(presetId, numLat, numLon) {
   return null;
 }
 
-function writePresetCache(presetId, lat, lon, parsed, seasonYear) {
+function writePresetCache(presetId, lat, lon, parsed, seasonYear, soilData) {
   try {
     const raw = localStorage.getItem(WEATHER_CACHE_KEY);
     const all = raw ? JSON.parse(raw) : {};
-    all[presetId] = { lat, lon, data: parsed, seasonYear };
+    all[presetId] = { lat, lon, data: parsed, seasonYear, soilData };
     localStorage.setItem(WEATHER_CACHE_KEY, JSON.stringify(all));
   } catch {}
 }
@@ -124,7 +227,7 @@ export async function fetchNasaDataForCoords(lat, lon, options = {}) {
   if (canUsePresetCache) {
     const cached = readPresetCache(presetId, numLat, numLon);
     if (cached) {
-      const derived = deriveSoilAndNutrients(cached.data, numLat, numLon);
+      const derived = cached.soilData ?? deriveSoilAndNutrients(cached.data, numLat, numLon);
       return buildPayload(numLat, numLon, cached.data, derived, cached.seasonYear);
     }
   }
@@ -134,25 +237,28 @@ export async function fetchNasaDataForCoords(lat, lon, options = {}) {
   const coordKey = `${numLat.toFixed(4)},${numLon.toFixed(4)}`;
   let pending = inflightRequests.get(coordKey);
   if (!pending) {
-    pending = getWeather(numLon, numLat)
-      .then((raw) => {
-        const parsed = parseWeatherResponse(raw);
-        return { parsed, seasonYear: raw.seasonYear };
-      })
+    pending = Promise.all([
+      getWeather(numLon, numLat).then((raw) => ({
+        parsed: parseWeatherResponse(raw),
+        seasonYear: raw.seasonYear,
+      })),
+      fetchSoilGrids(numLat, numLon),
+    ])
+      .then(([weatherRes, soilGrids]) => ({ ...weatherRes, soilGrids }))
       .finally(() => {
         inflightRequests.delete(coordKey);
       });
     inflightRequests.set(coordKey, pending);
   }
 
-  const { parsed, seasonYear } = await pending;
+  const { parsed, seasonYear, soilGrids } = await pending;
   if (signal?.aborted) return null;
 
-  const derived = deriveSoilAndNutrients(parsed, numLat, numLon);
+  const derived = soilGrids ?? deriveSoilAndNutrients(parsed, numLat, numLon);
   const payload = buildPayload(numLat, numLon, parsed, derived, seasonYear);
 
   if (canUsePresetCache) {
-    writePresetCache(presetId, payload.lat, payload.lon, parsed, seasonYear);
+    writePresetCache(presetId, payload.lat, payload.lon, parsed, seasonYear, soilGrids);
   }
 
   return payload;
