@@ -20,7 +20,7 @@
   let reveals = $state([1, 0, 0]);
   let scrollRaf = null;
 
-  const result = $derived(session.result);
+  const result = $derived($session.result);
   const recommendations = $derived(result?.recommendations ?? []);
   const top = $derived(recommendations[0] ?? null);
   const others = $derived(recommendations.slice(1));
@@ -28,13 +28,13 @@
   const last = $derived(Math.max(0, years.length - 1));
 
   const preset = $derived(
-    presets?.find((p) => p.id === session.activePresetId && p.values),
+    presets?.find((p) => p.id === $session.activePresetId && p.values),
   );
   const place = $derived(preset ? preset.label : "Custom field");
 
   const coords = $derived.by(() => {
-    const lat = Number(session.form?.lat ?? 0);
-    const lon = Number(session.form?.lon ?? 0);
+    const lat = Number($session.form?.lat ?? 0);
+    const lon = Number($session.form?.lon ?? 0);
     return (
       `${Math.abs(lat).toFixed(2)}° ${lat >= 0 ? "N" : "S"}, ` +
       `${Math.abs(lon).toFixed(2)}° ${lon >= 0 ? "E" : "W"}`
@@ -123,8 +123,8 @@
     exporting = true;
     try {
       await downloadPlan(
-        $state.snapshot(session.result),
-        $state.snapshot(session.form),
+        $state.snapshot($session.result),
+        $state.snapshot($session.form),
       );
     } catch (err) {
       console.error("PDF generation failed:", err);
@@ -135,8 +135,8 @@
   }
 
   function backToFarm() {
-    session.collapsed = false;
-    session.activeTab = "farm";
+    $session.collapsed = false;
+    $session.activeTab = "farm";
   }
 </script>
 

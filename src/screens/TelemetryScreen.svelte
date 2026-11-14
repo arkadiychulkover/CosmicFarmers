@@ -32,7 +32,7 @@
   ]);
 
   $effect(() => {
-    const { lat, lon } = session.form;
+    const { lat, lon } = $session.form;
     let cancelled = false;
     loading = true;
     failed = false;
@@ -71,8 +71,8 @@
   }
 
   function calculate() {
-    session.result = null;
-    session.activeTab = 'calculating';
+    $session.result = null;
+    $session.activeTab = 'calculating';
   }
 </script>
 
@@ -129,11 +129,11 @@
   {/if}
 
   <h2>Climate Risk Simulator</h2>
-  <ClimateTable {columns} bind:anomalies={session.climate} />
+  <ClimateTable {columns} bind:anomalies={$session.climate} />
 
   <div class="actions">
     <ActionButton onclick={calculate}>Calculate the Strategy →</ActionButton>
-    <ActionButton variant="outline" onclick={() => (session.activeTab = 'farm')}>
+    <ActionButton variant="outline" onclick={() => ($session.activeTab = 'farm')}>
       ← Change the farm info
     </ActionButton>
   </div>

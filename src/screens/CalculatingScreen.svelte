@@ -25,18 +25,18 @@
 
     async function calculate() {
       try {
-        const { lat, lon } = $state.snapshot(session.form);
+        const { lat, lon } = $state.snapshot($session.form);
         const expectedLat = Number(Number(lat).toFixed(4));
         const expectedLon = Number(Number(lon).toFixed(4));
 
-        let nasaData = session.nasaData;
+        let nasaData = $session.nasaData;
 
         if (
           !nasaData ||
           Math.abs(nasaData.lat - expectedLat) > 0.001 ||
           Math.abs(nasaData.lon - expectedLon) > 0.001
         ) {
-          const presetId = session.activePresetId;
+          const presetId = $session.activePresetId;
           const isCachedPreset = Boolean(presetId && presetId !== "random");
           nasaData = await fetchNasaDataForCoords(lat, lon, {
             presetId,
@@ -48,7 +48,7 @@
         if (controller.signal.aborted) return;
 
         if (!nasaData) {
-          throw new Error(session.nasaError || "NASA climate data is unavailable.");
+          throw new Error($session.nasaError || "NASA climate data is unavailable.");
         }
 
         const telemetry = await getTelemetry(lat, lon, { signal: controller.signal });
@@ -59,11 +59,11 @@
         }
 
         const input = {
-          ...$state.snapshot(session.form),
+          ...$state.snapshot($session.form),
           nasaClimate: nasaData,
           telemetry,
-          climateAnomalies: $state.snapshot(session.climate),
-          precipitationAnomaly: session.climate.precipitation,
+          climateAnomalies: $state.snapshot($session.climate),
+          precipitationAnomaly: $session.climate.precipitation,
         };
 
         const result = await runStrategy(input, {
@@ -72,9 +72,9 @@
 
         if (controller.signal.aborted) return;
 
-        session.result = result;
-        session.collapsed = true;
-        session.activeTab = "results";
+        $session.result = result;
+        $session.collapsed = true;
+        $session.activeTab = "results";
       } catch (error) {
         if (error.name === "AbortError") return;
         console.error("Strategy calculation failed:", error);
@@ -94,7 +94,7 @@
   });
 
   function cancelCalculation() {
-    session.activeTab = session.result ? "results" : "farm";
+    $session.activeTab = $session.result ? "results" : "farm";
   }
 </script>
 
