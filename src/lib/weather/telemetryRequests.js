@@ -2,9 +2,10 @@ import { get } from 'svelte/store';
 import { session } from '../../stores/session.svelte.js';
 import {
   MONTHS,
-  MONTH_KEYS,
   DAYS_IN_MONTH,
   getSeasonYear,
+  getSeasonMonths,
+  getSeasonMonthKeys,
   averageWithException,
   gddCalcWithException,
   fetchSrtmTerrain,
@@ -48,24 +49,37 @@ function seasonBounds(lat) {
   return { seasonYear, start, end };
 }
 
-async function fetchDaily(lat, lon, parameters, signal) {
-  const { seasonYear, start, end } = seasonBounds(lat);
-  const url = 'https://power.larc.nasa.gov/api/temporal/daily/point?' + new URLSearchParams({
-    parameters,
-    community: 'AG',
-    longitude: String(lon),
-    latitude: String(lat),
-    start,
-    end,
-    format: 'JSON',
-  });
-  const res = await fetch(url, { signal });
-  if (!res.ok) throw new Error(`NASA POWER ${res.status}`);
-  const json = await res.json();
-  const fill = json?.header?.fill_value ?? FILL;
-  const block = json?.properties?.parameter;
-  if (!block) throw new Error('NASA POWER returned no parameters');
-  return { block, fill, seasonYear };
+const inflightDaily = new Map();
+
+async function fetchDailyShared(lat, lon, signal) {
+  const key = `${Number(lat).toFixed(4)},${Number(lon).toFixed(4)}`;
+  let pending = inflightDaily.get(key);
+  if (!pending) {
+    const { seasonYear, start, end } = seasonBounds(lat);
+    const url = 'https://power.larc.nasa.gov/api/temporal/daily/point?' + new URLSearchParams({
+      parameters: 'T2M,T2M_MAX,T2M_MIN,RH2M,PRECTOTCORR,ALLSKY_SFC_SW_DWN,WS2M,GWETTOP,GWETROOT,TS,EVPTRNS',
+      community: 'AG',
+      longitude: String(lon),
+      latitude: String(lat),
+      start,
+      end,
+      format: 'JSON',
+    });
+    pending = fetch(url, { signal })
+      .then(async (res) => {
+        if (!res.ok) throw new Error(`NASA POWER ${res.status}`);
+        const json = await res.json();
+        const fill = json?.header?.fill_value ?? FILL;
+        const block = json?.properties?.parameter;
+        if (!block) throw new Error('NASA POWER returned no parameters');
+        return { block, fill, seasonYear };
+      })
+      .finally(() => {
+        setTimeout(() => inflightDaily.delete(key), 5000);
+      });
+    inflightDaily.set(key, pending);
+  }
+  return pending;
 }
 
 async function fetchMonthlyPrecip(lat, lon, seasonYear, signal) {
@@ -107,8 +121,9 @@ function dailyTriple(meanValues, maxValues, minValues, fill) {
   };
 }
 
-function monthMeans(values, fill, digits = 1) {
-  return MONTH_KEYS.map((month) => {
+function monthMeans(values, fill, digits = 1, lat = 0) {
+  const keys = getSeasonMonthKeys(lat);
+  return keys.map((month) => {
     let sum = 0;
     let count = 0;
     for (const [date, val] of Object.entries(values)) {
@@ -120,8 +135,9 @@ function monthMeans(values, fill, digits = 1) {
   });
 }
 
-function monthSums(values, fill) {
-  return MONTH_KEYS.map((month) => {
+function monthSums(values, fill, lat = 0) {
+  const keys = getSeasonMonthKeys(lat);
+  return keys.map((month) => {
     let sum = 0;
     for (const [date, val] of Object.entries(values)) {
       if (date.slice(4, 6) === month && val !== fill && Number.isFinite(val)) sum += val;
@@ -130,16 +146,20 @@ function monthSums(values, fill) {
   });
 }
 
-function historicalAverage(monthly, seasonYear, fill) {
+function historicalAverage(monthly, seasonYear, fill, lat = 0) {
   const mp = monthly?.properties?.parameter?.PRECTOTCORR;
   if (!mp) return null;
+  const isSouth = Number(lat) < 0;
+  const monthKeys = getSeasonMonthKeys(lat);
   let total = 0;
   let years = 0;
   for (let year = seasonYear - 9; year <= seasonYear; year += 1) {
     let sum = 0;
     let hasData = false;
-    for (const [month, days] of Object.entries(DAYS_IN_MONTH)) {
-      const val = mp[`${year}${month}`];
+    for (const month of monthKeys) {
+      const yearKey = isSouth && ['09', '10', '11', '12'].includes(month) ? year - 1 : year;
+      const days = DAYS_IN_MONTH[month] || 30;
+      const val = mp[`${yearKey}${month}`];
       if (val !== undefined && val !== fill && Number.isFinite(val)) {
         sum += val * days;
         hasData = true;
@@ -155,27 +175,29 @@ function historicalAverage(monthly, seasonYear, fill) {
 
 export async function loadPrecipitation(lat, lon, signal) {
   const cached = cachedPayload(lat, lon)?.weather?.precipitation;
+  const months = getSeasonMonths(lat);
   if (cached?.monthly?.length) {
-    return { months: MONTHS, ...cached };
+    return { months, ...cached };
   }
 
-  const { block, fill, seasonYear } = await fetchDaily(lat, lon, 'PRECTOTCORR', signal);
-  const monthlyValues = monthSums(series(block, 'PRECTOTCORR', fill), fill);
+  const { block, fill, seasonYear } = await fetchDailyShared(lat, lon, signal);
+  const monthlyValues = monthSums(series(block, 'PRECTOTCORR', fill), fill, lat);
   const total = monthlyValues.reduce((sum, value) => sum + value, 0);
   let baseline = null;
   try {
     const monthly = await fetchMonthlyPrecip(lat, lon, seasonYear, signal);
-    baseline = historicalAverage(monthly, seasonYear, fill);
+    baseline = historicalAverage(monthly, seasonYear, fill, lat);
   } catch {
     baseline = null;
   }
   const historical = baseline ?? 0;
   const anomalyPct = historical > 0 ? Math.round((total / historical - 1) * 100) : 0;
-  return { months: MONTHS, total, monthly: monthlyValues, historicalAverage: historical, anomalyPct };
+  return { months, total, monthly: monthlyValues, historicalAverage: historical, anomalyPct };
 }
 
 export async function loadTemperature(lat, lon, signal) {
   const cached = cachedPayload(lat, lon)?.weather?.temperature;
+  const months = getSeasonMonths(lat);
   if (
     cached?.daily?.length
     && cached?.dailyMax?.length
@@ -183,10 +205,10 @@ export async function loadTemperature(lat, lon, signal) {
     && Number.isFinite(Number(cached.seasonMax))
     && Number.isFinite(Number(cached.seasonMin))
   ) {
-    return { months: MONTHS, ...cached };
+    return { months, ...cached };
   }
 
-  const { block, fill } = await fetchDaily(lat, lon, 'T2M,T2M_MAX,T2M_MIN', signal);
+  const { block, fill } = await fetchDailyShared(lat, lon, signal);
   const t2m = series(block, 'T2M', fill);
   const t2mMax = series(block, 'T2M_MAX', fill);
   const t2mMin = series(block, 'T2M_MIN', fill);
@@ -198,13 +220,13 @@ export async function loadTemperature(lat, lon, signal) {
   const seasonMax = samples.dailyMax.reduce((best, value) => Math.max(best, value), -Infinity);
   const seasonMin = samples.dailyMin.reduce((best, value) => Math.min(best, value), Infinity);
   return {
-    months: MONTHS,
+    months,
     mean: Number(averageWithException(Object.values(t2m), fill).toFixed(1)),
     seasonMax: Number.isFinite(seasonMax) ? seasonMax : 0,
     seasonMin: Number.isFinite(seasonMin) ? seasonMin : 0,
-    monthly: monthMeans(t2m, fill),
-    monthlyMax: monthMeans(t2mMax, fill),
-    monthlyMin: monthMeans(t2mMin, fill),
+    monthly: monthMeans(t2m, fill, 1, lat),
+    monthlyMax: monthMeans(t2mMax, fill, 1, lat),
+    monthlyMin: monthMeans(t2mMin, fill, 1, lat),
     ...samples,
     heatDays,
   };
@@ -214,7 +236,7 @@ export async function loadSolar(lat, lon, signal) {
   const cached = cachedPayload(lat, lon)?.weather?.solar;
   if (cached && Number.isFinite(Number(cached.value))) return cached;
 
-  const { block, fill } = await fetchDaily(lat, lon, 'ALLSKY_SFC_SW_DWN', signal);
+  const { block, fill } = await fetchDailyShared(lat, lon, signal);
   const values = series(block, 'ALLSKY_SFC_SW_DWN', fill);
   return { value: Number(averageWithException(Object.values(values), fill).toFixed(1)) };
 }
@@ -223,7 +245,7 @@ export async function loadGdd(lat, lon, signal) {
   const cached = cachedPayload(lat, lon)?.weather?.gdd;
   if (cached && Number.isFinite(Number(cached.value))) return cached;
 
-  const { block, fill } = await fetchDaily(lat, lon, 'T2M', signal);
+  const { block, fill } = await fetchDailyShared(lat, lon, signal);
   const values = series(block, 'T2M', fill);
   return { value: Math.round(gddCalcWithException(Object.values(values), fill)) };
 }
@@ -234,7 +256,7 @@ export async function loadMoisture(lat, lon, signal) {
     return cached;
   }
 
-  const { block, fill } = await fetchDaily(lat, lon, 'GWETTOP,GWETROOT', signal);
+  const { block, fill } = await fetchDailyShared(lat, lon, signal);
   const surface = averageWithException(Object.values(series(block, 'GWETTOP', fill)), fill);
   const rootZone = averageWithException(Object.values(series(block, 'GWETROOT', fill)), fill);
   return {
@@ -253,7 +275,7 @@ export async function loadEcostress(lat, lon, signal) {
     return cached;
   }
 
-  const { block, fill } = await fetchDaily(lat, lon, 'EVPTRNS,TS', signal);
+  const { block, fill } = await fetchDailyShared(lat, lon, signal);
   const evptrns = averageWithException(Object.values(series(block, 'EVPTRNS', fill)), fill);
   const ts = averageWithException(Object.values(series(block, 'TS', fill)), fill);
   return {
@@ -337,6 +359,7 @@ function fetchSoilGridsShared(lat, lon, signal) {
 
 export async function loadTempRange(lat, lon, signal) {
   const cached = cachedPayload(lat, lon)?.weather?.temperature;
+  const months = getSeasonMonths(lat);
   if (
     cached?.monthlyMax?.length &&
     cached?.monthlyMin?.length &&
@@ -344,7 +367,7 @@ export async function loadTempRange(lat, lon, signal) {
     Number.isFinite(Number(cached.minMean))
   ) {
     return {
-      months: MONTHS,
+      months,
       maxMean: Number(cached.maxMean),
       minMean: Number(cached.minMean),
       monthlyMax: cached.monthlyMax,
@@ -352,15 +375,15 @@ export async function loadTempRange(lat, lon, signal) {
     };
   }
 
-  const { block, fill } = await fetchDaily(lat, lon, 'T2M_MAX,T2M_MIN', signal);
+  const { block, fill } = await fetchDailyShared(lat, lon, signal);
   const t2mMax = series(block, 'T2M_MAX', fill);
   const t2mMin = series(block, 'T2M_MIN', fill);
   return {
-    months: MONTHS,
+    months,
     maxMean: Number(averageWithException(Object.values(t2mMax), fill).toFixed(1)),
     minMean: Number(averageWithException(Object.values(t2mMin), fill).toFixed(1)),
-    monthlyMax: monthMeans(t2mMax, fill),
-    monthlyMin: monthMeans(t2mMin, fill),
+    monthlyMax: monthMeans(t2mMax, fill, 1, lat),
+    monthlyMin: monthMeans(t2mMin, fill, 1, lat),
   };
 }
 
@@ -375,7 +398,7 @@ export async function loadAtmosphere(lat, lon, signal) {
     };
   }
 
-  const { block, fill } = await fetchDaily(lat, lon, 'RH2M,WS2M', signal);
+  const { block, fill } = await fetchDailyShared(lat, lon, signal);
   const rh = averageWithException(Object.values(series(block, 'RH2M', fill)), fill);
   const ws = averageWithException(Object.values(series(block, 'WS2M', fill)), fill);
   return {
