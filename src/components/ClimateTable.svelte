@@ -57,13 +57,13 @@
   }
 
   th {
-    font-size: 10px;
+    font-size: 8px;
     font-weight: 500;
     color: var(--color-text);
   }
 
   .metric {
-    font-size: 11px;
+    font-size: 12px;
   }
 
   .row {
@@ -77,7 +77,7 @@
     padding: 3px 8px;
     border-radius: 6px;
     color: var(--color-text);
-    font-size: 11px;
+    font-size: 12px;
     text-align: center;
   }
 

@@ -32,6 +32,12 @@ const defaults = {
     p: 60,
     k: 155,
   },
+  autoSoil: {
+    ph: 6.2,
+    n: 45,
+    p: 60,
+    k: 155,
+  },
 };
 
 function safeParse(raw) {
@@ -59,10 +65,14 @@ function load() {
   if (!saved) return fresh;
 
   const savedClimate = saved.climate && typeof saved.climate === 'object' ? saved.climate : {};
+  const savedAuto = saved.autoSoil && typeof saved.autoSoil === 'object'
+    ? saved.autoSoil
+    : saved.nasaData;
   const merged = {
     ...fresh,
     ...saved,
     form: { ...fresh.form, ...saved.form },
+    autoSoil: { ...fresh.autoSoil, ...savedAuto },
     climate: { ...fresh.climate, ...savedClimate },
     nasaLoading: false,
     nasaError: null,
@@ -130,6 +140,12 @@ export function applyNasaPayloadToForm(payload) {
       ...s.form,
       ph: payload.ph,
       soil: payload.soil,
+      n: payload.n,
+      p: payload.p,
+      k: payload.k,
+    },
+    autoSoil: {
+      ph: payload.ph,
       n: payload.n,
       p: payload.p,
       k: payload.k,

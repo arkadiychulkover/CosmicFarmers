@@ -23,8 +23,8 @@
   legend {
     margin-bottom: 10px;
     padding: 0;
-    font-size: 13px;
-    font-weight: 700;
+    font-size: 16px;
+    font-weight: 600;
     color: var(--color-text);
   }
 
@@ -60,13 +60,13 @@
   }
 
   strong {
-    font-size: 11px;
-    font-weight: 500;
+    font-size: 12px;
+    font-weight: 400;
     color: var(--color-text);
   }
 
   span {
-    font-size: 9px;
+    font-size: 8px;
     color: var(--color-text-dim);
   }
 </style>

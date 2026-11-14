@@ -1,7 +1,7 @@
 export const MONTHS = ['Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct'];
-const MONTH_KEYS = ['03', '04', '05', '06', '07', '08', '09', '10'];
-const DAYS_IN_MONTH = { '03': 31, '04': 30, '05': 31, '06': 30, '07': 31, '08': 31, '09': 30, '10': 31 };
-const SEASON_MONTHS = 8;
+export const MONTH_KEYS = ['03', '04', '05', '06', '07', '08', '09', '10'];
+export const DAYS_IN_MONTH = { '03': 31, '04': 30, '05': 31, '06': 30, '07': 31, '08': 31, '09': 30, '10': 31 };
+export const SEASON_MONTHS = 8;
 
 
 export const averageWithException = (arr, ex = -999) => {
@@ -40,7 +40,7 @@ export function getSeasonYear() {
 }
 
 
-export async function fetchSrtmTerrain(latitude, longitude, { signal } = {}) {
+export async function fetchSrtmTerrain(latitude, longitude, { signal, strict = false } = {}) {
   try {
     const lat = Number(latitude);
     const lon = Number(longitude);
@@ -63,7 +63,8 @@ export async function fetchSrtmTerrain(latitude, longitude, { signal } = {}) {
       elevation: Number(z0.toFixed(1)),
       slope: Number(slope.toFixed(2)),
     };
-  } catch {
+  } catch (error) {
+    if (strict) throw error;
     return { elevation: 180.0, slope: 1.5 };
   }
 }

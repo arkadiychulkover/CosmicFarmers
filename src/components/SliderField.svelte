@@ -9,9 +9,15 @@
     midLabel = '',
     maxLabel = '',
     showRange = false,
+    mark = null,
   } = $props();
 
   const percent = $derived(((value - min) / (max - min)) * 100);
+  const markPercent = $derived(
+    mark === null || mark === undefined
+      ? null
+      : Math.min(100, Math.max(0, ((mark - min) / (max - min)) * 100)),
+  );
 
   function clampInput(event) {
     let n = Number(event.currentTarget.value);
@@ -47,16 +53,23 @@
     </div>
   {/if}
 
-  <input
-    id="slider-{label}"
-    class="range"
-    type="range"
-    {min}
-    {max}
-    {step}
-    bind:value
-    style:--fill="{percent}%"
-  />
+  <div class="slider">
+    {#if markPercent !== null}
+      <div class="ticks" aria-hidden="true">
+        <span style:left="calc({markPercent}% + {(0.5 - markPercent / 100) * 10}px)"></span>
+      </div>
+    {/if}
+    <input
+      id="slider-{label}"
+      class="range"
+      type="range"
+      {min}
+      {max}
+      {step}
+      bind:value
+      style:--fill="{percent}%"
+    />
+  </div>
 
   <div class="marks">
     <span>{minLabel || `${min} ${unit}`}</span>
@@ -78,8 +91,8 @@
   }
 
   label {
-    font-size: 13px;
-    font-weight: 500;
+    font-size: 16px;
+    font-weight: 600;
     color: var(--color-text);
   }
 
@@ -90,7 +103,7 @@
   }
 
   .unit {
-    font-size: 11px;
+    font-size: 12px;
     color: var(--color-text);
   }
 
@@ -99,9 +112,9 @@
     padding: 3px 6px;
     border: 1px solid var(--color-border-dim);
     border-radius: 4px;
-    background: var(--color-field);
+    background: var(--color-panel);
     color: var(--color-text);
-    font-size: 11px;
+    font-size: 12px;
     text-align: center;
     appearance: textfield;
     -moz-appearance: textfield;
@@ -119,11 +132,36 @@
     outline-offset: 1px;
   }
 
+  .slider {
+    position: relative;
+    display: flex;
+    align-items: center;
+    height: 16px;
+  }
+
+  .ticks {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+  }
+
+  .ticks span {
+    position: absolute;
+    top: 50%;
+    width: 2px;
+    height: 13.5px;
+    background: var(--color-border-dim);
+    transform: translate(-50%, -50%);
+  }
+
   .range {
+    position: relative;
+    z-index: 1;
     -webkit-appearance: none;
     appearance: none;
     width: 100%;
     height: 2px;
+    margin: 0;
     border-radius: 2px;
     background: linear-gradient(
       to right,
@@ -158,7 +196,7 @@
   .marks {
     display: flex;
     justify-content: space-between;
-    font-size: 8.5px;
+    font-size: 8px;
     color: var(--color-text-dim);
   }
 </style>
