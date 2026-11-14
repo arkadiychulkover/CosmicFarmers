@@ -346,7 +346,8 @@
 
   .fine {
     margin: 0;
-    font-size: 8px;
+    font-size: 9px;
+    font-weight: 700;
   }
 
   .bar-label strong,
@@ -400,7 +401,8 @@
     padding: 8px;
     border-radius: 4px;
     background: var(--color-panel);
-    font-size: 8px;
+    font-size: 9px;
+    font-weight: 700;
     text-align: center;
   }
 

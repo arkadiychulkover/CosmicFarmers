@@ -94,7 +94,8 @@
     padding: 2px 8px;
     border: 1px solid var(--color-result-dim);
     border-radius: 999px;
-    font-size: 8px;
+    font-size: 9px;
+    font-weight: 700;
     color: var(--color-result-dim);
   }
 
@@ -102,7 +103,7 @@
     margin: 12px 0 10px;
     text-align: center;
     font-size: 9px;
-    font-weight: 600;
+    font-weight: 700;
   }
 
   ul {
@@ -129,12 +130,13 @@
 
   strong {
     font-size: 9px;
-    font-weight: 600;
+    font-weight: 700;
   }
 
   p {
     margin: 2px 0 0;
     font-size: 9px;
+    font-weight: 700;
     line-height: 1.4;
     color: var(--color-result-dim);
   }

@@ -76,7 +76,8 @@
   .source {
     margin: 0;
     color: var(--color-panel);
-    font-size: 8px;
+    font-size: 9px;
+    font-weight: 700;
     letter-spacing: 0.02em;
     text-transform: uppercase;
   }
@@ -124,7 +125,8 @@
 
   .retry {
     color: var(--color-card-text);
-    font-size: 8px;
+    font-size: 9px;
+    font-weight: 700;
     text-align: center;
   }
 
