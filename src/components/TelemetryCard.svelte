@@ -8,11 +8,12 @@
     source = '',
     state = 'ready',
     error = '',
+    wide = false,
     children,
   } = $props();
 </script>
 
-<article class="card" class:pending={state !== 'ready'}>
+<article class="card" class:wide class:pending={state !== 'ready'}>
   {#if source}<p class="source">{source}</p>{/if}
 
   {#if state === 'loading'}
@@ -67,6 +68,10 @@
     border-radius: 8px;
     background: var(--color-card);
     color: var(--color-card-text);
+  }
+
+  .wide {
+    grid-column: 1 / -1;
   }
 
   .pending {

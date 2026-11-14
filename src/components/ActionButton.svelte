@@ -71,6 +71,11 @@
     border-color: var(--color-border-strong);
   }
 
+  .surface:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+
   .outline {
     border-color: var(--color-text-dim);
     background: transparent;
