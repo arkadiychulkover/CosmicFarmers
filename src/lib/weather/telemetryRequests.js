@@ -226,19 +226,177 @@ export async function loadTerrain(lat, lon, signal) {
   return terrain;
 }
 
-export async function loadSoilSource(lat, lon, signal) {
-  const cached = cachedPayload(lat, lon);
-  if (cached?.soilSource) {
+const inflightSoil = new Map();
+
+function fetchSoilGridsShared(lat, lon, signal) {
+  const key = `${Number(lat).toFixed(4)},${Number(lon).toFixed(4)}`;
+  let pending = inflightSoil.get(key);
+  if (!pending) {
+    const parsedWeather = cachedPayload(lat, lon)?.weather ?? null;
+    pending = fetchSoilGrids(lat, lon, { signal, parsed: parsedWeather })
+      .then((soil) => {
+        if (soil?.soilMeta) {
+          session.update((s) => {
+            if (!samePoint(lat, lon, s.form.lat, s.form.lon)) return s;
+            const nextNasa = s.nasaData
+              ? {
+                  ...s.nasaData,
+                  ph: soil.ph,
+                  soil: soil.soil,
+                  n: soil.n,
+                  p: soil.p,
+                  k: soil.k,
+                  N: soil.n,
+                  P: soil.p,
+                  K: soil.k,
+                  soilSource: soil.soilSource,
+                  soilMeta: soil.soilMeta,
+                }
+              : s.nasaData;
+            const nextForm = s.customSoilEdited
+              ? s.form
+              : {
+                  ...s.form,
+                  ph: soil.ph,
+                  soil: soil.soil,
+                  n: soil.n,
+                  p: soil.p,
+                  k: soil.k,
+                };
+            return {
+              ...s,
+              nasaData: nextNasa,
+              form: nextForm,
+              autoSoil: {
+                ph: soil.ph,
+                n: soil.n,
+                p: soil.p,
+                k: soil.k,
+              },
+            };
+          });
+        }
+        return soil;
+      })
+      .finally(() => {
+        inflightSoil.delete(key);
+      });
+    inflightSoil.set(key, pending);
+  }
+  return pending;
+}
+
+export async function loadTempRange(lat, lon, signal) {
+  const cached = cachedPayload(lat, lon)?.weather?.temperature;
+  if (
+    cached?.monthlyMax?.length &&
+    cached?.monthlyMin?.length &&
+    Number.isFinite(Number(cached.maxMean)) &&
+    Number.isFinite(Number(cached.minMean))
+  ) {
     return {
-      nitrogenPh: cached.soilSource,
-      phosphorusPotassium: 'Climate Fallback · estimated',
+      months: MONTHS,
+      maxMean: Number(cached.maxMean),
+      minMean: Number(cached.minMean),
+      monthlyMax: cached.monthlyMax,
+      monthlyMin: cached.monthlyMin,
     };
   }
 
-  const soil = await fetchSoilGrids(lat, lon, { signal });
-  if (!soil) throw new Error('SoilGrids unavailable');
+  const { block, fill } = await fetchDaily(lat, lon, 'T2M_MAX,T2M_MIN', signal);
+  const t2mMax = series(block, 'T2M_MAX', fill);
+  const t2mMin = series(block, 'T2M_MIN', fill);
   return {
-    nitrogenPh: soil.soilSource || 'ISRIC SoilGrids v2.0',
-    phosphorusPotassium: 'Climate Fallback · estimated',
+    months: MONTHS,
+    maxMean: Number(averageWithException(Object.values(t2mMax), fill).toFixed(1)),
+    minMean: Number(averageWithException(Object.values(t2mMin), fill).toFixed(1)),
+    monthlyMax: monthMeans(t2mMax, fill),
+    monthlyMin: monthMeans(t2mMin, fill),
+  };
+}
+
+export async function loadAtmosphere(lat, lon, signal) {
+  const cached = cachedPayload(lat, lon);
+  const cachedRh = cached?.RH2M ?? cached?.weather?.atmosphere?.rh2m ?? cached?.weather?.rh2m;
+  const cachedWs = cached?.WS2M ?? cached?.weather?.atmosphere?.ws2m ?? cached?.weather?.ws2m;
+  if (Number.isFinite(Number(cachedRh)) && Number.isFinite(Number(cachedWs))) {
+    return {
+      rh2m: Number(Number(cachedRh).toFixed(1)),
+      ws2m: Number(Number(cachedWs).toFixed(2)),
+    };
+  }
+
+  const { block, fill } = await fetchDaily(lat, lon, 'RH2M,WS2M', signal);
+  const rh = averageWithException(Object.values(series(block, 'RH2M', fill)), fill);
+  const ws = averageWithException(Object.values(series(block, 'WS2M', fill)), fill);
+  return {
+    rh2m: Number(rh.toFixed(1)),
+    ws2m: Number(ws.toFixed(2)),
+  };
+}
+
+export async function loadSoilTexture(lat, lon, signal) {
+  const cached = cachedPayload(lat, lon);
+  if (
+    cached?.soilMeta &&
+    Number.isFinite(Number(cached.soilMeta.clayPct)) &&
+    Number.isFinite(Number(cached.soilMeta.sandPct)) &&
+    Number.isFinite(Number(cached.soilMeta.siltPct))
+  ) {
+    return {
+      clayPct: cached.soilMeta.clayPct,
+      sandPct: cached.soilMeta.sandPct,
+      siltPct: cached.soilMeta.siltPct,
+      soil: cached.soil,
+      soilSource: cached.soilSource || 'ISRIC SoilGrids v2.0',
+    };
+  }
+
+  const soil = await fetchSoilGridsShared(lat, lon, signal);
+  if (!soil?.soilMeta) throw new Error('SoilGrids texture unavailable');
+  return {
+    clayPct: soil.soilMeta.clayPct,
+    sandPct: soil.soilMeta.sandPct,
+    siltPct: soil.soilMeta.siltPct,
+    soil: soil.soil,
+    soilSource: soil.soilSource || 'ISRIC SoilGrids v2.0',
+  };
+}
+
+export async function loadSoilSoc(lat, lon, signal) {
+  const cached = cachedPayload(lat, lon);
+  if (cached?.soilMeta && Number.isFinite(Number(cached.soilMeta.socGkg))) {
+    return {
+      socGkg: cached.soilMeta.socGkg,
+      soilSource: cached.soilSource || 'ISRIC SoilGrids v2.0',
+    };
+  }
+
+  const soil = await fetchSoilGridsShared(lat, lon, signal);
+  if (!soil?.soilMeta || !Number.isFinite(Number(soil.soilMeta.socGkg))) {
+    throw new Error('SoilGrids SOC unavailable');
+  }
+  return {
+    socGkg: soil.soilMeta.socGkg,
+    soilSource: soil.soilSource || 'ISRIC SoilGrids v2.0',
+  };
+}
+
+export async function loadSoilSource(lat, lon, signal) {
+  const cached = cachedPayload(lat, lon);
+  if (cached?.soilMeta && cached?.soilSource) {
+    const isSg = String(cached.soilSource).startsWith('ISRIC');
+    return {
+      nitrogenPh: cached.soilSource,
+      phosphorusPotassium: isSg ? `${cached.soilSource} · Pedotransfer` : cached.soilSource,
+    };
+  }
+
+  const soil = await fetchSoilGridsShared(lat, lon, signal);
+  const src = soil?.soilSource || 'NASA POWER Agro-Climatic Model';
+  const isSg = String(src).startsWith('ISRIC');
+  return {
+    nitrogenPh: src,
+    phosphorusPotassium: isSg ? `${src} · Pedotransfer` : src,
   };
 }

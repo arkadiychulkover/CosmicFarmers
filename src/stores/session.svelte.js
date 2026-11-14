@@ -1,11 +1,10 @@
 import { writable, get } from 'svelte/store';
 import { resolvePreset } from '../data/presets.js';
-import { fetchNasaDataForCoords } from '../utils/nasaApi.js';
+import { fetchNasaDataForCoords, deriveSoilAndNutrients } from '../utils/nasaApi.js';
 
 const SESSION_KEY = 'field-shift-session';
 
 const defaults = {
-  activeTab: 'farm',
   activePresetId: null,
   coordsEditable: false,
   customSoilEdited: false,
@@ -68,6 +67,8 @@ function load() {
   const savedAuto = saved.autoSoil && typeof saved.autoSoil === 'object'
     ? saved.autoSoil
     : saved.nasaData;
+  const isResultsRoute =
+    typeof window !== 'undefined' && window.location.pathname === '/results';
   const merged = {
     ...fresh,
     ...saved,
@@ -76,14 +77,26 @@ function load() {
     climate: { ...fresh.climate, ...savedClimate },
     nasaLoading: false,
     nasaError: null,
-    activeTab: 'results',
-    collapsed: true,
+    collapsed: isResultsRoute,
   };
 
   if (typeof saved.climate === 'number') {
     merged.climate.precipitation = saved.climate;
   }
   if (merged.theme !== 'light') merged.theme = 'dark';
+
+  if (merged.nasaData && !merged.nasaData.soilMeta) {
+    const upgraded = deriveSoilAndNutrients(
+      merged.nasaData.weather,
+      merged.form.lat,
+      merged.form.lon,
+    );
+    merged.nasaData = {
+      ...merged.nasaData,
+      soilSource: upgraded.soilSource,
+      soilMeta: upgraded.soilMeta,
+    };
+  }
 
   return merged;
 }
@@ -117,7 +130,7 @@ export function clearSavedSession() {
 
 let lastSavedKey = null;
 session.subscribe((current) => {
-  if (current.activeTab !== 'results' || !hasValidForecast(current)) return;
+  if (!hasValidForecast(current)) return;
   const key = JSON.stringify({
     form: current.form,
     climate: current.climate,
