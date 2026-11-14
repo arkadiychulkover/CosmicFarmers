@@ -8,6 +8,7 @@
   import Header from './components/Header.svelte';
   import SideTabs from './components/SideTabs.svelte';
   import Globus from './components/Globus.svelte';
+  import GlobeControls from './components/GlobeControls.svelte';
   import FarmSoilScreen from './screens/FarmSoilScreen.svelte';
   import TelemetryScreen from './screens/TelemetryScreen.svelte';
   import CalculatingScreen from './screens/CalculatingScreen.svelte';
@@ -25,6 +26,46 @@
   ];
 
   let previousTab = $state('telemetry');
+  let globeDisplayStyle = $state('default');
+  let globeZoom = $state(100);
+  let isGlobeFullscreen = $state(false);
+  let globeRef = $state(null);
+  let stageEl = $state(null);
+
+  const showResultsOverlay = $derived(
+    $session.activeTab === 'results' && Boolean($session.result) && $session.collapsed
+  );
+
+  function formatCoord(value, posHemi, negHemi) {
+    const num = Number(value ?? 0);
+    const abs = Math.abs(num);
+    const deg = Math.trunc(abs);
+    const min = ((abs % 1) * 60).toFixed(2);
+    return `${deg}° ${min}' ${num >= 0 ? posHemi : negHemi}`;
+  }
+
+  $effect(() => {
+    function onFullscreenChange() {
+      isGlobeFullscreen = Boolean(stageEl && document.fullscreenElement === stageEl);
+    }
+    document.addEventListener('fullscreenchange', onFullscreenChange);
+    return () => document.removeEventListener('fullscreenchange', onFullscreenChange);
+  });
+
+  async function toggleGlobeFullscreen() {
+    if (!stageEl) return;
+    try {
+      if (document.fullscreenElement === stageEl) {
+        await document.exitFullscreen();
+      } else {
+        await stageEl.requestFullscreen();
+      }
+    } catch {}
+  }
+
+  function resetGlobePosition() {
+    globeRef?.resetPosition?.();
+  }
 
   const panelScreen = $derived.by(() => {
     if ($session.activeTab === 'calculating') return 'calculating';
@@ -92,29 +133,45 @@
       />
     </section>
 
-    <div class="globe-stage">
-
-
-      <div class="globe-stage" class:collapsed={$session.collapsed}>
-        <div class="globe-stage-text-location-container" class:collapsed={$session.collapsed}>
+    <div
+      class="globe-stage"
+      class:collapsed={$session.collapsed}
+      bind:this={stageEl}
+    >
+      <div class="globe-stage-text-location-container" class:collapsed={$session.collapsed}>
         <span class="globe-stage-text-location">{place.toUpperCase()}</span>
-        <span class="s-QDAv-o1wJ_oy">
-          {Math.trunc($session.form.lat??0)}°{Math.abs((($session.form.lat??0)%1*60).toFixed(2))}'N
-          {Math.trunc($session.form.lon??0)}°{Math.abs(($session.form.lon??0)%1*60).toFixed(2)}'E
+        <span class="globe-stage-coords">
+          {formatCoord($session.form.lat, 'N', 'S')} {formatCoord($session.form.lon, 'E', 'W')}
         </span>
-        </div>
+      </div>
+
+      <div class="globe-canvas-wrap">
         <Globus
+          bind:this={globeRef}
           width="100%"
-          height="calc(100vh - var(--header-height))"
+          height="100%"
           latitude={$session.form.lat}
           longitude={$session.form.lon}
+          displayStyle={globeDisplayStyle}
+          bind:zoom={globeZoom}
         />
-        {#if $session.activeTab === 'results' && $session.result && $session.collapsed}
+      </div>
+
+      {#if !showResultsOverlay}
+        <GlobeControls
+          bind:displayStyle={globeDisplayStyle}
+          bind:zoom={globeZoom}
+          isFullscreen={isGlobeFullscreen}
+          onreset={resetGlobePosition}
+          ontogglefullscreen={toggleGlobeFullscreen}
+        />
+      {/if}
+
+      {#if showResultsOverlay}
         <div class="results-overlay">
           <ResultsScreen />
         </div>
       {/if}
-      </div>
     </div>
   </div>
 
@@ -164,11 +221,27 @@
     height: calc(100vh - var(--header-height));
     display: flex;
     align-items: center;
+    justify-content: space-between;
+  }
+
+  .globe-stage:fullscreen {
+    width: 100vw;
+    height: 100vh;
+    background: var(--color-bg);
+    padding-top: 24px;
+  }
+
+  .globe-canvas-wrap {
+    flex: 1;
+    min-height: 0;
+    width: 100%;
+    display: flex;
+    align-items: center;
     justify-content: center;
   }
 
 .globe-stage.collapsed {
-  flex-direction: row;
+  flex-direction: column;
   align-self: stretch;
   width: 100%;
 }
@@ -178,6 +251,8 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
+  padding-top: 4px;
+  z-index: 2;
 }
 
 .globe-stage-text-location-container.collapsed {
@@ -189,6 +264,13 @@
   transform: translateY(-50%);
   pointer-events: none;
   max-width: 15%;
+  padding-top: 0;
+}
+
+.globe-stage-coords {
+  font-size: 12px;
+  color: var(--color-text-dim);
+  letter-spacing: 0.04em;
 }
 
 
@@ -235,11 +317,12 @@
   }
 
   .globe-stage-text-location {
-    font-size: 30px;
-    color: var(--color-text-dim);
-    font-weight: 400;
+    font-family: var(--font-display);
+    font-size: clamp(24px, 2.3vw, 32px);
+    font-weight: 500;
+    letter-spacing: 0.04em;
     color: var(--color-text);
-    margin-bottom: 10px;
+    margin-bottom: 6px;
   }
 
   footer {
