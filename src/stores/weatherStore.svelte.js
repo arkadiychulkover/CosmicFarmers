@@ -12,7 +12,8 @@ $effect.root(() => {
   $effect(() => {
     const lat = session.form.lat;
     const lon = session.form.lon;
-    const isRandom = session.activePresetId === 'random';
+    const presetId = session.activePresetId;
+    const isCachedPreset = Boolean(presetId && presetId !== 'random');
 
     if (
       lat === null || lon === null ||
@@ -38,6 +39,12 @@ $effect.root(() => {
       return;
     }
 
+    if (session.nasaLoading) {
+      loading = true;
+      failed = false;
+      return;
+    }
+
     if (lat === currentLat && lon === currentLon && data) return;
     currentLat = lat;
     currentLon = lon;
@@ -46,7 +53,10 @@ $effect.root(() => {
     loading = true;
     failed = false;
 
-    fetchNasaDataForCoords(lat, lon, { bypassCache: isRandom })
+    fetchNasaDataForCoords(lat, lon, {
+      presetId,
+      bypassCache: !isCachedPreset,
+    })
       .then((payload) => {
         if (cancelled) return;
         if (payload) {

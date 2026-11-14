@@ -1,5 +1,4 @@
-<script lang="ts">
-  import { onMount, onDestroy } from 'svelte';
+<script lang="ts">  import { onMount, onDestroy } from 'svelte';
   import * as THREE from 'three';
   import * as topojson from 'topojson-client';
   import worldData from 'world-atlas/countries-110m.json';
@@ -548,8 +547,7 @@
   {/if}
 </div>
 
-<style>
-  .globe-container {
+<style>  .globe-container {
     position: relative;
     display: flex;
     align-items: center;

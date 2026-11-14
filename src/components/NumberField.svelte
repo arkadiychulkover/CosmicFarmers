@@ -1,5 +1,4 @@
-<script>
-  let { label, min, max, step = 1, value = $bindable(), locked = false, oncommit } = $props();
+<script>  let { label, min, max, step = 1, value = $bindable(), locked = false, oncommit } = $props();
 
   function commit(event) {
     let n = Number(event.currentTarget.value);
@@ -25,8 +24,7 @@
   />
 </div>
 
-<style>
-  .field {
+<style>  .field {
     display: flex;
     flex-direction: column;
     gap: 8px;

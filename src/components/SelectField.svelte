@@ -1,5 +1,4 @@
-<script>
-  let { label = '', hint = '', options, value = $bindable(), ariaLabel = label } = $props();
+<script>  let { label = '', hint = '', options, value = $bindable(), ariaLabel = label } = $props();
 
   let open = $state(false);
   let highlighted = $state(0);
@@ -92,8 +91,7 @@
   </div>
 </div>
 
-<style>
-  .field {
+<style>  .field {
     display: flex;
     flex-direction: column;
     align-items: flex-start;

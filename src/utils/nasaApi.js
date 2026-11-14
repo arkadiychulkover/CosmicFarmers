@@ -1,7 +1,7 @@
 import { getWeather, parseWeatherResponse } from '../lib/weather/SoilData.js';
 
-export const WEATHER_CACHE_KEY = 'nasa-weather-cache';
-const MODEL_GDD_DAYS = 120;
+export const WEATHER_CACHE_KEY = 'nasa-preset-cache-v3';
+const inflightRequests = new Map();
 
 function clamp(value, min, max) {
   return Math.min(max, Math.max(min, value));
@@ -11,8 +11,7 @@ export function deriveSoilAndNutrients(parsed, lat, lon) {
   const t2m = Number(parsed.t2m) || 15;
   const precip = Number(parsed.prectotcorr) || 50;
   const rh = Number(parsed.rh2m) || 60;
-  const allsky = Number(parsed.allsky) || 18;
-  const gdd = Number(parsed.gdd?.value ?? parsed.gdd) || 1800;
+  const gwetroot = Number(parsed.gwetroot ?? parsed.soilMoisture?.rootZone) || 0.55;
   const absLat = Math.abs(lat);
 
   let soil = 'loam';
@@ -24,30 +23,27 @@ export function deriveSoilAndNutrients(parsed, lat, lon) {
     soil = 'loam';
   }
 
-  let basePh = 7.0 - ((precip - 50) / 100) * 1.2 - ((rh - 60) / 100) * 0.8 + ((t2m - 15) / 20) * 0.4;
-  if (soil === 'chernozem') basePh = Math.max(basePh, 6.8);
-  if (soil === 'sandy') basePh = Math.max(basePh, 7.3);
-  const ph = Number(clamp(basePh, 4.8, 8.2).toFixed(1));
+  let basePh = 6.5 - ((precip - 55) / 100) * 1.1 - ((rh - 62) / 100) * 0.7 + ((t2m - 16) / 22) * 0.35;
+  if (soil === 'chernozem') basePh = Math.max(basePh, 6.6);
+  if (soil === 'sandy') basePh = Math.max(basePh, 7.1);
+  const ph = Number(clamp(basePh, 4.8, 8.2).toFixed(2));
 
-  const bonus = soil === 'chernozem' ? 1.3 : soil === 'sandy' ? 0.65 : 1.0;
-  const moistureFactor = clamp(precip / 60, 0.6, 1.4);
-  const gddFactor = clamp(gdd / 1800, 0.7, 1.3);
-  const sunFactor = clamp(allsky / 18, 0.8, 1.25);
 
-  const n = Math.round(clamp(50 * bonus * moistureFactor * gddFactor, 15, 140));
-  const p = Math.round(clamp(45 * bonus * sunFactor, 15, 110));
-  const k = Math.round(clamp(150 * bonus * (0.85 + 0.15 * moistureFactor), 60, 260));
+  const bonus = soil === 'chernozem' ? 1.35 : soil === 'sandy' ? 0.55 : 1.0;
+  const moistureFactor = clamp((precip / 60) * 0.6 + (gwetroot / 0.55) * 0.4, 0.55, 1.45);
+  const tempOrganicFactor = clamp(1.25 - Math.max(t2m - 14, 0) * 0.025, 0.65, 1.35);
 
-  return { ph, soil, n, p, k };
+  const n = Math.round(clamp(135 * bonus * moistureFactor * tempOrganicFactor, 25, 200));
+  const p = Math.round(clamp(72 * bonus * moistureFactor * tempOrganicFactor, 15, 150));
+  const k = Math.round(clamp(58 * (soil === 'sandy' ? 0.65 : soil === 'chernozem' ? 1.18 : 1.0) * (0.85 + 0.15 * moistureFactor), 20, 110));
+
+  return { ph: Number(ph.toFixed(1)), soil, n, p, k };
 }
 
 function buildPayload(lat, lon, weather, derived, seasonYear) {
   const rawGdd = Number(weather.gdd?.value ?? weather.gdd) || 1800;
-  const days = Array.isArray(weather.daily_t2m) && weather.daily_t2m.length > 0
-    ? weather.daily_t2m.length
-    : MODEL_GDD_DAYS;
-
-  const normalizedGdd = Math.round((rawGdd / days) * MODEL_GDD_DAYS);
+  const normalizedGdd = Math.round(rawGdd);
+  const t2m = Number(weather.t2m) || 15;
 
   return {
     lat: Number(Number(lat).toFixed(4)),
@@ -60,7 +56,7 @@ function buildPayload(lat, lon, weather, derived, seasonYear) {
     N: derived.n,
     P: derived.p,
     K: derived.k,
-    T2M: Number(weather.t2m) || 15,
+    T2M: t2m,
     T2M_MAX: Number(weather.t2m_max) || 25,
     T2M_MIN: Number(weather.t2m_min) || 5,
     RH2M: Number(weather.rh2m) || 60,
@@ -68,12 +64,47 @@ function buildPayload(lat, lon, weather, derived, seasonYear) {
     ALLSKY_SFC_SW_DWN: Number(weather.allsky) || 18,
     GDD: normalizedGdd,
     WS2M: Number(weather.ws2m) || 3,
+    GWETTOP: Number(weather.gwettop ?? weather.soilMoisture?.surface) || 0.55,
+    GWETROOT: Number(weather.gwetroot ?? weather.soilMoisture?.rootZone) || 0.58,
+    TS: Number(weather.ts ?? weather.ecostress?.surfaceTemp) || (t2m + 1.0),
+    EVPTRNS: Number(weather.evptrns ?? weather.ecostress?.evapotranspiration) || 3.2,
+    ELEVATION: Number.isFinite(Number(weather.elevation ?? weather.terrain?.elevation))
+      ? Number(weather.elevation ?? weather.terrain?.elevation)
+      : 180.0,
+    SLOPE: Number.isFinite(Number(weather.slope ?? weather.terrain?.slope))
+      ? Number(weather.slope ?? weather.terrain?.slope)
+      : 1.5,
     seasonYear,
     weather,
   };
 }
 
-let activeRequestId = 0;
+function readPresetCache(presetId, numLat, numLon) {
+  try {
+    const raw = localStorage.getItem(WEATHER_CACHE_KEY);
+    if (!raw) return null;
+    const all = JSON.parse(raw);
+    const entry = all?.[presetId];
+    if (
+      entry &&
+      entry.data &&
+      Math.abs(entry.lat - numLat) < 0.001 &&
+      Math.abs(entry.lon - numLon) < 0.001
+    ) {
+      return entry;
+    }
+  } catch {}
+  return null;
+}
+
+function writePresetCache(presetId, lat, lon, parsed, seasonYear) {
+  try {
+    const raw = localStorage.getItem(WEATHER_CACHE_KEY);
+    const all = raw ? JSON.parse(raw) : {};
+    all[presetId] = { lat, lon, data: parsed, seasonYear };
+    localStorage.setItem(WEATHER_CACHE_KEY, JSON.stringify(all));
+  } catch {}
+}
 
 export async function fetchNasaDataForCoords(lat, lon, options = {}) {
   const numLat = Number(lat);
@@ -87,43 +118,41 @@ export async function fetchNasaDataForCoords(lat, lon, options = {}) {
     return null;
   }
 
-  const { bypassCache = false, signal } = options;
-  const requestId = ++activeRequestId;
+  const { bypassCache = false, presetId = null, signal } = options;
+  const canUsePresetCache = Boolean(!bypassCache && presetId && presetId !== 'random');
 
-  if (!bypassCache) {
-    try {
-      const rawCache = localStorage.getItem(WEATHER_CACHE_KEY);
-      if (rawCache) {
-        const cached = JSON.parse(rawCache);
-        if (
-          cached &&
-          Math.abs(cached.lat - numLat) < 0.001 &&
-          Math.abs(cached.lon - numLon) < 0.001 &&
-          cached.data
-        ) {
-          const derived = deriveSoilAndNutrients(cached.data, numLat, numLon);
-          return buildPayload(numLat, numLon, cached.data, derived, cached.seasonYear);
-        }
-      }
-    } catch {}
+  if (canUsePresetCache) {
+    const cached = readPresetCache(presetId, numLat, numLon);
+    if (cached) {
+      const derived = deriveSoilAndNutrients(cached.data, numLat, numLon);
+      return buildPayload(numLat, numLon, cached.data, derived, cached.seasonYear);
+    }
   }
 
   if (signal?.aborted) return null;
 
-  const raw = await getWeather(numLon, numLat, { signal });
-  if (requestId !== activeRequestId || signal?.aborted) return null;
+  const coordKey = `${numLat.toFixed(4)},${numLon.toFixed(4)}`;
+  let pending = inflightRequests.get(coordKey);
+  if (!pending) {
+    pending = getWeather(numLon, numLat)
+      .then((raw) => {
+        const parsed = parseWeatherResponse(raw);
+        return { parsed, seasonYear: raw.seasonYear };
+      })
+      .finally(() => {
+        inflightRequests.delete(coordKey);
+      });
+    inflightRequests.set(coordKey, pending);
+  }
 
-  const parsed = parseWeatherResponse(raw);
+  const { parsed, seasonYear } = await pending;
+  if (signal?.aborted) return null;
+
   const derived = deriveSoilAndNutrients(parsed, numLat, numLon);
-  const payload = buildPayload(numLat, numLon, parsed, derived, raw.seasonYear);
+  const payload = buildPayload(numLat, numLon, parsed, derived, seasonYear);
 
-  if (!bypassCache) {
-    try {
-      localStorage.setItem(
-        WEATHER_CACHE_KEY,
-        JSON.stringify({ lat: payload.lat, lon: payload.lon, data: parsed, seasonYear: raw.seasonYear })
-      );
-    } catch {}
+  if (canUsePresetCache) {
+    writePresetCache(presetId, payload.lat, payload.lon, parsed, seasonYear);
   }
 
   return payload;

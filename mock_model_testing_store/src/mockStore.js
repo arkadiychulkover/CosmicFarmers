@@ -1,5 +1,6 @@
 import { writable, get } from 'svelte/store';
 
+
 export const PRESETS = {
     'Влажные тропики': {
         previousCrop: 'rice',
@@ -19,7 +20,9 @@ export const PRESETS = {
     },
 };
 
+
 export const lastRequest = writable(null);
+
 
 export const mockRepository = {
     loadLast: () => get(lastRequest),

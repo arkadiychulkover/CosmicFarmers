@@ -1,5 +1,4 @@
-<script>
-import { SoilData, getWeather } from './lib/weather/SoilData.js';
+<script>import { SoilData, getWeather } from './lib/weather/SoilData.js';
 
 export { SoilData, getWeather };
 
@@ -9,13 +8,16 @@ let error = $state(null);
 
 async function init() {
   try {
+
     const hasCached = await soil.retrive();
     if (hasCached && soil.isinit) {
       loading = false;
       return;
     }
 
+
     await soil.dataInit(getWeather, 30.0, 50.0);
+
     await soil.store();
     loading = false;
   } catch (e) {

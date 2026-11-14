@@ -1,5 +1,4 @@
-<script>
-  let { value = 0, size = 'large' } = $props();
+<script>  let { value = 0, size = 'large' } = $props();
 
   const displayValue = $derived.by(() => {
     const num = Number(value);
@@ -22,8 +21,7 @@
   </span>
 </div>
 
-<style>
-  .match {
+<style>  .match {
     display: inline-flex;
     align-items: flex-start;
     flex-shrink: 0;

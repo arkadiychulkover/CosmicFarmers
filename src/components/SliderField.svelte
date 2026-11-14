@@ -1,5 +1,4 @@
-<script>
-  let {
+<script>  let {
     label,
     min = 0,
     max = 100,
@@ -66,8 +65,7 @@
   </div>
 </div>
 
-<style>
-  .field {
+<style>  .field {
     display: flex;
     flex-direction: column;
     gap: 6px;

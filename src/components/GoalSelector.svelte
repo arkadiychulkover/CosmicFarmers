@@ -1,5 +1,4 @@
-<script>
-  let { label, options, name = 'goal', value = $bindable() } = $props();
+<script>  let { label, options, name = 'goal', value = $bindable() } = $props();
 </script>
 
 <fieldset>
@@ -13,8 +12,7 @@
   {/each}
 </fieldset>
 
-<style>
-  fieldset {
+<style>  fieldset {
     display: grid;
     gap: 8px;
     margin: 0;

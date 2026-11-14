@@ -1,5 +1,4 @@
-<script>
-  let { values = [], months = [] } = $props();
+<script>  let { values = [], months = [] } = $props();
 
   const width = 120;
   const height = 60;
@@ -30,8 +29,7 @@
   {/each}
 </svg>
 
-<style>
-  svg {
+<style>  svg {
     display: block;
     width: 100%;
     height: auto;
