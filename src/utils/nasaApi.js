@@ -81,7 +81,7 @@ function buildPayload(lat, lon, weather, derived, seasonYear) {
 
 function readPresetCache(presetId, numLat, numLon) {
   try {
-    const raw = localStorage.getItem(WEATHER_CACHE_KEY);
+    const raw = sessionStorage.getItem(WEATHER_CACHE_KEY);
     if (!raw) return null;
     const all = JSON.parse(raw);
     const entry = all?.[presetId];
@@ -99,10 +99,10 @@ function readPresetCache(presetId, numLat, numLon) {
 
 function writePresetCache(presetId, lat, lon, parsed, seasonYear) {
   try {
-    const raw = localStorage.getItem(WEATHER_CACHE_KEY);
+    const raw = sessionStorage.getItem(WEATHER_CACHE_KEY);
     const all = raw ? JSON.parse(raw) : {};
     all[presetId] = { lat, lon, data: parsed, seasonYear };
-    localStorage.setItem(WEATHER_CACHE_KEY, JSON.stringify(all));
+    sessionStorage.setItem(WEATHER_CACHE_KEY, JSON.stringify(all));
   } catch {}
 }
 
