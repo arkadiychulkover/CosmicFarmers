@@ -334,6 +334,7 @@
   .results header p {
     margin: 0;
     font-size: 9px;
+    font-weight: 700;
     line-height: 1.4;
     color: var(--color-text-dim);
   }
@@ -417,6 +418,7 @@
   .intro p {
     margin: 6px 0 0;
     font-size: 9px;
+    font-weight: 700;
     color: var(--color-text-dim);
   }
 
@@ -437,7 +439,8 @@
   }
 
   .place small {
-    font-size: 7px;
+    font-size: 9px;
+    font-weight: 700;
     color: var(--color-text-dim);
   }
 
@@ -508,7 +511,8 @@
     align-self: end;
     max-width: 240px;
     margin-bottom: 24px;
-    font-size: 8px;
+    font-size: 9px;
+    font-weight: 700;
     line-height: 1.5;
     color: var(--color-text-dim);
     opacity: calc(0.08 + 0.92 * var(--reveal));
@@ -562,12 +566,14 @@
     min-height: 30px;
     align-content: center;
     font-size: 9px;
+    font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.06em;
   }
 
   .label small {
-    font-size: 8px;
+    font-size: 9px;
+    font-weight: 700;
     color: var(--color-text-dim);
   }
 
@@ -616,8 +622,8 @@
 
   .note strong {
     display: block;
-    font-size: 8px;
-    font-weight: 600;
+    font-size: 9px;
+    font-weight: 700;
     color: var(--color-text);
   }
 

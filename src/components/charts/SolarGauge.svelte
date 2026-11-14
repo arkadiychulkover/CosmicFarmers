@@ -101,7 +101,8 @@
   .edge {
     fill: var(--color-card-dim);
     font-family: var(--font-body);
-    font-size: 8px;
+    font-size: 9px;
+    font-weight: 700;
   }
 
   .optimal p,
@@ -113,8 +114,8 @@
 
   .optimal p {
     color: #b2ff9e;
-    font-size: 8px;
-    font-weight: 400;
+    font-size: 9px;
+    font-weight: 700;
     letter-spacing: 0;
     line-height: 1;
     text-transform: uppercase;
@@ -138,7 +139,8 @@
 
   .optimal span {
     color: var(--color-card-dim);
-    font-size: 8px;
+    font-size: 9px;
+    font-weight: 700;
   }
 
   .optimal em {

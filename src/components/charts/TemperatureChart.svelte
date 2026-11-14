@@ -72,7 +72,8 @@
   .month,
   .note {
     fill: var(--color-card-text);
-    font-size: 8px;
+    font-size: 9px;
+    font-weight: 700;
   }
 
   .heat {

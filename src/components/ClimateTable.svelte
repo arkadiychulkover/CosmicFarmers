@@ -57,8 +57,8 @@
   }
 
   th {
-    font-size: 8px;
-    font-weight: 500;
+    font-size: 9px;
+    font-weight: 700;
     color: var(--color-text);
   }
 

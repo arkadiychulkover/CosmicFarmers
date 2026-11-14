@@ -121,7 +121,7 @@
     border: 1px solid var(--color-result-text);
     border-radius: 999px;
     font-size: 9px;
-    font-weight: 500;
+    font-weight: 700;
     letter-spacing: 0.02em;
     opacity: 0.9;
   }
@@ -180,6 +180,7 @@
   p {
     margin: 0;
     font-size: 9px;
+    font-weight: 700;
     line-height: 1.45;
     color: var(--color-result-dim);
   }
