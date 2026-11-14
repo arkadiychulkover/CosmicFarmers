@@ -12,6 +12,22 @@ import {
 import { fetchSoilGrids } from '../../utils/nasaApi.js';
 
 const FILL = -999;
+const cardMemory = new Map();
+
+function pointKey(lat, lon) {
+  return `${Number(lat).toFixed(4)},${Number(lon).toFixed(4)}`;
+}
+
+const CARD_MEMORY_VERSION = '2';
+
+export function peekTelemetryCard(id, lat, lon) {
+  return cardMemory.get(`${CARD_MEMORY_VERSION}:${id}:${pointKey(lat, lon)}`) ?? null;
+}
+
+export function rememberTelemetryCard(id, lat, lon, data) {
+  cardMemory.set(`${CARD_MEMORY_VERSION}:${id}:${pointKey(lat, lon)}`, data);
+  return data;
+}
 
 function samePoint(lat, lon, otherLat, otherLon) {
   return Math.abs(Number(lat) - Number(otherLat)) < 0.001
@@ -71,6 +87,24 @@ function series(block, name, fill) {
   const values = block?.[name];
   if (!values || typeof values !== 'object') throw new Error(`${name} is missing`);
   return values;
+}
+
+function readPoint(values, date, fill, fallback) {
+  const value = values?.[date];
+  return value !== fill && Number.isFinite(value) ? Number(Number(value).toFixed(1)) : fallback;
+}
+
+function dailyTriple(meanValues, maxValues, minValues, fill) {
+  const dates = Object.keys(meanValues)
+    .filter((date) => meanValues[date] !== fill && Number.isFinite(meanValues[date]))
+    .sort();
+  const daily = dates.map((date) => readPoint(meanValues, date, fill, 0));
+  return {
+    dates,
+    daily,
+    dailyMax: dates.map((date, index) => readPoint(maxValues, date, fill, daily[index])),
+    dailyMin: dates.map((date, index) => readPoint(minValues, date, fill, daily[index])),
+  };
 }
 
 function monthMeans(values, fill, digits = 1) {
@@ -142,21 +176,36 @@ export async function loadPrecipitation(lat, lon, signal) {
 
 export async function loadTemperature(lat, lon, signal) {
   const cached = cachedPayload(lat, lon)?.weather?.temperature;
-  if (cached?.monthly?.length) {
+  if (
+    cached?.daily?.length
+    && cached?.dailyMax?.length
+    && cached?.dailyMin?.length
+    && Number.isFinite(Number(cached.seasonMax))
+    && Number.isFinite(Number(cached.seasonMin))
+  ) {
     return { months: MONTHS, ...cached };
   }
 
-  const { block, fill } = await fetchDaily(lat, lon, 'T2M,T2M_MAX', signal);
+  const { block, fill } = await fetchDaily(lat, lon, 'T2M,T2M_MAX,T2M_MIN', signal);
   const t2m = series(block, 'T2M', fill);
   const t2mMax = series(block, 'T2M_MAX', fill);
+  const t2mMin = series(block, 'T2M_MIN', fill);
   let heatDays = 0;
   for (const val of Object.values(t2mMax)) {
     if (val !== fill && Number.isFinite(val) && val >= 32) heatDays += 1;
   }
+  const samples = dailyTriple(t2m, t2mMax, t2mMin, fill);
+  const seasonMax = samples.dailyMax.reduce((best, value) => Math.max(best, value), -Infinity);
+  const seasonMin = samples.dailyMin.reduce((best, value) => Math.min(best, value), Infinity);
   return {
     months: MONTHS,
     mean: Number(averageWithException(Object.values(t2m), fill).toFixed(1)),
+    seasonMax: Number.isFinite(seasonMax) ? seasonMax : 0,
+    seasonMin: Number.isFinite(seasonMin) ? seasonMin : 0,
     monthly: monthMeans(t2m, fill),
+    monthlyMax: monthMeans(t2mMax, fill),
+    monthlyMin: monthMeans(t2mMin, fill),
+    ...samples,
     heatDays,
   };
 }

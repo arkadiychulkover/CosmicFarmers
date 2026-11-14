@@ -5,19 +5,20 @@
   import ActionButton from '../components/ActionButton.svelte';
   import PrecipitationChart from '../components/charts/PrecipitationChart.svelte';
   import TemperatureChart from '../components/charts/TemperatureChart.svelte';
-  import TempRangeChart from '../components/charts/TempRangeChart.svelte';
   import SoilTextureHistogram from '../components/charts/SoilTextureHistogram.svelte';
   import HumidityGauge from '../components/charts/HumidityGauge.svelte';
   import MetricBar from '../components/charts/MetricBar.svelte';
   import SoilSourceChart from '../components/charts/SoilSourceChart.svelte';
   import SolarGauge from '../components/charts/SolarGauge.svelte';
   import GddBar from '../components/charts/GddBar.svelte';
+  import { get } from 'svelte/store';
   import { session } from '../stores/session.svelte.js';
   import { goalOptions } from '../data/options.js';
   import {
+    peekTelemetryCard,
+    rememberTelemetryCard,
     loadPrecipitation,
     loadTemperature,
-    loadTempRange,
     loadAtmosphere,
     loadSolar,
     loadGdd,
@@ -32,7 +33,6 @@
   const loaders = {
     precip: loadPrecipitation,
     temp: loadTemperature,
-    tempRange: loadTempRange,
     atmosphere: loadAtmosphere,
     solar: loadSolar,
     gdd: loadGdd,
@@ -44,38 +44,55 @@
     source: loadSoilSource,
   };
 
+  function cardState(id, lat, lon) {
+    const data = peekTelemetryCard(id, lat, lon);
+    return data ? { status: 'ready', data } : { status: 'loading' };
+  }
+
+  const initialPoint = get(session).form;
   let cards = $state({
-    precip: { status: 'loading' },
-    temp: { status: 'loading' },
-    tempRange: { status: 'loading' },
-    atmosphere: { status: 'loading' },
-    solar: { status: 'loading' },
-    gdd: { status: 'loading' },
-    moisture: { status: 'loading' },
-    ecostress: { status: 'loading' },
-    terrain: { status: 'loading' },
-    texture: { status: 'loading' },
-    soc: { status: 'loading' },
-    source: { status: 'loading' },
+    precip: cardState('precip', initialPoint.lat, initialPoint.lon),
+    temp: cardState('temp', initialPoint.lat, initialPoint.lon),
+    atmosphere: cardState('atmosphere', initialPoint.lat, initialPoint.lon),
+    solar: cardState('solar', initialPoint.lat, initialPoint.lon),
+    gdd: cardState('gdd', initialPoint.lat, initialPoint.lon),
+    moisture: cardState('moisture', initialPoint.lat, initialPoint.lon),
+    ecostress: cardState('ecostress', initialPoint.lat, initialPoint.lon),
+    terrain: cardState('terrain', initialPoint.lat, initialPoint.lon),
+    texture: cardState('texture', initialPoint.lat, initialPoint.lon),
+    soc: cardState('soc', initialPoint.lat, initialPoint.lon),
+    source: cardState('source', initialPoint.lat, initialPoint.lon),
   });
 
+  const lat = $derived($session.form.lat);
+  const lon = $derived($session.form.lon);
+
   $effect(() => {
-    const lat = $session.form.lat;
-    const lon = $session.form.lon;
-    const controllers = Object.keys(loaders).map((id) => {
+    const currentLat = lat;
+    const currentLon = lon;
+    const controllers = [];
+
+    for (const id of Object.keys(loaders)) {
+      const cached = peekTelemetryCard(id, currentLat, currentLon);
+      if (cached) {
+        cards[id] = { status: 'ready', data: cached };
+        continue;
+      }
+
       const controller = new AbortController();
+      controllers.push(controller);
       cards[id] = { status: 'loading' };
-      loaders[id](lat, lon, controller.signal)
+      loaders[id](currentLat, currentLon, controller.signal)
         .then((data) => {
           if (controller.signal.aborted) return;
+          rememberTelemetryCard(id, currentLat, currentLon, data);
           cards[id] = { status: 'ready', data };
         })
         .catch((error) => {
           if (controller.signal.aborted || error?.name === 'AbortError') return;
           cards[id] = { status: 'error', error: error?.message || 'Request failed' };
         });
-      return controller;
-    });
+    }
 
     return () => {
       for (const controller of controllers) controller.abort();
@@ -172,6 +189,30 @@
 
   <div class="grid">
     <TelemetryCard
+      wide
+      source="T2M_MIN / T2M / T2M_MAX"
+      state={cards.temp.status}
+      error={cards.temp.error}
+      title="Temperature & Heat Stress"
+      inlineRows
+      rows={cards.temp.data ? [
+        { label: 'Mean Season Temp', value: `${cards.temp.data.mean} °C` },
+        { label: 'Extreme Heat Days (above 32°C)', value: `${cards.temp.data.heatDays} days` },
+      ] : []}
+    >
+      {#if cards.temp.data}
+        <TemperatureChart
+          values={cards.temp.data.daily?.length ? cards.temp.data.daily : cards.temp.data.monthly}
+          minValues={cards.temp.data.dailyMin?.length ? cards.temp.data.dailyMin : cards.temp.data.monthlyMin}
+          maxValues={cards.temp.data.dailyMax?.length ? cards.temp.data.dailyMax : cards.temp.data.monthlyMax}
+          dates={cards.temp.data.dates}
+          months={cards.temp.data.months}
+          heatDays={cards.temp.data.heatDays}
+        />
+      {/if}
+    </TelemetryCard>
+
+    <TelemetryCard
       source="PRECTOTCORR · Apr–Oct · mm"
       state={cards.precip.status}
       error={cards.precip.error}
@@ -186,25 +227,6 @@
           months={cards.precip.data.months}
           total={cards.precip.data.total}
           baseline={cards.precip.data.historicalAverage}
-        />
-      {/if}
-    </TelemetryCard>
-
-    <TelemetryCard
-      source="T2M / T2M_MAX · illustrative profile"
-      state={cards.temp.status}
-      error={cards.temp.error}
-      title="Temperature & Heat Stress"
-      rows={cards.temp.data ? [
-        { label: 'Mean Season Temp', value: `${cards.temp.data.mean} °C` },
-        { label: 'Extreme Heat Days (above 32°C)', value: `${cards.temp.data.heatDays} days` },
-      ] : []}
-    >
-      {#if cards.temp.data}
-        <TemperatureChart
-          values={cards.temp.data.monthly}
-          months={cards.temp.data.months}
-          heatDays={cards.temp.data.heatDays}
         />
       {/if}
     </TelemetryCard>
@@ -303,25 +325,6 @@
             <p class="fine">Slope &gt;5%: warning · &gt;8%: high risk</p>
           </div>
         </div>
-      {/if}
-    </TelemetryCard>
-
-    <TelemetryCard
-      source="T2M_MAX / T2M_MIN · °C"
-      state={cards.tempRange.status}
-      error={cards.tempRange.error}
-      title="Seasonal Temp Extremes"
-      rows={cards.tempRange.data ? [
-        { label: 'Mean Max Temp (T2M_MAX)', value: `${cards.tempRange.data.maxMean} °C` },
-        { label: 'Mean Min Temp (T2M_MIN)', value: `${cards.tempRange.data.minMean} °C` },
-      ] : []}
-    >
-      {#if cards.tempRange.data}
-        <TempRangeChart
-          maxValues={cards.tempRange.data.monthlyMax}
-          minValues={cards.tempRange.data.monthlyMin}
-          months={cards.tempRange.data.months}
-        />
       {/if}
     </TelemetryCard>
 
@@ -459,6 +462,7 @@
   .grid {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-auto-flow: dense;
     gap: 12px;
   }
 
@@ -501,7 +505,8 @@
 
   .fine {
     margin: 0;
-    font-size: 8px;
+    font-size: 9px;
+    font-weight: 700;
   }
 
   .bar-label strong,

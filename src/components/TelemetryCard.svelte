@@ -9,6 +9,7 @@
     state = 'ready',
     error = '',
     wide = false,
+    inlineRows = false,
     children,
   } = $props();
 </script>
@@ -42,12 +43,16 @@
           </div>
         {/if}
 
-        {#each rows as row (row.label)}
-          <div class="row">
-            <span>{row.label}</span>
-            <strong>{row.value}</strong>
+        {#if rows.length}
+          <div class="rows" class:inline={inlineRows}>
+            {#each rows as row (row.label)}
+              <div class="row">
+                <span>{row.label}</span>
+                <strong>{row.value}</strong>
+              </div>
+            {/each}
           </div>
-        {/each}
+        {/if}
 
         {#if note}<p class="note">{note}</p>{/if}
       </div>
@@ -81,7 +86,8 @@
   .source {
     margin: 0;
     color: var(--color-panel);
-    font-size: 8px;
+    font-size: 9px;
+    font-weight: 700;
     letter-spacing: 0.02em;
     text-transform: uppercase;
   }
@@ -129,7 +135,8 @@
 
   .retry {
     color: var(--color-card-text);
-    font-size: 8px;
+    font-size: 9px;
+    font-weight: 700;
     text-align: center;
   }
 
@@ -171,13 +178,34 @@
     font-weight: 400;
   }
 
+  .rows.inline {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 16px;
+  }
+
+  .rows {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
   .row {
     display: flex;
     justify-content: space-between;
     align-items: baseline;
     gap: 8px;
     font-size: 12px;
+    font-weight: 400;
     color: var(--color-card-dim);
+  }
+
+  .rows.inline .row strong {
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 400;
+    color: var(--color-card-text);
   }
 
   .row strong {
