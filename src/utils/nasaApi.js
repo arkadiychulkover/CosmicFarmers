@@ -205,7 +205,7 @@ function writePresetCache(presetId, lat, lon, parsed, seasonYear, soilData) {
     const raw = sessionStorage.getItem(WEATHER_CACHE_KEY);
     const all = raw ? JSON.parse(raw) : {};
     all[presetId] = { lat, lon, data: parsed, seasonYear, soilData };
-    localStorage.setItem(WEATHER_CACHE_KEY, JSON.stringify(all));
+    sessionStorage.setItem(WEATHER_CACHE_KEY, JSON.stringify(all));
   } catch {}
 }
 
