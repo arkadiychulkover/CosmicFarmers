@@ -93,7 +93,6 @@ export class CropRecommendationService {
         for (let year = 1; year <= years; year++) {
             if (year > 1) {
                 current = this.#rank(probabilities, winner, (i) => allowed.has(i));
-                // Повторный посев подряд запрещён (План.txt): победитель - лучший, кроме предшественника.
                 winner = current.recommendations.find((r) => r.crop !== winner).crop;
             }
             plan.push({ year, previousCrop: current.previousCrop, crop: winner, options: current.recommendations });

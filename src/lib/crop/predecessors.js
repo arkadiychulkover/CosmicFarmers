@@ -1,14 +1,8 @@
-/**
- * Предшественник из UI (data/options.js -> cropOptions) -> класс модели (classes.json).
- * Модель знает только 22 культуры из датасета, поэтому часть полевых культур задана прокси
- * из той же агрономической группы; null - нейтральный предшественник (коэффициенты 1.0).
- * Единственное место, где это решается: меняйте здесь.
- */
 export const PREDECESSOR_TO_MODEL = {
     corn: 'maize',
-    soybean: 'mungbean', // прокси: бобовая
-    'winter-wheat': 'rice', // прокси: зерновая (maize после неё получает 0.9, а не штраф за монокультуру)
-    'spring-barley': 'rice', // прокси: зерновая
+    soybean: 'mungbean',
+    'winter-wheat': 'rice',
+    'spring-barley': 'rice',
     sunflower: null,
     fallow: null,
 };
