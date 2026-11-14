@@ -1,11 +1,14 @@
-<script>  import '@fontsource/roboto/400.css';
+<script>
+  import '@fontsource/roboto/400.css';
   import '@fontsource/roboto/600.css';
   import '@fontsource/roboto/700.css';
   import '@fontsource/advent-pro/600.css';
   import '@fontsource/advent-pro/700.css';
   import './style.css';
+  import { Router, goto, replace } from '@mateothegreat/svelte5-router';
   import Header from './components/Header.svelte';
   import SideTabs from './components/SideTabs.svelte';
+  import EmptyRoute from './components/EmptyRoute.svelte';
   import Globus from './components/Globus.svelte';
   import GlobeControls from './components/GlobeControls.svelte';
   import FarmSoilScreen from './screens/FarmSoilScreen.svelte';
@@ -20,10 +23,39 @@
   const place = $derived(preset ? preset.label : 'Custom field');
 
   const tabs = [
-    { id: 'farm', label: 'Farm + Soil' },
-    { id: 'telemetry', label: 'Stress Test + NASA Telemetry' },
+    { id: 'farm', path: '/', label: 'Farm + Soil' },
+    { id: 'telemetry', path: '/telemetry', label: 'Stress Test + NASA Telemetry' },
   ];
 
+  const KNOWN_PATHS = new Set(['/', '/telemetry', '/calculating', '/results']);
+
+  const panelRoutes = [
+    { path: '/', component: FarmSoilScreen },
+    {
+      path: /^\/.+/,
+      component: FarmSoilScreen,
+      hooks: {
+        pre: () => {
+          replace('/');
+          return false;
+        },
+      },
+    },
+    { path: '/telemetry', component: TelemetryScreen },
+    { path: '/calculating', component: CalculatingScreen },
+    { path: '/results', component: EmptyRoute },
+  ];
+
+  const resultsRoutes = [
+    { path: '/results', component: ResultsScreen },
+  ];
+
+  let currentPath = $state(
+    typeof window !== 'undefined' && KNOWN_PATHS.has(window.location.pathname)
+      ? window.location.pathname
+      : '/'
+  );
+  let lastSyncedPath = null;
   let previousTab = $state('telemetry');
   let globeDisplayStyle = $state('default');
   let globeZoom = $state(100);
@@ -31,8 +63,34 @@
   let globeRef = $state(null);
   let stageEl = $state(null);
 
+  function syncRouteState(matchedPath) {
+    const normalized = KNOWN_PATHS.has(matchedPath) ? matchedPath : '/';
+    const prev = lastSyncedPath;
+    lastSyncedPath = normalized;
+    currentPath = normalized;
+
+    if (normalized === '/' || normalized === '/telemetry') {
+      previousTab = normalized === '/' ? 'farm' : 'telemetry';
+    }
+
+    if (normalized === '/results') {
+      if (!$session.collapsed) {
+        $session.collapsed = true;
+      }
+    } else if (prev === '/results' && $session.collapsed) {
+      $session.collapsed = false;
+    }
+  }
+
+  const panelRouterHooks = {
+    post: (routeResult) => {
+      syncRouteState(routeResult?.result?.path?.original || '/');
+      return true;
+    },
+  };
+
   const showResultsOverlay = $derived(
-    $session.activeTab === 'results' && Boolean($session.result) && $session.collapsed
+    currentPath === '/results' && $session.collapsed
   );
 
   function formatCoord(value, posHemi, negHemi) {
@@ -67,16 +125,16 @@
   }
 
   const panelScreen = $derived.by(() => {
-    if ($session.activeTab === 'calculating') return 'calculating';
-    if ($session.activeTab === 'farm') return 'farm';
-    if ($session.activeTab === 'telemetry') return 'telemetry';
+    if (currentPath === '/calculating') return 'calculating';
+    if (currentPath === '/') return 'farm';
+    if (currentPath === '/telemetry') return 'telemetry';
     return previousTab || 'telemetry';
   });
 
   const tabActive = $derived(
-    $session.activeTab === 'farm'
+    currentPath === '/'
       ? 'farm'
-      : $session.activeTab === 'telemetry'
+      : currentPath === '/telemetry'
       ? 'telemetry'
       : ($session.collapsed ? null : panelScreen)
   );
@@ -89,20 +147,19 @@
 
   function selectTab(id) {
     previousTab = id;
-    $session.activeTab = id;
     $session.collapsed = false;
   }
 
   function toggleCollapse() {
     if ($session.collapsed) {
       $session.collapsed = false;
-      if ($session.activeTab === 'results') {
-        $session.activeTab = previousTab || 'telemetry';
+      if (currentPath === '/results') {
+        goto(previousTab === 'farm' ? '/' : '/telemetry');
       }
     } else {
       $session.collapsed = true;
       if ($session.result) {
-        $session.activeTab = 'results';
+        goto('/results');
       }
     }
   }
@@ -114,13 +171,11 @@
   <div class="layout">
     <section class="panel" class:collapsed={$session.collapsed}>
       <div class="content">
-        {#if panelScreen === 'telemetry'}
-          <TelemetryScreen />
-        {:else if panelScreen === 'calculating'}
-          <CalculatingScreen />
-        {:else}
-          <FarmSoilScreen />
-        {/if}
+        <Router
+          id="panel-router"
+          routes={panelRoutes}
+          hooks={panelRouterHooks}
+        />
       </div>
 
       <SideTabs
@@ -168,7 +223,10 @@
 
       {#if showResultsOverlay}
         <div class="results-overlay">
-          <ResultsScreen />
+          <Router
+            id="results-router"
+            routes={resultsRoutes}
+          />
         </div>
       {/if}
     </div>

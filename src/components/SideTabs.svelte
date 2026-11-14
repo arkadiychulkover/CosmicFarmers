@@ -1,4 +1,7 @@
-<script>  let {
+<script>
+  import { route } from '@mateothegreat/svelte5-router';
+
+  let {
     tabs,
     active,
     onselect,
@@ -20,8 +23,9 @@
 <div class="rail" class:collapsed>
   <div class="tabs" role="tablist" aria-orientation="vertical">
     {#each tabs as tab (tab.id)}
-      <button
-        type="button"
+      <a
+        href={tab.path}
+        use:route
         role="tab"
         class="tab"
         class:active={tab.id === active}
@@ -29,7 +33,7 @@
         onclick={() => select(tab.id)}
       >
         <span>{tab.label}</span>
-      </button>
+      </a>
     {/each}
   </div>
 
@@ -86,6 +90,7 @@
     letter-spacing: 0;
     line-height: 1;
     text-transform: uppercase;
+    text-decoration: none;
     white-space: nowrap;
     cursor: pointer;
     transition: background 0.2s, color 0.2s;
