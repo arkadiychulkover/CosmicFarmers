@@ -29,13 +29,13 @@ const defaults = {
     ph: 6.2,
     n: 45,
     p: 60,
-    k: 155,
+    k: 65,
   },
   autoSoil: {
     ph: 6.2,
     n: 45,
     p: 60,
-    k: 155,
+    k: 65,
   },
 };
 
@@ -48,94 +48,57 @@ function safeParse(raw) {
   }
 }
 
-function hasValidForecast(data) {
-  return Boolean(data?.result?.years?.[0]?.options && data?.result?.recommendations);
-}
+function loadInitialSession() {
+  if (typeof window === 'undefined') return structuredClone(defaults);
+  const parsed = safeParse(window.localStorage.getItem(SESSION_KEY));
+  if (!parsed || typeof parsed !== 'object') return structuredClone(defaults);
 
-function readSavedSession() {
-  if (typeof localStorage === 'undefined') return null;
-  const saved = safeParse(localStorage.getItem(SESSION_KEY));
-  return hasValidForecast(saved) ? saved : null;
-}
-
-function load() {
-  const fresh = structuredClone(defaults);
-  const saved = readSavedSession();
-  if (!saved) return fresh;
-
-  const savedClimate = saved.climate && typeof saved.climate === 'object' ? saved.climate : {};
-  const savedAuto = saved.autoSoil && typeof saved.autoSoil === 'object'
-    ? saved.autoSoil
-    : saved.nasaData;
-  const isResultsRoute =
-    typeof window !== 'undefined' && window.location.pathname === '/results';
-  const merged = {
-    ...fresh,
-    ...saved,
-    form: { ...fresh.form, ...saved.form },
-    autoSoil: { ...fresh.autoSoil, ...savedAuto },
-    climate: { ...fresh.climate, ...savedClimate },
+  const fallback = structuredClone(defaults);
+  return {
+    ...fallback,
+    ...parsed,
+    form: { ...fallback.form, ...(parsed.form || {}) },
+    autoSoil: { ...fallback.autoSoil, ...(parsed.autoSoil || {}) },
+    climate: { ...fallback.climate, ...(parsed.climate || {}) },
     nasaLoading: false,
     nasaError: null,
-    collapsed: isResultsRoute,
   };
+}
 
-  if (typeof saved.climate === 'number') {
-    merged.climate.precipitation = saved.climate;
-  }
-  if (merged.theme !== 'light') merged.theme = 'dark';
+export const session = writable(loadInitialSession());
 
-  if (merged.nasaData && !merged.nasaData.soilMeta) {
-    const upgraded = deriveSoilAndNutrients(
-      merged.nasaData.weather,
-      merged.form.lat,
-      merged.form.lon,
-    );
-    merged.nasaData = {
-      ...merged.nasaData,
-      soilSource: upgraded.soilSource,
-      soilMeta: upgraded.soilMeta,
+export function markCustomSoilEdited() {
+  session.update((s) => ({ ...s, customSoilEdited: true }));
+}
+
+function saveCompletedSession(snapshot) {
+  if (typeof window === 'undefined') return;
+  try {
+    const toPersist = {
+      ...snapshot,
+      nasaLoading: false,
+      nasaError: null,
+      savedAt: Date.now(),
     };
-  }
-
-  return merged;
-}
-
-export const savedSession = writable(readSavedSession());
-export const session = writable(load());
-
-export function saveCompletedSession(snapshot = get(session)) {
-  if (typeof localStorage === 'undefined' || !hasValidForecast(snapshot)) return;
-  const payload = {
-    ...snapshot,
-    nasaLoading: false,
-    nasaError: null,
-    savedAt: new Date().toISOString(),
-  };
-  try {
-    localStorage.setItem(SESSION_KEY, JSON.stringify(payload));
-    savedSession.set(payload);
+    window.localStorage.setItem(SESSION_KEY, JSON.stringify(toPersist));
   } catch (err) {
-    console.warn('Failed to save session state:', err);
+    console.warn('Failed to persist session to localStorage', err);
   }
-}
-
-export function clearSavedSession() {
-  if (typeof localStorage === 'undefined') return;
-  try {
-    localStorage.removeItem(SESSION_KEY);
-    savedSession.set(null);
-  } catch {}
 }
 
 let lastSavedKey = null;
+
 session.subscribe((current) => {
-  if (!hasValidForecast(current)) return;
+  if (typeof window === 'undefined') return;
   const key = JSON.stringify({
     form: current.form,
     climate: current.climate,
     theme: current.theme,
-    result: current.result,
+    goal: current.form?.goal,
+    preset: current.activePresetId,
+    collapsed: current.collapsed,
+    hasResult: Boolean(current.result),
+    customSoil: current.customSoilEdited,
   });
   if (key === lastSavedKey) return;
   lastSavedKey = key;
@@ -149,14 +112,16 @@ export function applyNasaPayloadToForm(payload) {
   session.update((s) => ({
     ...s,
     nasaData: payload,
-    form: {
-      ...s.form,
-      ph: payload.ph,
-      soil: payload.soil,
-      n: payload.n,
-      p: payload.p,
-      k: payload.k,
-    },
+    form: s.customSoilEdited
+      ? s.form
+      : {
+          ...s.form,
+          ph: payload.ph,
+          soil: payload.soil,
+          n: payload.n,
+          p: payload.p,
+          k: payload.k,
+        },
     autoSoil: {
       ph: payload.ph,
       n: payload.n,

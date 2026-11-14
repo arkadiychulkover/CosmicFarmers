@@ -3,7 +3,7 @@ import { topIndices, toPercents } from './scoring.js';
 import { getGoalMultipliers } from './goalData.js';
 
 const TOP_N = 3;
-
+const PERENNIALS = new Set(['apple', 'banana', 'coconut', 'coffee', 'grapes', 'mango', 'orange', 'papaya', 'pomegranate']);
 
 export class CropRecommendationService {
     #model;
@@ -13,7 +13,6 @@ export class CropRecommendationService {
     #index;
     #goal;
 
-
     constructor({ model, repository, rotation, goal = 'regeneration' }) {
         this.#model = model;
         this.#repository = repository;
@@ -22,7 +21,6 @@ export class CropRecommendationService {
         this.#index = new Map(this.#classes.map((c, i) => [c, i]));
         this.#goal = goal;
     }
-
 
     async getPlan() {
         const raw = await this.fetchRawPrediction();
@@ -36,7 +34,6 @@ export class CropRecommendationService {
         return plan;
     }
 
-
     async fetchRawPrediction() {
         const last = this.#repository.loadLast();
         if (!last) return null;
@@ -48,24 +45,25 @@ export class CropRecommendationService {
         return { params: last.params, previousCrop, goal, probabilities, cachedPlan: null };
     }
 
-
     applyRotation(probabilities, previousCrop = null, goal = this.#goal ?? 'regeneration') {
         return this.#rank(probabilities, previousCrop, null, goal);
     }
 
-
     buildThreeYearPlan(probabilities, previousCrop = null, years = 3, firstYear, goal = this.#goal ?? 'regeneration') {
         let current = firstYear ?? this.applyRotation(probabilities, previousCrop, goal);
         const candidates = current.recommendations.map((r) => r.crop);
-        const allowed = new Set(candidates.map((c) => this.#index.get(c)));
 
         const plan = [];
-        let winner = current.recommendations[0].crop;
+        let winner = current.recommendations[0]?.crop;
         for (let year = 1; year <= years; year++) {
             if (year > 1) {
-                current = this.#rank(probabilities, winner, (i) => allowed.has(i), goal);
-
-                winner = current.recommendations.find((r) => r.crop !== winner).crop;
+                if (PERENNIALS.has(winner)) {
+                    current = this.#rank(probabilities, winner, null, goal);
+                } else {
+                    current = this.#rank(probabilities, winner, null, goal);
+                    const nextCrop = current.recommendations.find((r) => r.crop !== winner);
+                    winner = nextCrop ? nextCrop.crop : current.recommendations[0]?.crop;
+                }
             }
             plan.push({ year, previousCrop: current.previousCrop, crop: winner, options: current.recommendations });
         }
@@ -81,7 +79,7 @@ export class CropRecommendationService {
         }
 
         const top = topIndices(scores, TOP_N, allowed);
-        const percents = toPercents(top.map((i) => scores[i]));
+        const percents = toPercents(top.map((i) => scores[i]), probabilities);
         return {
             previousCrop,
             recommendations: top.map((i, n) => ({

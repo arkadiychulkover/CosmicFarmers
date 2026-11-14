@@ -13,7 +13,7 @@
   --color-option: #6d7d99;
   --color-option-active: #293751;
   --color-tab: #6d7d99;
-  --color-tab-hover: #0b1524;
+  --color-tab-hover: #506488;
   --color-tab-text: #0b1524;
   --color-tab-active: var(--color-panel);
   --color-text: #f1edea;
@@ -91,6 +91,14 @@
 *::before,
 *::after {
   box-sizing: border-box;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+*::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
 }
 
 body {

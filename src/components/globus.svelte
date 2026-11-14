@@ -1035,6 +1035,12 @@
     animation: reticleFadeIn 0.22s cubic-bezier(0.16, 1, 0.3, 1);
   }
 
+  @media (max-width: 860px) {
+    .reticle-hud {
+      display: none !important;
+    }
+  }
+
   .reticle-svg {
     width: 100%;
     height: 100%;
