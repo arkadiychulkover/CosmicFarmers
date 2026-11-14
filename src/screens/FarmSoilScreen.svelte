@@ -9,12 +9,12 @@
   import GoogleMapModal from '../components/GoogleMapModal.svelte';
   import { presets } from '../data/presets.js';
   import { cropOptions, soilOptions, goalOptions } from '../data/options.js';
-  import { session, applyPreset, loadCoordsIntoSession } from '../stores/session.svelte.js';
+  import { session, applyPreset, loadCoordsIntoSession, markCustomSoilEdited } from '../stores/session.svelte.js';
 
   let isMapOpen = $state(false);
 
   $effect(() => {
-    if (!$session.nasaData && !$session.nasaLoading) {
+    if (!$session.nasaData && !$session.nasaLoading && !$session.nasaError) {
       loadCoordsIntoSession($session.form.lat, $session.form.lon, {
         presetId: $session.activePresetId || 'iowa',
       });
@@ -30,6 +30,10 @@
 
   function coordinatesEdited() {
     loadCoordsIntoSession($session.form.lat, $session.form.lon);
+  }
+
+  function onSoilChange() {
+    markCustomSoilEdited();
   }
 
   function openMap() {
@@ -108,14 +112,15 @@
     midLabel="Neutral"
     maxLabel="Alkaline"
     mark={$session.autoSoil.ph}
+    onchange={onSoilChange}
     bind:value={$session.form.ph}
   />
 
-  <SelectField label="Soil Type" options={soilOptions} bind:value={$session.form.soil} />
+  <SelectField label="Soil Type" options={soilOptions} onchange={onSoilChange} bind:value={$session.form.soil} />
 
-  <SliderField label="Available Nitrogen (N)" max={200} unit="mg/kg" mark={$session.autoSoil.n} bind:value={$session.form.n} />
-  <SliderField label="Available Phosphorus (P)" max={150} unit="mg/kg" mark={$session.autoSoil.p} bind:value={$session.form.p} />
-  <SliderField label="Exchangeable Potassium (K)" max={300} unit="mg/kg" mark={$session.autoSoil.k} bind:value={$session.form.k} />
+  <SliderField label="Available Nitrogen (N)" max={200} unit="mg/kg" mark={$session.autoSoil.n} onchange={onSoilChange} bind:value={$session.form.n} />
+  <SliderField label="Available Phosphorus (P)" max={150} unit="mg/kg" mark={$session.autoSoil.p} onchange={onSoilChange} bind:value={$session.form.p} />
+  <SliderField label="Exchangeable Potassium (K)" max={300} unit="mg/kg" mark={$session.autoSoil.k} onchange={onSoilChange} bind:value={$session.form.k} />
 
   <div class="actions">
     <ActionButton
@@ -140,7 +145,8 @@
   />
 {/if}
 
-<style>  .screen {
+<style>
+  .screen {
     display: grid;
     gap: 22px;
   }
@@ -216,5 +222,4 @@
     min-width: 220px;
     margin: 6px auto 0;
   }
-
 </style>

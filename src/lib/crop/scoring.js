@@ -12,17 +12,21 @@ export function topIndices(scores, k, allowed) {
     return top;
 }
 
+export function toPercents(scores, probabilities = null) {
+    let entropyPenalty = 1.0;
+    if (Array.isArray(probabilities) && probabilities.length > 0) {
+        const n = probabilities.length;
+        const maxEntropy = Math.log(n);
+        let entropy = 0;
+        for (const p of probabilities) {
+            if (p > 1e-6) entropy -= p * Math.log(p);
+        }
+        entropyPenalty = Math.max(0.15, 1 - Math.pow(entropy / maxEntropy, 3.0));
+    }
 
-export function toPercents(scores) {
-    const sum = scores.reduce((a, b) => a + b, 0);
-    const shares = sum > 0 ? scores.map((s) => (s / sum) * 100) : scores.map(() => 100 / scores.length);
-    const result = shares.map(Math.floor);
-    let left = 100 - result.reduce((a, b) => a + b, 0);
-    shares
-        .map((s, i) => [s - Math.floor(s), i])
-        .sort((a, b) => b[0] - a[0])
-        .forEach(([, i]) => {
-            if (left-- > 0) result[i]++;
-        });
-    return result;
+    return scores.map((score) => {
+        if (score <= 0) return 5;
+        const suitability = Math.min(1.0, Math.max(0, Math.sqrt(score) * entropyPenalty));
+        return Math.min(98, Math.max(5, Math.round(suitability * 100)));
+    });
 }

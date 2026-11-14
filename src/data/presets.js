@@ -20,10 +20,20 @@ export const presets = [
   { id: 'random', label: 'Random Field', values: null },
 ];
 
+const LAND_REGIONS = [
+  { latMin: 38.0, latMax: 46.0, lonMin: -100.0, lonMax: -84.0 },
+  { latMin: 46.0, latMax: 52.0, lonMin: 24.0, lonMax: 38.0 },
+  { latMin: 36.5, latMax: 42.5, lonMin: -5.5, lonMax: 2.5 },
+  { latMin: -36.0, latMax: -30.0, lonMin: -64.0, lonMax: -58.0 },
+  { latMin: 18.0, latMax: 28.0, lonMin: 74.0, lonMax: 84.0 },
+  { latMin: -34.0, latMax: -28.0, lonMin: 138.0, lonMax: 148.0 },
+];
+
 export function resolvePreset(preset) {
   if (preset.values) return preset.values;
+  const region = LAND_REGIONS[Math.floor(Math.random() * LAND_REGIONS.length)];
   return {
-    lat: Number((Math.random() * 60 - 10).toFixed(4)),
-    lon: Number((Math.random() * 120 - 60).toFixed(4)),
+    lat: Number((region.latMin + Math.random() * (region.latMax - region.latMin)).toFixed(4)),
+    lon: Number((region.lonMin + Math.random() * (region.lonMax - region.lonMin)).toFixed(4)),
   };
 }

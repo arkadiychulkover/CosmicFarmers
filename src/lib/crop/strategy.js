@@ -23,7 +23,6 @@ function sleep(ms, signal) {
 const label = (options, value) =>
   options.find((o) => o.value === value)?.label.split(' (')[0] ?? (value ? String(value) : '');
 
-
 export function toModelParams(input) {
   const climate = input.nasaClimate;
   if (!climate) throw new Error('NASA climate data is not loaded');
@@ -33,8 +32,8 @@ export function toModelParams(input) {
   const tempAnomaly = Number(anomalies.temperature ?? 0);
   const solarAnomaly = Number(anomalies.solar ?? 0);
 
+  const deltaT = tempAnomaly;
   const precipMultiplier = Math.max(0, 1 + precipAnomaly / 100);
-  const tempMultiplier = 1 + tempAnomaly / 100;
   const solarMultiplier = Math.max(0, 1 + solarAnomaly / 100);
 
   const basePrectotcorr = Number(climate.PRECTOTCORR ?? climate.prectotcorr ?? 50);
@@ -43,27 +42,40 @@ export function toModelParams(input) {
   const baseT2m = Number(climate.T2M ?? climate.t2m ?? 15);
   const baseT2mMax = Number(climate.T2M_MAX ?? climate.t2m_max ?? 25);
   const baseT2mMin = Number(climate.T2M_MIN ?? climate.t2m_min ?? 5);
-  const adjustedT2m = baseT2m * tempMultiplier;
-  const adjustedT2mMax = baseT2mMax * tempMultiplier;
-  const adjustedT2mMin = baseT2mMin * tempMultiplier;
 
-  const baseGdd = Number(climate.GDD ?? climate.gdd?.value ?? 1800);
-  const adjustedGdd = Math.max(0, Math.round(baseGdd * tempMultiplier));
+  const adjustedT2m = baseT2m + deltaT;
+  const adjustedT2mMax = baseT2mMax + deltaT;
+  const adjustedT2mMin = baseT2mMin + deltaT;
+
+  let adjustedGdd;
+  const dailyT2m = climate.weather?.daily_t2m || climate.daily_t2m;
+  if (Array.isArray(dailyT2m) && dailyT2m.length > 0) {
+    adjustedGdd = Math.max(
+      0,
+      Math.round(dailyT2m.reduce((sum, t) => sum + Math.max(0, Number(t) + deltaT - 10), 0))
+    );
+  } else {
+    const baseGdd = Number(climate.GDD ?? climate.gdd?.value ?? 1800);
+    const effBase = Math.max(0.1, baseT2m - 10);
+    const effAdj = Math.max(0, adjustedT2m - 10);
+    adjustedGdd = Math.max(0, Math.round(baseGdd * (effAdj / effBase)));
+  }
 
   const baseSolar = Number(climate.ALLSKY_SFC_SW_DWN ?? climate.allsky ?? 18);
   const adjustedSolar = Math.max(0, baseSolar * solarMultiplier);
 
   const baseGwettop = Number(climate.GWETTOP ?? climate.weather?.gwettop ?? 0.55);
   const baseGwetroot = Number(climate.GWETROOT ?? climate.weather?.gwetroot ?? 0.58);
-  const moistureShift = 1 + (precipAnomaly / 100) * 0.5 - (tempAnomaly / 100) * 0.25;
+  const moistureShift = 1 + (precipAnomaly / 100) * 0.5 - (deltaT / 30);
   const adjustedGwettop = Math.min(1.0, Math.max(0.05, baseGwettop * moistureShift));
   const adjustedGwetroot = Math.min(1.0, Math.max(0.05, baseGwetroot * moistureShift));
 
   const baseTs = Number(climate.TS ?? climate.weather?.ts ?? (baseT2m + 1.0));
-  const adjustedTs = baseTs * tempMultiplier;
+  const adjustedTs = baseTs + deltaT;
 
   const baseEvptrns = Number(climate.EVPTRNS ?? climate.weather?.evptrns ?? 3.2);
-  const adjustedEvptrns = Math.max(0, baseEvptrns * ((tempMultiplier + solarMultiplier) / 2));
+  const tempFactor = Math.max(0.2, 1 + deltaT * 0.05);
+  const adjustedEvptrns = Math.max(0, baseEvptrns * ((tempFactor + solarMultiplier) / 2));
 
   const elevation = Number.isFinite(Number(climate.ELEVATION ?? climate.weather?.elevation))
     ? Number(climate.ELEVATION ?? climate.weather?.elevation)
@@ -75,7 +87,7 @@ export function toModelParams(input) {
   return {
     N: Number(input.n ?? climate.N ?? 45),
     P: Number(input.p ?? climate.P ?? 60),
-    K: Number(input.k ?? climate.K ?? 155),
+    K: Number(input.k ?? climate.K ?? 65),
     ph: Number(input.ph ?? climate.ph ?? 6.5),
     T2M: adjustedT2m,
     T2M_MAX: adjustedT2mMax,
