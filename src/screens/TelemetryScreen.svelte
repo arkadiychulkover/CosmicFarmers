@@ -1,9 +1,15 @@
 <script>
+  import { goto } from '@mateothegreat/svelte5-router';
   import TelemetryCard from '../components/TelemetryCard.svelte';
   import ClimateTable from '../components/ClimateTable.svelte';
   import ActionButton from '../components/ActionButton.svelte';
   import PrecipitationChart from '../components/charts/PrecipitationChart.svelte';
   import TemperatureChart from '../components/charts/TemperatureChart.svelte';
+  import TempRangeChart from '../components/charts/TempRangeChart.svelte';
+  import SoilTextureHistogram from '../components/charts/SoilTextureHistogram.svelte';
+  import HumidityGauge from '../components/charts/HumidityGauge.svelte';
+  import MetricBar from '../components/charts/MetricBar.svelte';
+  import SoilSourceChart from '../components/charts/SoilSourceChart.svelte';
   import SolarGauge from '../components/charts/SolarGauge.svelte';
   import GddBar from '../components/charts/GddBar.svelte';
   import { session } from '../stores/session.svelte.js';
@@ -11,33 +17,45 @@
   import {
     loadPrecipitation,
     loadTemperature,
+    loadTempRange,
+    loadAtmosphere,
     loadSolar,
     loadGdd,
     loadMoisture,
     loadEcostress,
     loadTerrain,
+    loadSoilTexture,
+    loadSoilSoc,
     loadSoilSource,
   } from '../lib/weather/telemetryRequests.js';
 
   const loaders = {
     precip: loadPrecipitation,
     temp: loadTemperature,
+    tempRange: loadTempRange,
+    atmosphere: loadAtmosphere,
     solar: loadSolar,
     gdd: loadGdd,
     moisture: loadMoisture,
     ecostress: loadEcostress,
     terrain: loadTerrain,
+    texture: loadSoilTexture,
+    soc: loadSoilSoc,
     source: loadSoilSource,
   };
 
   let cards = $state({
     precip: { status: 'loading' },
     temp: { status: 'loading' },
+    tempRange: { status: 'loading' },
+    atmosphere: { status: 'loading' },
     solar: { status: 'loading' },
     gdd: { status: 'loading' },
     moisture: { status: 'loading' },
     ecostress: { status: 'loading' },
     terrain: { status: 'loading' },
+    texture: { status: 'loading' },
+    soc: { status: 'loading' },
     source: { status: 'loading' },
   });
 
@@ -98,6 +116,24 @@
     return 'Thermal Maturity Window: Short-season cultivars only';
   }
 
+  function windNote(ws) {
+    if (ws >= 5.5) return 'Wind Level: High · elevated evapotranspiration & lodging risk';
+    if (ws >= 2.5) return 'Wind Level: Moderate · normal canopy gas exchange';
+    return 'Wind Level: Calm · low physical crop stress';
+  }
+
+  function humidityNote(rh) {
+    if (rh >= 75) return 'Humidity Level: High · elevated fungal pressure';
+    if (rh >= 45) return 'Humidity Level: Balanced · optimal transpiration';
+    return 'Humidity Level: Dry · elevated crop water demand';
+  }
+
+  function socNote(soc) {
+    if (soc >= 25) return 'Humus Reserve: High · strong natural nitrogen mineralization';
+    if (soc >= 12) return 'Humus Reserve: Moderate · balanced fertility baseline';
+    return 'Humus Reserve: Low · cover crops and residue retention advised';
+  }
+
   function runoff(slope) {
     if (slope > 8) {
       return {
@@ -119,9 +155,15 @@
 
   const goalTitle = $derived(goalOptions.find((goal) => goal.value === $session.form.goal)?.title || 'Water Conservation');
 
+  const isTelemetryLoading = $derived(
+    $session.nasaLoading || Object.values(cards).some((card) => card.status === 'loading')
+  );
+
   function calculate() {
+    if (isTelemetryLoading) return;
     $session.result = null;
-    $session.activeTab = 'calculating';
+    $session.collapsed = false;
+    goto('/calculating');
   }
 </script>
 
@@ -266,22 +308,129 @@
       {/if}
     </TelemetryCard>
 
-    <TelemetryCard source="Soil inputs · provenance" state={cards.source.status} error={cards.source.error}>
+    <TelemetryCard
+      source="T2M_MAX / T2M_MIN · °C"
+      state={cards.tempRange.status}
+      error={cards.tempRange.error}
+      title="Seasonal Temp Extremes"
+      rows={cards.tempRange.data ? [
+        { label: 'Mean Max Temp (T2M_MAX)', value: `${cards.tempRange.data.maxMean} °C` },
+        { label: 'Mean Min Temp (T2M_MIN)', value: `${cards.tempRange.data.minMean} °C` },
+      ] : []}
+    >
+      {#if cards.tempRange.data}
+        <TempRangeChart
+          maxValues={cards.tempRange.data.monthlyMax}
+          minValues={cards.tempRange.data.monthlyMin}
+          months={cards.tempRange.data.months}
+        />
+      {/if}
+    </TelemetryCard>
+
+    <TelemetryCard
+      source="RH2M · 2m Relative Humidity"
+      state={cards.atmosphere.status}
+      error={cards.atmosphere.error}
+      title="Relative Humidity (2 m)"
+      value={cards.atmosphere.data ? cards.atmosphere.data.rh2m : ''}
+      unit="%"
+      note={cards.atmosphere.data ? humidityNote(cards.atmosphere.data.rh2m) : ''}
+    >
+      {#if cards.atmosphere.data}
+        <HumidityGauge value={cards.atmosphere.data.rh2m} />
+      {/if}
+    </TelemetryCard>
+
+    <TelemetryCard
+      source="WS2M · 2m Wind Speed"
+      state={cards.atmosphere.status}
+      error={cards.atmosphere.error}
+      title="Wind Speed (2 m)"
+      value={cards.atmosphere.data ? cards.atmosphere.data.ws2m : ''}
+      unit="m/s"
+      note={cards.atmosphere.data ? windNote(cards.atmosphere.data.ws2m) : ''}
+    >
+      {#if cards.atmosphere.data}
+        <MetricBar
+          value={cards.atmosphere.data.ws2m}
+          max={8}
+          unit="m/s"
+          gradId="ws2m-fill"
+          milestones={[
+            '0–2.0 · Calm canopy',
+            '2.0–4.5 · Optimal exchange',
+            '4.5–6.0 · High ET loss',
+            '6.0+ · Lodging risk',
+          ]}
+        />
+      {/if}
+    </TelemetryCard>
+
+    <TelemetryCard
+      source={cards.texture.data?.soilSource || 'ISRIC SoilGrids v2.0 · 0–15 cm'}
+      state={cards.texture.status}
+      error={cards.texture.error}
+      title="Soil Texture Composition"
+      note={cards.texture.data ? `Clay ${cards.texture.data.clayPct}% · Sand ${cards.texture.data.sandPct}% · Silt ${cards.texture.data.siltPct}%` : ''}
+    >
+      {#if cards.texture.data}
+        <SoilTextureHistogram
+          clayPct={cards.texture.data.clayPct}
+          sandPct={cards.texture.data.sandPct}
+          siltPct={cards.texture.data.siltPct}
+        />
+      {/if}
+    </TelemetryCard>
+
+    <TelemetryCard
+      source={cards.soc.data?.soilSource ? `${cards.soc.data.soilSource} · SOC` : 'ISRIC SoilGrids v2.0 · SOC'}
+      state={cards.soc.status}
+      error={cards.soc.error}
+      title="Soil Organic Carbon (SOC)"
+      value={cards.soc.data ? cards.soc.data.socGkg : ''}
+      unit="g/kg"
+      note={cards.soc.data ? socNote(cards.soc.data.socGkg) : ''}
+    >
+      {#if cards.soc.data}
+        <MetricBar
+          value={cards.soc.data.socGkg}
+          max={60}
+          unit="g/kg"
+          gradId="soc-fill"
+          milestones={[
+            '<12 · Low organic carbon',
+            '12–22 · Typical loam',
+            '22–35 · Fertile topsoil',
+            '35+ · Rich chernozem',
+          ]}
+        />
+      {/if}
+    </TelemetryCard>
+
+    <TelemetryCard
+      wide
+      source="Soil inputs · provenance"
+      state={cards.source.status}
+      error={cards.source.error}
+      title="Soil Data Source"
+      rows={cards.source.data ? [
+        { label: 'N / pH / SOC / Texture', value: cards.source.data.nitrogenPh },
+        { label: 'P / K (Macronutrients)', value: cards.source.data.phosphorusPotassium },
+      ] : []}
+      note="ISRIC SoilGrids v2.0 250m topsoil raster (0–15 cm) for N, pH, SOC, and Texture, with pedotransfer-derived P and K from SoilGrids SOC, Clay, Silt, and pH."
+    >
       {#if cards.source.data}
-        <div class="metric">
-          <h3>Soil Data Source</h3>
-          <div class="split">
-            <div>
-              <span>N / pH</span>
-              <p class="badge good">{cards.source.data.nitrogenPh}</p>
-            </div>
-            <div>
-              <span>P / K</span>
-              <p class="badge warn">{cards.source.data.phosphorusPotassium}</p>
-            </div>
-          </div>
-          <p class="fine">Source shown per input. SoilGrids does not supply P / K; fallback estimates are not a soil test.</p>
-        </div>
+        <SoilSourceChart
+          n={$session.form.n}
+          p={$session.form.p}
+          k={$session.form.k}
+          ph={$session.form.ph}
+          socGkg={cards.soc.data?.socGkg ?? 18}
+          clayPct={cards.texture.data?.clayPct ?? 24}
+          sandPct={cards.texture.data?.sandPct ?? 42}
+          siltPct={cards.texture.data?.siltPct ?? 34}
+          nitrogenPhSource={cards.source.data.nitrogenPh}
+        />
       {/if}
     </TelemetryCard>
   </div>
@@ -290,8 +439,14 @@
   <ClimateTable {columns} bind:anomalies={$session.climate} />
 
   <div class="actions">
-    <ActionButton onclick={calculate}>Calculate the Strategy →</ActionButton>
-    <ActionButton variant="outline" onclick={() => ($session.activeTab = 'farm')}>
+    <ActionButton
+      loading={isTelemetryLoading}
+      disabled={isTelemetryLoading}
+      onclick={calculate}
+    >
+      {isTelemetryLoading ? 'Loading Telemetry...' : 'Calculate the Strategy →'}
+    </ActionButton>
+    <ActionButton variant="outline" onclick={() => goto('/')}>
       ← Change the farm info
     </ActionButton>
   </div>
@@ -396,16 +551,6 @@
 
   .warn {
     color: var(--color-tone-warn);
-  }
-
-  .badge {
-    margin: 0;
-    padding: 8px;
-    border-radius: 4px;
-    background: var(--color-panel);
-    font-size: 9px;
-    font-weight: 700;
-    text-align: center;
   }
 
   .actions {

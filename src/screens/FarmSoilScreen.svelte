@@ -1,4 +1,6 @@
-<script>  import Presets from '../components/Presets.svelte';
+<script>
+  import { goto } from '@mateothegreat/svelte5-router';
+  import Presets from '../components/Presets.svelte';
   import NumberField from '../components/NumberField.svelte';
   import SelectField from '../components/SelectField.svelte';
   import GoalSelector from '../components/GoalSelector.svelte';
@@ -10,6 +12,21 @@
   import { session, applyPreset, loadCoordsIntoSession } from '../stores/session.svelte.js';
 
   let isMapOpen = $state(false);
+
+  $effect(() => {
+    if (!$session.nasaData && !$session.nasaLoading) {
+      loadCoordsIntoSession($session.form.lat, $session.form.lon, {
+        presetId: $session.activePresetId || 'iowa',
+      });
+    }
+  });
+
+  const canProceed = $derived(
+    !$session.nasaLoading &&
+    Boolean($session.nasaData) &&
+    Math.abs(Number($session.nasaData.lat) - Number($session.form.lat)) < 0.001 &&
+    Math.abs(Number($session.nasaData.lon) - Number($session.form.lon)) < 0.001
+  );
 
   function coordinatesEdited() {
     loadCoordsIntoSession($session.form.lat, $session.form.lon);
@@ -101,7 +118,14 @@
   <SliderField label="Exchangeable Potassium (K)" max={300} unit="mg/kg" mark={$session.autoSoil.k} bind:value={$session.form.k} />
 
   <div class="actions">
-    <ActionButton variant="surface" onclick={() => ($session.activeTab = 'telemetry')}>Stress Test →</ActionButton>
+    <ActionButton
+      variant="surface"
+      loading={$session.nasaLoading}
+      disabled={!canProceed}
+      onclick={() => goto('/telemetry')}
+    >
+      {$session.nasaLoading ? 'Loading NASA Data...' : 'Stress Test →'}
+    </ActionButton>
   </div>
 </div>
 

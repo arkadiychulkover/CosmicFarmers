@@ -7,14 +7,14 @@
 
 | Компонент | Статус | Где находится в коде |
 | :--- | :--- | :--- |
-| **NASA POWER API (Погода и климат)** | ✅ **Реально работает** | [`src/lib/weather/SoilData.js`](./src/lib/weather/SoilData.js) — запрашивает `T2M`, `T2M_MAX`, `T2M_MIN`, `RH2M`, `PRECTOTCORR`, `ALLSKY_SFC_SW_DWN`, `WS2M` + 10-летнюю историю осадков. |
-| **ML-модель рекомендаций культур** | ✅ **Реально работает** | [`public/models/crop_classifier.onnx`](./public/models/crop_classifier.onnx) + [`src/lib/crop/OnnxCropModel.js`](./src/lib/crop/OnnxCropModel.js) — честный Random Forest в браузере (WASM) по 12 признакам для 22 культур. |
+| **NASA POWER API (Погода и климат)** | ✅ **Реально работает** | [`src/lib/weather/SoilData.js`](./src/lib/weather/SoilData.js) — запрашивает `T2M`, `T2M_MAX`, `T2M_MIN`, `RH2M`, `PRECTOTCORR`, `ALLSKY_SFC_SW_DWN`, `WS2M`, `GWETTOP`, `GWETROOT`, `TS`, `EVPTRNS` + 10-летнюю историю осадков. |
+| **ML-модель рекомендаций культур** | ✅ **Реально работает** | [`public/models/crop_classifier.onnx`](./public/models/crop_classifier.onnx) + [`src/lib/crop/OnnxCropModel.js`](./src/lib/crop/OnnxCropModel.js) — Random Forest в браузере (WASM) по 18 признакам для 16 культур. |
 | **Матрица 3-летнего севооборота** | ✅ **Реально работает** | [`src/lib/crop/CropRecommendationService.js`](./src/lib/crop/CropRecommendationService.js) + [`src/lib/crop/rotationData.js`](./src/lib/crop/rotationData.js) — учитывает предшественника и исключает монокультуру. |
 | **Экспорт PDF-плана** | ✅ **Реально работает** | [`src/utils/downloadPlan.js`](./src/utils/downloadPlan.js) |
-| **Выбор цели фермера (`Goal`)** | ❌ **Не подключено к расчету** | В UI выбирается (`regeneration`, `water`, `yield`), но в [`strategy.js`](./src/lib/crop/strategy.js) игнорируется. |
-| **Симулятор климатических рисков** | ⚠️ **Работает на 33%** | В UI 3 поля (`temperature`, `precipitation`, `solar`), но в модель передается только аномалия осадков (`precipitation`). |
-| **Данные о почве (pH, N, P, K, тип)** | ⚠️ **Эвристика (синтетика)** | В [`src/utils/nasaApi.js`](./src/utils/nasaApi.js) (`deriveSoilAndNutrients`) вычисляется формулой от широты и погоды, а не из баз почв. |
-| **Влажность почвы (SMAP), ET (ECOSTRESS), Рельеф (SRTM), NDVI** | ❌ **Отсутствуют** | Ключевые источники из брифа NASA пока не представлены в телеметрии и расчетах. |
+| **Выбор цели фермера (`Goal`)** | ✅ **Реально работает** | [`src/lib/crop/goalData.js`](./src/lib/crop/goalData.js) + `CropRecommendationService.#rank` (`regeneration`, `water`, `yield`). |
+| **Симулятор климатических рисков** | ✅ **Реально работает** | Все 3 параметра (`temperature`, `precipitation`, `solar`) пересчитываются в [`strategy.js`](./src/lib/crop/strategy.js) и передаются в модель. |
+| **Данные о почве (pH, N, P, K, тип)** | ✅ **Реально работает** | [`src/utils/nasaApi.js`](./src/utils/nasaApi.js) — `fetchSoilGrids()` (ISRIC SoilGrids v2.0) с fallback на `deriveSoilAndNutrients()`. |
+| **Влажность почвы (SMAP), ET (ECOSTRESS), Рельеф (SRTM), NDVI** | ⚠️ **Частично (API и карта готовы)** | Параметры SMAP/ECOSTRESS/SRTM передаются в модель, слои **NASA GIBS** (NDVI, SMAP, LST) добавлены в [`GoogleMapModal.svelte`](./src/components/GoogleMapModal.svelte). Осталось вывести карточки в UI телеметрии. |
 
 ---
 
@@ -33,27 +33,18 @@
 ### Этап 2. Подключение недостающих данных NASA из брифа (2–4 часа)
 
 - [ ] **Задача 2.1: Добавить влажность почвы (SMAP / GLDAS) и температуру поверхности / испарение (ECOSTRESS)**
-  - **Как реализовать без сложного бэкенда:** Расширить запрос к **NASA POWER API** в [`src/lib/weather/SoilData.js`](./src/lib/weather/SoilData.js), добавив параметры:
-    - `GWETTOP` — влажность поверхностного слоя почвы (0–5 см, индекс от 0 до 1, данные ассимиляции SMAP/GLDAS);
-    - `GWETROOT` — влажность корневой зоны (0–100 см);
-    - `TS` — температура поверхности земли (Earth Skin Temperature, аналог LST из ECOSTRESS);
-    - `EVPTRNS` — эвапотранспирация / поток скрытого тепла испарения.
-  - **Где показать:** Добавить карточки **Root-Zone Soil Moisture (SMAP/GLDAS)** и **Evapotranspiration & Surface Temp (ECOSTRESS)** на экран [`TelemetryScreen.svelte`](./src/screens/TelemetryScreen.svelte) и учитывать дефицит влаги при выборе цели `Water Conservation`.
+  - **Статус:** ⚠️ API и модель готовы (`GWETTOP`, `GWETROOT`, `TS`, `EVPTRNS` запрашиваются в [`src/lib/weather/SoilData.js`](./src/lib/weather/SoilData.js) и передаются в ONNX-модель).
+  - **Что осталось:** Добавить карточки **Root-Zone Soil Moisture (SMAP/GLDAS)** и **Evapotranspiration & Surface Temp (ECOSTRESS)** на экран [`TelemetryScreen.svelte`](./src/screens/TelemetryScreen.svelte) и учитывать дефицит влаги при выборе цели `Water Conservation`.
 
 - [ ] **Задача 2.2: Добавить рельеф, высоту и оценку риска эрозии (SRTM)**
-  - **Как реализовать:** При выборе координат делать легкий запрос к открытому API высот на базе **SRTM** (например, `https://api.open-meteo.com/v1/elevation` по центральной точке и соседним точкам в радиусе 100 м для вычисления уклона `slope %`).
-  - **Где показать и применить:**
-    - Показывать высоту над уровнем моря (м) и уклон поля (%) в профиле поля.
-    - При высоком уклоне (>5–8%) добавлять предупреждение о риске водной эрозии (SRTM Runoff Risk) и бонус культурам, укрепляющим почву.
+  - **Статус:** ⚠️ API и модель готовы (`fetchSrtmTerrain()` в [`src/lib/weather/SoilData.js`](./src/lib/weather/SoilData.js) считает высоту и уклон `slope %` через `api.open-meteo.com/v1/elevation` и передает `ELEVATION`/`SLOPE` в модель).
+  - **Что осталось:** Показывать высоту над уровнем моря (м) и уклон поля (%) в профиле поля / телеметрии, а при уклоне >5–8% добавлять предупреждение о риске водной эрозии (SRTM Runoff Risk) и бонус культурам, укрепляющим почву.
 
 - [x] **Задача 2.3: Заменить синтетическую формулу почвы на реальные почвенные данные (USDA WSS / SSURGO / SoilGrids)**
   - **Статус:** ✅ Выполнено. В [`src/utils/nasaApi.js`](./src/utils/nasaApi.js) добавлен `fetchSoilGrids()` (ISRIC SoilGrids v2.0 по слоям `0-5cm` и `5-15cm`: `phh2o`, `nitrogen`, `soc`, `sand`, `silt`, `clay`) с таймаутом 6.5 с и автоматическим fallback на `deriveSoilAndNutrients()` для городских/недоступных точек.
 
-- [ ] **Задача 2.4: Спутниковые слои NASA GIBS (MODIS NDVI / SMAP / IMERG) на карте выбора поля**
-  - **Как реализовать:** В [`src/components/GoogleMapModal.svelte`](./src/components/GoogleMapModal.svelte) добавить кнопки переключения бесплатных спутниковых слоев **NASA GIBS (Global Imagery Browse Services)** (не требуют API-ключа, стандартный тайловый слой `ImageMapType` в Google Maps):
-    - 🌿 **MODIS Terra NDVI (8-Day)** — индекс вегетации и здоровья растений;
-    - 💧 **SMAP Soil Moisture** — влажность почвы;
-    - 🌡️ **MODIS Land Surface Temperature** — тепловой стресс поверхности.
+- [x] **Задача 2.4: Спутниковые слои NASA GIBS (MODIS NDVI / SMAP / IMERG) на карте выбора поля**
+  - **Статус:** ✅ Выполнено. В [`src/components/GoogleMapModal.svelte`](./src/components/GoogleMapModal.svelte) добавлены переключаемые тайловые слои NASA GIBS (`MODIS_Terra_NDVI_8Day`, `SMAP_L4_Analyzed_Surface_Soil_Moisture`, `MODIS_Terra_L3_Land_Surface_Temp_8Day_Day`) с поддержкой overscaling при сильном приближении.
 
 - [ ] **Задача 2.5: Обоснование ценности для фермера и жюри на экране результатов и в PDF**
   - В [`ResultsScreen.svelte`](./src/screens/ResultsScreen.svelte) и [`downloadPlan.js`](./src/utils/downloadPlan.js) добавить сводные индикаторы 3-летнего плана:

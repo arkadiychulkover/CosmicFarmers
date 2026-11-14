@@ -1,12 +1,8 @@
-import { weatherStore } from './stores/weatherStore.svelte.js';
 import { fetchNasaDataForCoords } from './utils/nasaApi.js';
 
 export { runStrategy } from './lib/crop/strategy.js';
 
 export async function getTelemetry(lat, lon, options = {}) {
-  const active = weatherStore.telemetry;
-  if (active) return active;
-
   const payload = await fetchNasaDataForCoords(lat, lon, options);
   if (payload?.weather) {
     return {
