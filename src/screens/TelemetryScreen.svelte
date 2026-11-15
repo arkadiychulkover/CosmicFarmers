@@ -116,10 +116,11 @@
     },
   ]);
 
-  function precipitationNote(pct, netWb, stormDays) {
+  function precipitationNote(pct, netWb, stormDays, climatologySpan = '') {
     const sign = pct >= 0 ? '+' : '';
     const wbSign = netWb >= 0 ? '+' : '';
-    return `${sign}${pct}% vs 10-yr avg · Net P−ET ${wbSign}${Math.round(netWb)} mm · ${stormDays} storm days (≥25 mm)`;
+    const baselineLabel = climatologySpan ? `10-yr avg (${climatologySpan})` : '10-yr avg';
+    return `${sign}${pct}% vs ${baselineLabel} · Net P−ET ${wbSign}${Math.round(netWb)} mm · ${stormDays} storm days (≥25 mm)`;
   }
 
   function solarNote(value) {
@@ -198,19 +199,135 @@
 
   const MONTHS_12 = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
-  const landCoverData = $derived(cards.landCover.data || $session.nasaData?.landCover || null);
+  const sessionNasa = $derived(
+    $session.nasaData &&
+    Math.abs(Number($session.nasaData.lat) - Number($session.form.lat)) < 0.001 &&
+    Math.abs(Number($session.nasaData.lon) - Number($session.form.lon)) < 0.001
+      ? $session.nasaData
+      : null
+  );
+
+  const powerSeasonYear = $derived.by(() => {
+    const raw =
+      cards.temp.data?.seasonYear ??
+      cards.precip.data?.seasonYear ??
+      sessionNasa?.daily_t2m_year ??
+      sessionNasa?.seasonYear;
+    const yr = Number(raw);
+    return Number.isFinite(yr) && yr > 1900 ? yr : null;
+  });
+
+  const isSouthernField = $derived(
+    Boolean(
+      cards.temp.data?.isSouthernHemisphere ??
+      cards.precip.data?.isSouthernHemisphere ??
+      sessionNasa?.isSouthernHemisphere ??
+      Number($session.form.lat) < 0
+    )
+  );
+
+  const powerAnnualSpan = $derived.by(() => {
+    if (!powerSeasonYear) return '';
+    return isSouthernField
+      ? `${powerSeasonYear}–${powerSeasonYear + 1}`
+      : String(powerSeasonYear);
+  });
+
+  const powerAnnualFullLabel = $derived.by(() => {
+    if (!powerSeasonYear) return '';
+    return isSouthernField
+      ? `May ${powerSeasonYear}–Apr ${powerSeasonYear + 1}`
+      : `Jan–Dec ${powerSeasonYear}`;
+  });
+
+  const powerSeasonSpan = $derived.by(() => {
+    if (!powerSeasonYear) return '';
+    return isSouthernField
+      ? `Sep ${powerSeasonYear}–Apr ${powerSeasonYear + 1}`
+      : `Mar–Oct ${powerSeasonYear}`;
+  });
+
+  const powerClimatologySpan = $derived.by(() => {
+    if (!powerSeasonYear) return '';
+    return isSouthernField
+      ? `${powerSeasonYear - 9}–${powerSeasonYear + 1}`
+      : `${powerSeasonYear - 9}–${powerSeasonYear}`;
+  });
+
+  function formatMonthYear(isoDate) {
+    const match = String(isoDate || '').match(/^(\d{4})-(\d{2})/);
+    if (!match) return '';
+    const mIdx = Number(match[2]) - 1;
+    const mon = MONTHS_12[mIdx];
+    return mon ? `${mon} ${match[1]}` : match[1];
+  }
+
+  const landCoverData = $derived(cards.landCover.data || sessionNasa?.landCover || null);
   const currentCoordKey = $derived(`${Number($session.form.lat).toFixed(4)},${Number($session.form.lon).toFixed(4)}`);
   const isNonArableAcked = $derived($session.nonArableAckCoord === currentCoordKey);
 
+  function landCoverPeriod(lc) {
+    if (!lc) return '';
+    if (lc.year) return String(lc.year);
+    const src = String(lc.source || '');
+    const yearMatch = src.match(/\b(20\d{2})\b/);
+    if (yearMatch) return yearMatch[1];
+    if (lc.usCdlCrop?.year && src.includes('CDL')) return String(lc.usCdlCrop.year);
+    if (src.includes('NLCD Annual')) return 'Latest annual';
+    if (src.includes('OpenStreetMap')) return 'Live vector';
+    if (src.includes('SSURGO')) return 'Current survey';
+    if (src.includes('Fallback') || src.includes('Heuristic')) return 'Fallback';
+    return '';
+  }
+
+  const lcPeriod = $derived(landCoverPeriod(landCoverData));
+
+  const ndviSampleDates = $derived(
+    cards.ndvi.data?.sampledDates ??
+    sessionNasa?.ndviProfile?.sampledDates ??
+    []
+  );
+
+  const ndviIsFallback = $derived(
+    Boolean(cards.ndvi.data?.ndviFallback ?? sessionNasa?.ndviProfile?.ndviFallback)
+  );
+
+  const ndviPeriodLabel = $derived.by(() => {
+    const valid = (Array.isArray(ndviSampleDates) ? ndviSampleDates : [])
+      .filter((d) => /^\d{4}-\d{2}-\d{2}$/.test(String(d || '')))
+      .sort();
+    if (valid.length >= 2) {
+      const first = valid[0];
+      const last = valid[valid.length - 1];
+      const y1 = first.slice(0, 4);
+      const y2 = last.slice(0, 4);
+      if (y1 === y2 && first.slice(5, 7) === '01' && last.slice(5, 7) === '12') {
+        return y1;
+      }
+      const m1 = formatMonthYear(first);
+      const m2 = formatMonthYear(last);
+      return m1 && m2 ? (m1 === m2 ? m1 : `${m1}–${m2}`) : (y1 === y2 ? y1 : `${y1}–${y2}`);
+    }
+    if (valid.length === 1) {
+      return formatMonthYear(valid[0]) || valid[0].slice(0, 4);
+    }
+    if (ndviIsFallback) {
+      return powerAnnualSpan ? `${powerAnnualSpan} proxy` : 'Climate proxy';
+    }
+    const explicitYear = cards.ndvi.data?.year ?? sessionNasa?.ndviProfile?.year;
+    if (explicitYear) return String(explicitYear);
+    return cards.ndvi.status === 'ready' ? 'Latest 12-mo' : '';
+  });
+
   const ndviMonths = $derived(
     cards.ndvi.data?.monthlyNdvi12 ||
-    $session.nasaData?.monthlyNdvi12 ||
+    sessionNasa?.monthlyNdvi12 ||
     []
   );
   const ndviBareLabels = $derived(
     cards.ndvi.data?.bareSoilMonths?.length
       ? cards.ndvi.data.bareSoilMonths.join(', ')
-      : ($session.nasaData?.bareSoilMonths?.length ? $session.nasaData.bareSoilMonths.join(', ') : 'None (< 0.25)')
+      : (sessionNasa?.bareSoilMonths?.length ? sessionNasa.bareSoilMonths.join(', ') : 'None (< 0.25)')
   );
 
   const telemetryAlert = $derived.by(() => {
@@ -248,7 +365,9 @@
       return {
         tone: 'warn',
         title: 'Terrain & Climate Stress Advisories',
-        message: 'Review field constraints detected across the 12-month telemetry window:',
+        message: powerAnnualFullLabel
+          ? `Review field constraints detected across the ${powerAnnualFullLabel} 12-month telemetry window:`
+          : 'Review field constraints detected across the 12-month telemetry window:',
         items,
       };
     }
@@ -261,12 +380,10 @@
   const riskMonths = $derived(
     cards.precip.data?.riskCalendarMonths ||
     cards.temp.data?.riskCalendarMonths ||
-    $session.nasaData?.weather?.riskCalendarMonths ||
+    sessionNasa?.weather?.riskCalendarMonths ||
     []
   );
-  const riskYear = $derived(
-    cards.temp.data?.seasonYear || $session.nasaData?.seasonYear || ''
-  );
+  const riskYear = $derived(powerAnnualFullLabel || powerAnnualSpan || '');
 
   function soilResolution(soilSource) {
     const s = String(soilSource || '').toLowerCase();
@@ -275,6 +392,28 @@
     if (s.includes('power') || s.includes('agro-climatic')) return 'NASA POWER fallback';
     if (s.includes('soilgrids')) return 'ISRIC SoilGrids v2.0 · 250 m';
     return '250 m';
+  }
+
+  function soilVintage(soilSource, customEdited = false) {
+    if (customEdited) return 'User-calibrated';
+    const s = String(soilSource || '');
+    if (s.includes('SoilGrids')) return 'v2.0 baseline';
+    if (s.includes('SSURGO')) return 'Current survey';
+    if (s.includes('NASA POWER')) return powerAnnualSpan ? `${powerAnnualSpan} proxy` : 'Climate proxy';
+    return 'Static baseline';
+  }
+
+  function soilVintageDescription(soilSource, customEdited = false) {
+    const s = String(soilSource || 'ISRIC SoilGrids v2.0');
+    if (customEdited) return `User-calibrated on Farm & Soil (base: ${s})`;
+    if (s.includes('SoilGrids')) return 'ISRIC SoilGrids v2.0 static pedological ensemble (0–5 cm & 5–15 cm)';
+    if (s.includes('SSURGO')) return 'Current USDA NRCS SSURGO soil horizon survey';
+    if (s.includes('NASA POWER')) {
+      return powerAnnualSpan
+        ? `Agro-climatic estimate from NASA POWER (${powerAnnualSpan})`
+        : 'Agro-climatic estimate from NASA POWER';
+    }
+    return 'Static soil baseline';
   }
 
   const goalTitle = $derived(goalOptions.find((goal) => goal.value === $session.form.goal)?.title || 'Water Conservation');
@@ -316,8 +455,11 @@
         <StatusBanner
           tone="error"
           title="Land Cover Mask: {landCoverData.label} ({landCoverData.category})"
-          message="{landCoverData.warning} Source: {landCoverData.source} ({landCoverData.resolution})."
+          message="{landCoverData.warning} Source: {landCoverData.source} ({landCoverData.resolution}{lcPeriod && !String(landCoverData.source || '').includes(lcPeriod) ? ` · ${lcPeriod}` : ''})."
           items={[
+            ...(landCoverData.usCdlCrop?.rawLabel
+              ? [`USDA CDL (${landCoverData.usCdlCrop.year}): ${landCoverData.usCdlCrop.rawLabel}`]
+              : []),
             isNonArableAcked
               ? 'Warning acknowledged by operator — strategy calculation unlocked.'
               : 'Simulation locked until non-arable land-cover warning is acknowledged below.',
@@ -337,6 +479,9 @@
     {:else}
       <div class="landcover-pill" class:warn={Boolean(landCoverData.warning)}>
         <span class="lc-badge">{landCoverData.category}</span>
+        {#if lcPeriod}
+          <span class="lc-year" title="Land-cover dataset vintage">{lcPeriod}</span>
+        {/if}
         <span class="lc-text">
           <strong>{landCoverData.label}</strong> · {landCoverData.source} ({landCoverData.resolution})
           {#if landCoverData.usCdlCrop?.rawLabel}
@@ -362,6 +507,8 @@
       minHeight={357}
       source={cards.temp.data ? `NASA POWER · T2M / T2M_MAX / T2M_MIN · 12-mo · ${cards.temp.data.seasonLabel}` : 'NASA POWER · T2M / T2M_MAX / T2M_MIN · 12-mo'}
       resolution="~50 km grid"
+      year={cards.temp.data ? powerAnnualSpan : ''}
+      yearTitle={powerAnnualFullLabel ? `NASA POWER 12-month window: ${powerAnnualFullLabel} · Growing season: ${powerSeasonSpan}` : 'Data year / temporal coverage'}
       state={cards.temp.status}
       error={cards.temp.error}
       title="Temperature, Heat & Frost"
@@ -421,12 +568,14 @@
       valueGap="5.67px"
       source={cards.precip.data ? `NASA POWER · PRECTOTCORR & EVPTRNS · 12-mo · ${cards.precip.data.seasonLabel}` : 'NASA POWER · PRECTOTCORR & EVPTRNS · 12-mo'}
       resolution="~50 km grid"
+      year={cards.precip.data ? powerAnnualSpan : ''}
+      yearTitle={powerAnnualFullLabel ? `NASA POWER 12-month window: ${powerAnnualFullLabel} · 10-yr baseline: ${powerClimatologySpan}` : 'Data year / temporal coverage'}
       state={cards.precip.status}
       error={cards.precip.error}
       title="12-Month Precipitation & P−ET"
       value={cards.precip.data ? cards.precip.data.total12 : ''}
       unit="mm"
-      note={cards.precip.data ? precipitationNote(cards.precip.data.anomalyPct12, cards.precip.data.waterBalanceTotal12, cards.precip.data.stormDays) : ''}
+      note={cards.precip.data ? precipitationNote(cards.precip.data.anomalyPct12, cards.precip.data.waterBalanceTotal12, cards.precip.data.stormDays, powerClimatologySpan) : ''}
     >
       {#if cards.precip.data}
         <PrecipitationChart
@@ -444,6 +593,8 @@
       minHeight={243}
       source="NASA POWER / CERES · ALLSKY_SFC_SW_DWN"
       resolution="~50 km–1° grid"
+      year={cards.solar.data ? powerSeasonSpan : ''}
+      yearTitle={powerSeasonSpan ? `Growing-season mean (${powerSeasonSpan}) · NASA POWER / CERES` : 'Data year / temporal coverage'}
       state={cards.solar.status}
       error={cards.solar.error}
       title="Solar Irradiance"
@@ -460,6 +611,8 @@
       minHeight={243}
       source="NASA POWER · Thermal budget (base 10°C)"
       resolution="~50 km grid"
+      year={cards.gdd.data ? powerSeasonSpan : ''}
+      yearTitle={powerSeasonSpan ? `Growing-season thermal accumulation (${powerSeasonSpan}) · NASA POWER` : 'Data year / temporal coverage'}
       state={cards.gdd.status}
       error={cards.gdd.error}
       title="Growing Degree Days (Base 10°C)"
@@ -476,6 +629,8 @@
       minHeight={206}
       source="NASA POWER (SMAP / MERRA-2)"
       resolution="~50 km grid"
+      year={cards.moisture.data ? powerSeasonSpan : ''}
+      yearTitle={powerSeasonSpan ? `Growing-season mean (${powerSeasonSpan}) · NASA POWER SMAP / MERRA-2` : 'Data year / temporal coverage'}
       state={cards.moisture.status}
       error={cards.moisture.error}
     >
@@ -510,6 +665,8 @@
       minHeight={206}
       source="NASA POWER (ECOSTRESS Proxy)"
       resolution="~50 km grid"
+      year={cards.ecostress.data ? powerSeasonSpan : ''}
+      yearTitle={powerSeasonSpan ? `Growing-season mean (${powerSeasonSpan}) · NASA POWER energy-balance proxy` : 'Data year / temporal coverage'}
       state={cards.ecostress.status}
       error={cards.ecostress.error}
     >
@@ -533,6 +690,8 @@
       minHeight={217}
       source={cards.terrain.data?.terrainFallback ? 'SRTM / Open-Meteo (Fallback)' : 'SRTM / Open-Meteo'}
       resolution={cards.terrain.data?.terrainFallback ? 'Fallback Estimate' : '~30–90 m'}
+      year={cards.terrain.data ? (cards.terrain.data.terrainFallback ? 'Fallback baseline' : 'Static DEM') : ''}
+      yearTitle={cards.terrain.data?.terrainFallback ? 'Default 180 m / 1.5° terrain baseline (elevation API unavailable)' : 'Static topography (Open-Meteo Copernicus DEM / NASA SRTM)'}
       state={cards.terrain.status}
       error={cards.terrain.error}
     >
@@ -569,6 +728,8 @@
       minHeight={217}
       source="NASA POWER · RH2M · 2m Relative Humidity"
       resolution="~50 km grid"
+      year={cards.atmosphere.data ? powerSeasonSpan : ''}
+      yearTitle={powerSeasonSpan ? `Growing-season mean (${powerSeasonSpan}) · NASA POWER RH2M` : 'Data year / temporal coverage'}
       state={cards.atmosphere.status}
       error={cards.atmosphere.error}
       title="Relative Humidity (2 m)"
@@ -585,6 +746,8 @@
       minHeight={243}
       source="NASA POWER · WS2M · 2m Wind Speed"
       resolution="~50 km grid"
+      year={cards.atmosphere.data ? powerSeasonSpan : ''}
+      yearTitle={powerSeasonSpan ? `Growing-season mean (${powerSeasonSpan}) · NASA POWER WS2M` : 'Data year / temporal coverage'}
       state={cards.atmosphere.status}
       error={cards.atmosphere.error}
       title="Wind Speed (2 m)"
@@ -619,6 +782,8 @@
       minHeight={243}
       source={cards.soc.data?.soilSource ? `${cards.soc.data.soilSource} · SOC` : 'ISRIC SoilGrids v2.0 · SOC'}
       resolution={soilResolution(cards.soc.data?.soilSource)}
+      year={cards.soc.data ? soilVintage(cards.soc.data.soilSource, $session.customSoilEdited) : ''}
+      yearTitle={cards.soc.data ? soilVintageDescription(cards.soc.data.soilSource, $session.customSoilEdited) : 'Dataset vintage'}
       state={cards.soc.status}
       error={cards.soc.error}
       title="Soil Organic Carbon (SOC)"
@@ -651,6 +816,8 @@
       wide
       source={cards.ndvi.data?.ndviFallback ? 'NASA POWER Temp/Snow Fallback' : 'NASA GIBS · MODIS Terra NDVI'}
       resolution={cards.ndvi.data?.resolution || (cards.ndvi.data?.ndviFallback ? 'Fallback Estimate' : '250 m – 1 km WMTS')}
+      year={cards.ndvi.data ? ndviPeriodLabel : ''}
+      yearTitle={ndviIsFallback ? `Derived from NASA POWER ${powerAnnualFullLabel || ''} temperature/snow profile`.trim() : `MODIS Terra NDVI 12-month sample window (${ndviPeriodLabel})`}
       state={cards.ndvi.status}
       error={cards.ndvi.error}
       title="Satellite NDVI & Bare-Soil Telemetry"
@@ -659,6 +826,7 @@
       rows={cards.ndvi.data ? [
         { label: 'Bare-Soil Months (NDVI < 0.25)', value: ndviBareLabels },
         { label: 'Telemetry Source', value: cards.ndvi.data.bareSoilSource || 'MODIS Terra NDVI' },
+        ...(ndviPeriodLabel ? [{ label: ndviIsFallback ? 'Proxy Window' : 'Observation Window', value: ndviPeriodLabel }] : []),
       ] : []}
       note={cards.ndvi.data?.ndviFallback ? 'Satellite NDVI tiles unavailable; fell back to POWER thermal/snow bare-soil proxy.' : 'Used directly in cover-crop scheduling to flag bare off-season soil (NDVI < 0.25).'}
     >
@@ -667,7 +835,10 @@
           {#each ndviMonths as v, idx (idx)}
             {@const num = v !== null && v !== undefined && Number.isFinite(Number(v)) ? Number(v) : null}
             {@const pct = num !== null ? Math.max(8, Math.min(100, Math.round(Math.max(0, num) * 100))) : 0}
-            <div class="ndvi-col" title="{MONTHS_12[idx]}: NDVI {num !== null ? num.toFixed(2) : 'N/A'}">
+            <div
+              class="ndvi-col"
+              title="{ndviSampleDates[idx] ? `${formatMonthYear(ndviSampleDates[idx])} (${ndviSampleDates[idx]})` : `${MONTHS_12[idx]}${ndviPeriodLabel ? ` (${ndviPeriodLabel})` : ''}`}: NDVI {num !== null ? num.toFixed(2) : 'N/A'}"
+            >
               <div class="ndvi-track">
                 <span class="ndvi-fill" class:bare={num !== null && num < 0.25} style:height="{pct}%"></span>
               </div>
@@ -683,6 +854,9 @@
         wide
         source="NASA POWER + MODIS Terra NDVI · 12-month stress & bare-soil matrix"
         resolution={cards.ndvi.data?.ndviFallback ? '~50 km grid (NDVI fallback)' : '~50 km meteo · 250 m NDVI'}
+        year={powerAnnualSpan}
+        period={cards.ndvi.data && !ndviIsFallback && ndviPeriodLabel && ndviPeriodLabel !== powerAnnualSpan ? `NDVI ${ndviPeriodLabel}` : ''}
+        yearTitle={powerAnnualFullLabel ? `POWER climate: ${powerAnnualFullLabel}${ndviPeriodLabel ? ` · NDVI: ${ndviPeriodLabel}` : ''}` : 'Data year / temporal coverage'}
         state="ready"
         title="Annual Stress, MODIS NDVI & Bare-Soil Calendar"
         note={cards.temp.data && cards.precip.data
@@ -692,9 +866,11 @@
         <RiskCalendar
           months={riskMonths}
           year={riskYear}
+          ndviPeriod={ndviPeriodLabel}
+          ndviDates={ndviSampleDates}
           freezeThawDays={cards.temp.data?.freezeThawDays ?? null}
-          ndviSource={cards.ndvi.data?.bareSoilSource ?? $session.nasaData?.bareSoilSource ?? null}
-          ndviFallback={Boolean(cards.ndvi.data?.ndviFallback ?? $session.nasaData?.ndviProfile?.ndviFallback)}
+          ndviSource={cards.ndvi.data?.bareSoilSource ?? sessionNasa?.bareSoilSource ?? null}
+          ndviFallback={ndviIsFallback}
         />
       </TelemetryCard>
     {/if}
@@ -704,11 +880,14 @@
       minHeight={341}
       source="Soil inputs · provenance"
       resolution={soilResolution(cards.source.data?.soilSource)}
+      year={cards.source.data ? soilVintage(cards.source.data.soilSource, $session.customSoilEdited) : ''}
+      yearTitle={cards.source.data ? soilVintageDescription(cards.source.data.soilSource, $session.customSoilEdited) : 'Dataset vintage'}
       state={cards.source.status}
       error={cards.source.error}
       title="Raw SoilGrids Profile & Provenance"
       rows={cards.source.data ? [
         { label: 'Soil Source', value: $session.customSoilEdited ? `${cards.source.data.soilSource} (User Edited)` : cards.source.data.soilSource },
+        { label: 'Dataset Vintage', value: soilVintageDescription(cards.source.data.soilSource, $session.customSoilEdited) },
         { label: 'Sampled Depths & Layers', value: `${cards.source.data.depths || '0–15 cm'} · pH, Total N, Clay/Sand/Silt` },
       ] : []}
       note="Direct ISRIC SoilGrids v2.0 250m raster layers (0–5 cm & 5–15 cm weighted average) in physical units — zero pedotransfer N/P/K assumptions."
@@ -727,7 +906,14 @@
     </TelemetryCard>
   </div>
 
-  <h2>Climate Risk Simulator</h2>
+  <div class="sim-head">
+    <h2>Climate Risk Simulator</h2>
+    {#if powerAnnualFullLabel || powerSeasonSpan}
+      <p class="sim-sub">
+        Baseline values from NASA POWER{powerSeasonSpan ? ` · ${powerSeasonSpan} (T2M & solar)` : ''}{powerAnnualFullLabel ? ` · ${powerAnnualFullLabel} (precipitation)` : ''}
+      </p>
+    {/if}
+  </div>
   <ClimateTable {columns} bind:anomalies={$session.climate} />
 
   <div class="actions">
@@ -868,6 +1054,31 @@
     text-transform: uppercase;
     letter-spacing: 0.04em;
     color: var(--color-accent);
+  }
+
+  .lc-year {
+    padding: 2px 7px;
+    border-radius: 999px;
+    background: var(--color-panel);
+    border: 1px solid var(--color-border-dim);
+    font-size: 9.5px;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    color: var(--color-text);
+    white-space: nowrap;
+  }
+
+  .sim-head {
+    display: grid;
+    gap: 6px;
+    justify-items: center;
+  }
+
+  .sim-sub {
+    margin: 0;
+    font-size: 11px;
+    color: var(--color-text-dim);
+    text-align: center;
   }
 
   .landcover-alert-box {

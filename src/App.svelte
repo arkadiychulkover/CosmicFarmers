@@ -6,6 +6,7 @@
   import '@fontsource/advent-pro/600.css';
   import '@fontsource/advent-pro/700.css';
   import './style.css';
+  import { onDestroy, tick } from 'svelte';
   import { Router, goto, replace } from '@mateothegreat/svelte5-router';
   import Header from './components/Header.svelte';
   import SideTabs from './components/SideTabs.svelte';
@@ -17,20 +18,15 @@
   import TelemetryScreen from './screens/TelemetryScreen.svelte';
   import CalculatingScreen from './screens/CalculatingScreen.svelte';
   import ResultsScreen from './screens/ResultsScreen.svelte';
-  import { session } from './stores/session.svelte.js';
+  import { session, resolveFieldPlace } from './stores/session.svelte.js';
   import { preloadCropModel } from './lib/crop/index.js';
-  import { presets } from './data/presets.js';
   import { githubUrl } from './data/links.js';
 
-  const preset = $derived(
-    presets.find((p) => p.id === $session.activePresetId && p.values) ||
-    presets.find((p) => p.values && Math.abs(p.values.lat - Number($session.form.lat)) < 0.01 && Math.abs(p.values.lon - Number($session.form.lon)) < 0.01)
-  );
-  const place = $derived(preset ? preset.label : ($session.locationName || 'Custom Field'));
+  const place = $derived(resolveFieldPlace($session));
 
   const tabs = [
     { id: 'farm', path: '/', label: 'Farm + Soil' },
-    { id: 'telemetry', path: '/telemetry', label: 'Stress Test + NASA Telemetry' },
+    { id: 'telemetry', path: '/telemetry', label: 'Stress + Telemetry' },
   ];
 
   const KNOWN_PATHS = new Set(['/', '/telemetry', '/calculating', '/results']);
@@ -69,7 +65,40 @@
   let isGlobeFullscreen = $state(false);
   let globeRef = $state(null);
   let stageEl = $state(null);
+  let contentEl = $state(null);
   let showDataSources = $state(false);
+  let scrollFrameId = null;
+
+  function applyScrollTop() {
+    if (contentEl) {
+      contentEl.scrollTop = 0;
+    }
+    if (typeof window !== 'undefined' && typeof window.scrollTo === 'function') {
+      window.scrollTo(0, 0);
+    }
+  }
+
+  async function scrollPanelToTop() {
+    applyScrollTop();
+    await tick();
+    applyScrollTop();
+    if (typeof requestAnimationFrame === 'function') {
+      if (scrollFrameId !== null && typeof cancelAnimationFrame === 'function') {
+        cancelAnimationFrame(scrollFrameId);
+      }
+      scrollFrameId = requestAnimationFrame(() => {
+        scrollFrameId = null;
+        applyScrollTop();
+      });
+    }
+  }
+
+  onDestroy(() => {
+    if (scrollFrameId !== null && typeof cancelAnimationFrame === 'function') {
+      cancelAnimationFrame(scrollFrameId);
+      scrollFrameId = null;
+    }
+  });
 
   function syncRouteState(matchedPath) {
     const normalized = KNOWN_PATHS.has(matchedPath) ? matchedPath : '/';
@@ -88,7 +117,17 @@
     } else if (prev === '/results' && $session.collapsed) {
       $session.collapsed = false;
     }
+
+    if (normalized === '/' || normalized === '/telemetry' || normalized === '/calculating') {
+      scrollPanelToTop();
+    }
   }
+
+  $effect(() => {
+    if (currentPath === '/' || currentPath === '/telemetry' || currentPath === '/calculating') {
+      scrollPanelToTop();
+    }
+  });
 
   const panelRouterHooks = {
     post: (routeResult) => {
@@ -185,7 +224,11 @@
     
     <section class="panel" class:collapsed={$session.collapsed}>
       
-      <div class="content" class:input-page={currentPath === '/' || currentPath === '/telemetry'}>
+      <div
+        class="content"
+        class:input-page={currentPath === '/' || currentPath === '/telemetry'}
+        bind:this={contentEl}
+      >
         
         <Router
           id="panel-router"
@@ -360,6 +403,24 @@
     display: none;
     width: 0;
     height: 0;
+  }
+
+  .panel :global(.rail .tabs) {
+    gap: 6px;
+    max-height: 100%;
+  }
+
+  .panel :global(.rail .tabs .tab) {
+    padding: 18px 0;
+    border-radius: 0 22px 22px 0;
+    font-size: 14px;
+    line-height: 1;
+  }
+
+  .panel :global(.rail .tabs .tab + .tab) {
+    margin-top: 0;
+    padding-top: 18px;
+    padding-bottom: 18px;
   }
 
   .globe-stage {
