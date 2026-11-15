@@ -23,9 +23,58 @@
     }
   });
 
+  const MODEL_TO_FORM_CROP = {
+    maize: 'corn',
+    wheat: 'winter-wheat',
+    barley: 'spring-barley',
+  };
+
+  let lastAutoCdlKey = $state(null);
+
+  const landCover = $derived($session.nasaData?.landCover ?? null);
+  const currentCoordKey = $derived(
+    `${Number($session.form.lat).toFixed(4)},${Number($session.form.lon).toFixed(4)}`
+  );
+  const isNonArableAcked = $derived($session.nonArableAckCoord === currentCoordKey);
+  const isNonArableBlocked = $derived(
+    Boolean(landCover && landCover.isArableSuitable === false && !isNonArableAcked)
+  );
+
+  const detectedUsCdl = $derived.by(() => {
+    const cdl = landCover?.usCdlCrop;
+    if (!cdl?.cropId) return null;
+    const formValue = MODEL_TO_FORM_CROP[cdl.cropId] || cdl.cropId;
+    const matched = cropOptions.find((opt) => opt.value === formValue);
+    if (!matched) return null;
+    return {
+      formValue: matched.value,
+      formLabel: matched.label,
+      rawLabel: cdl.rawLabel || matched.label,
+      year: cdl.year,
+      applied: $session.form.predecessor === matched.value,
+    };
+  });
+
+  $effect(() => {
+    if (
+      detectedUsCdl &&
+      !$session.activePresetId &&
+      lastAutoCdlKey !== currentCoordKey
+    ) {
+      lastAutoCdlKey = currentCoordKey;
+      $session.form.predecessor = detectedUsCdl.formValue;
+    }
+  });
+
+  function applyUsCdlPredecessor() {
+    if (!detectedUsCdl) return;
+    $session.form.predecessor = detectedUsCdl.formValue;
+  }
+
   const canProceed = $derived(
     !$session.nasaLoading &&
     !$session.nasaError &&
+    !isNonArableBlocked &&
     Boolean($session.nasaData) &&
     Math.abs(Number($session.nasaData.lat) - Number($session.form.lat)) < 0.001 &&
     Math.abs(Number($session.nasaData.lon) - Number($session.form.lon)) < 0.001
@@ -167,8 +216,8 @@
     <button
       type="button"
       class="map-btn"
-      aria-label="Pick coordinates on Google Maps"
-      title="Pick coordinates on Google Maps"
+      aria-label="Pick coordinates on interactive map (Google Maps or OSM + GIBS)"
+      title="Pick coordinates on interactive map"
       onclick={openMap}
     >
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -188,13 +237,64 @@
       busy={$session.nasaLoading}
       onaction={retryLoad}
     />
-  {:else if oodBanner}
-    <StatusBanner
-      tone={oodBanner.tone}
-      title={oodBanner.title}
-      message={oodBanner.message}
-      items={oodBanner.items}
-    />
+  {:else}
+    {#if landCover}
+      {#if landCover.isArableSuitable === false}
+        <div class="landcover-alert">
+          <StatusBanner
+            tone="error"
+            title="Land Cover Mask: {landCover.label} ({landCover.category})"
+            message="{landCover.warning} Source: {landCover.source} ({landCover.resolution})."
+          />
+          <label class="override-check">
+            <input
+              type="checkbox"
+              checked={isNonArableAcked}
+              onchange={(e) => {
+                $session.nonArableAckCoord = e.currentTarget.checked ? currentCoordKey : null;
+              }}
+            />
+            <span>Acknowledge non-arable land-cover warning and override to run simulation anyway</span>
+          </label>
+        </div>
+      {:else}
+        <div class="landcover-pill" class:warn={Boolean(landCover.warning)}>
+          <span class="lc-badge">{landCover.category}</span>
+          <div class="lc-body">
+            <strong>Land Cover: {landCover.label}</strong>
+            <span>{landCover.source} ({landCover.resolution})</span>
+            {#if landCover.warning}
+              <small>{landCover.warning}</small>
+            {/if}
+          </div>
+        </div>
+      {/if}
+    {/if}
+
+    {#if detectedUsCdl}
+      <div class="cdl-chip" role="status">
+        <span>
+          USDA CropScape CDL ({detectedUsCdl.year}): Detected <strong>{detectedUsCdl.rawLabel}</strong>
+        </span>
+        <button
+          type="button"
+          class="cdl-apply"
+          disabled={detectedUsCdl.applied}
+          onclick={applyUsCdlPredecessor}
+        >
+          {detectedUsCdl.applied ? 'Selected as predecessor' : 'Apply as predecessor'}
+        </button>
+      </div>
+    {/if}
+
+    {#if oodBanner}
+      <StatusBanner
+        tone={oodBanner.tone}
+        title={oodBanner.title}
+        message={oodBanner.message}
+        items={oodBanner.items}
+      />
+    {/if}
   {/if}
 
   <SelectField
@@ -317,7 +417,7 @@
       disabled={!canProceed}
       onclick={() => goto('/telemetry')}
     >
-      {$session.nasaLoading ? 'Loading NASA Data...' : 'Stress Test →'}
+      {$session.nasaLoading ? 'Loading NASA Data...' : isNonArableBlocked ? 'Acknowledge Land Cover Warning Above' : 'Stress Test →'}
     </ActionButton>
   </div>
 </div>
@@ -549,6 +649,102 @@
     color: var(--color-text-dim);
   }
 
+  .landcover-alert {
+    display: grid;
+    gap: 8px;
+  }
+
+  .override-check {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 9px 12px;
+    border-radius: 8px;
+    border: 1px solid var(--color-status-warn-border);
+    background: var(--color-status-warn-bg);
+    color: var(--color-text);
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  .landcover-pill {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 9px 12px;
+    border-radius: 8px;
+    border: 1px solid var(--color-status-good-border);
+    background: var(--color-status-good-bg);
+    color: var(--color-text);
+  }
+
+  .landcover-pill.warn {
+    border-color: var(--color-status-warn-border);
+    background: var(--color-status-warn-bg);
+  }
+
+  .lc-badge {
+    flex-shrink: 0;
+    margin-top: 2px;
+    padding: 2px 7px;
+    border-radius: 999px;
+    border: 1px solid var(--color-border-dim);
+    background: var(--color-panel);
+    color: var(--color-accent);
+    font-size: 9px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  .lc-body {
+    display: grid;
+    gap: 2px;
+    font-size: 11px;
+    line-height: 1.35;
+  }
+
+  .lc-body span {
+    font-size: 10px;
+    color: var(--color-text-dim);
+  }
+
+  .lc-body small {
+    font-size: 10px;
+    color: var(--color-text);
+  }
+
+  .cdl-chip {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    border-radius: 8px;
+    border: 1px solid var(--color-status-info-border);
+    background: var(--color-status-info-bg);
+    font-size: 11px;
+    color: var(--color-text);
+  }
+
+  .cdl-apply {
+    padding: 4px 10px;
+    border-radius: 999px;
+    border: 1px solid var(--color-border-dim);
+    background: var(--color-panel);
+    color: var(--color-accent);
+    font-size: 10px;
+    font-weight: 700;
+    cursor: pointer;
+  }
+
+  .cdl-apply:disabled {
+    opacity: 0.7;
+    cursor: default;
+  }
+
   .actions {
     width: 50%;
     min-width: 220px;
@@ -558,6 +754,11 @@
   @media (max-width: 600px) {
     .irrigation-grid {
       grid-template-columns: 1fr;
+    }
+
+    .actions {
+      width: 100%;
+      min-width: 0;
     }
   }
 </style>

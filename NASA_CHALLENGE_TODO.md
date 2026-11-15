@@ -1,146 +1,42 @@
-# 🚀 План доработки проекта CosmicFarmers (Field Shift)
-**Челлендж:** [NASA Space Apps 2026 — Field Shift: Adapting Farms with NASA Data](https://www.spaceappschallenge.org/2026/challenges/adapting-farms-with-nasa-data/)
+# NASA Space Apps Challenge & Agronomic Architecture Checklist
 
----
+## 1. NASA Non-Endorsement, Open Licenses & Transparency
+- [x] Verbatim mandatory NASA Non-Endorsement & Non-U.S. Government Data-Use Disclaimer displayed in:
+  - `src/App.svelte` (persistent bottom footer bar)
+  - `src/components/DataSourcesModal.svelte` (prominent notice at top of data sources list)
+  - `src/utils/downloadPlan.js` (exported A4 crop plan PDF closing page)
+- [x] Explicit open-data attribution & licensing documented in `DataSourcesModal.svelte` & PDF exports:
+  - **NASA POWER** & **NASA GIBS / MODIS Terra NDVI**: U.S. Government / NASA Public Domain
+  - **ISRIC SoilGrids v2.0 (250 m)**: CC BY 4.0
+  - **Open-Meteo Elevation (SRTM / Copernicus DEM ~90 m)**: CC BY 4.0
+  - **Esri / Impact Observatory Sentinel-2 10m Land Cover** & **ESA WorldCereal RDM / WorldCover**: CC BY 4.0
+  - **USGS NLCD Annual Land Cover (30 m)** & **USDA NRCS SSURGO / NASS CropScape CDL**: U.S. Government Public Domain
+  - **OpenStreetMap (Overpass API, Basemap Tiles & Nominatim Geocoding)**: Open Database License (ODbL)
+  - **Google Maps JS API (optional `VITE_GOOGLE_MAPS_API_KEY`)**: Google Maps Platform Terms of Service
+- [x] Removed `Market Viability` / commercial price claims across `src/lib/crop/goalData.js`, `src/lib/crop/strategy.js`, `src/data/options.js`, `src/screens/ResultsScreen.svelte`, and `src/utils/downloadPlan.js`. Yield objective is strictly framed as agronomic biomass and harvest yield.
 
-## 📊 1. Текущее состояние проекта (Что уже работает)
+## 2. Integrated Earth-Observation & Partner Sources vs. U.S.-Only / Not Integrated
+### Globally Active Browser & Node Sources
+- [x] **NASA POWER Agroclimatology (`src/lib/weather/SoilData.js`)**: CORS-open global `0.5° × 0.625°` daily and 10-year monthly series (`T2M`, `T2M_MAX`, `T2M_MIN`, `TS`, `PRECTOTCORR`, `ALLSKY_SFC_SW_DWN`, `RH2M`, `WS2M`, `GWETTOP`, `GWETROOT`, `EVPTRNS`), hemisphere-aligned seasons (NH `Mar–Oct` / SH cross-year `May Y..Apr Y+1`), frost bounds, `freezeThawDays` (`TS`/diurnal 0°C transitions), 10-yr rainfall percentiles (`p25 / median / p75`), and explicit 8-month seasonal vs. 12-month annual precipitation separation.
+- [x] **NASA GIBS / MODIS Terra NDVI (`src/lib/weather/ndviService.js`)**: Direct Web-API `DecompressionStream('deflate')` + official `MODIS_NDVI.xml` 140-bin LUT tile sampler over `MODIS_Terra_NDVI_8Day` (z8) and `MODIS_Terra_L3_NDVI_Monthly` (z7). Grounds `bareSoilMonths` (`NDVI < 0.25`) in `coverCropWindows.js`, falling back to `computeFallbackNdviProfile` (`NASA POWER Temp/Snow Fallback`) only if satellite tiles fail.
+- [x] **NASA GIBS Visual Globe & Map Layers (`src/components/globus.svelte`, `src/components/GlobeControls.svelte`, `src/components/GoogleMapModal.svelte`)**: Interactive visual overlays (`BlueMarble_NextGeneration`, `VIIRS_SNPP_CorrectedReflectance_TrueColor`, `MODIS_Terra_NDVI_8Day`, `MODIS_Terra_Land_Surface_Temp_Day`, `IMERG_Precipitation_Rate`, `SMAP_L4_Soil_Moisture_Surface`) with nearest-date tile resolution.
+- [x] **ISRIC SoilGrids v2.0 (`src/utils/nasaApi.js`)**: Direct physical units (`phh2o`, `soc`, `nitrogen`, `clay`, `sand`, `silt` over `0–5 cm` & `5–15 cm`), ~5 km fallback, zero synthetic NPK assumptions.
+- [x] **Open-Meteo SRTM / Copernicus DEM (`src/lib/weather/SoilData.js`, `src/lib/weather/telemetryRequests.js`)**: Field elevation and slope with explicit `terrainFallback` + `terrainWarning` disclosure badges.
+- [x] **Esri Sentinel-2 10m Global Land Cover & OpenStreetMap (`src/lib/weather/landCoverMask.js`, `src/components/GoogleMapModal.svelte`)**: Global arable land-cover mask (`cropland`, `pasture`, `forest`, `urban`, `water`, `wetland`, `barren`, `mixed`) + Overpass secondary fallback + Nominatim & interactive OSM/GIBS Web Mercator `<canvas>` fallback when Google Maps API key is missing or fails (`gm_authFailure`).
 
-| Компонент | Статус | Где находится в коде |
-| :--- | :--- | :--- |
-| **NASA POWER API (Погода и климат)** | ✅ **Реально работает** | [`src/lib/weather/SoilData.js`](./src/lib/weather/SoilData.js) — запрашивает `T2M`, `T2M_MAX`, `T2M_MIN`, `RH2M`, `PRECTOTCORR`, `ALLSKY_SFC_SW_DWN`, `WS2M`, `GWETTOP`, `GWETROOT`, `TS`, `EVPTRNS` + 10-летнюю историю осадков. |
-| **ML-модель рекомендаций культур** | ✅ **Реально работает** | [`public/models/crop_classifier.onnx`](./public/models/crop_classifier.onnx) + [`src/lib/crop/OnnxCropModel.js`](./src/lib/crop/OnnxCropModel.js) — Random Forest в браузере (WASM) по 18 признакам для 16 культур. |
-| **Матрица 3-летнего севооборота** | ✅ **Реально работает** | [`src/lib/crop/CropRecommendationService.js`](./src/lib/crop/CropRecommendationService.js) + [`src/lib/crop/rotationData.js`](./src/lib/crop/rotationData.js) — учитывает предшественника и исключает монокультуру. |
-| **Экспорт PDF-плана** | ✅ **Реально работает** | [`src/utils/downloadPlan.js`](./src/utils/downloadPlan.js) |
-| **Выбор цели фермера (`Goal`)** | ✅ **Реально работает** | [`src/lib/crop/goalData.js`](./src/lib/crop/goalData.js) + `CropRecommendationService.#rank` (`regeneration`, `water`, `yield`). |
-| **Симулятор климатических рисков** | ✅ **Реально работает** | Все 3 параметра (`temperature`, `precipitation`, `solar`) пересчитываются в [`strategy.js`](./src/lib/crop/strategy.js) и передаются в модель. |
-| **Данные о почве (pH, N, P, K, тип)** | ✅ **Реально работает** | [`src/utils/nasaApi.js`](./src/utils/nasaApi.js) — `fetchSoilGrids()` (ISRIC SoilGrids v2.0) с fallback на `deriveSoilAndNutrients()`. |
-| **Влажность почвы (SMAP), ET (ECOSTRESS), Рельеф (SRTM), NDVI** | ⚠️ **Частично (API и карта готовы)** | Параметры SMAP/ECOSTRESS/SRTM передаются в модель, слои **NASA GIBS** (NDVI, SMAP, LST) добавлены в [`GoogleMapModal.svelte`](./src/components/GoogleMapModal.svelte). Осталось вывести карточки в UI телеметрии. |
+### U.S. CONUS-Only Sources (`24–50°N, 125–66°W`)
+- [x] **USGS NLCD Annual Land Cover (30 m) & MRLC GeoServer WMS (`src/lib/weather/landCoverMask.js`)**: CORS-open primary arable suitability mask inside CONUS.
+- [x] **USDA NRCS SDA / SSURGO (`src/lib/weather/usdaSoilCdl.js`, `src/utils/nasaApi.js`)**: CORS-open CONUS measured soil-horizon fallback when SoilGrids times out + urban/water/farmland disambiguation.
+- [x] **USDA NASS CropScape CDL (`src/lib/weather/usdaSoilCdl.js`)**: 30 m EPSG:5070 historical crop identification (`CDL_TO_CROP` across all 21 ML classes). Active in Node/SSR & ML enrichment; skips gracefully in direct browser calls where `nassgeodata.gmu.edu` omits `Access-Control-Allow-Origin`. UI (`FarmSoilScreen.svelte`) offers/applies detected CDL predecessor whenever returned.
 
----
+### Intentionally Not Integrated / Not Required
+- **Raw 70 m ISS ECOSTRESS Thermal Scenes / NASA Earthdata OAuth Granules**: Not integrated because NASA Earthdata Search / AppEEARS workflows require authenticated Earthdata Login tokens and asynchronous granule jobs incompatible with zero-login browser execution; replaced transparently by NASA POWER `EVPTRNS` / `TS` energy-balance parameters labeled as POWER proxy.
+- **Terrascope ESA WorldCover WMS**: Excluded at runtime because live probes showed frequent connection resets (`ECONNRESET`), replaced cleanly by CORS-open Esri/Impact Observatory Sentinel-2 10m Land Cover + ESA WorldCereal RDM training datasets (`CC BY 4.0`).
 
-## 🔥 2. Что нужно сделать СЕЙЧАС (Приоритетный план задач)
-
-### Этап 1. Быстрые исправления логики (Quick Wins — 1–2 часа)
-
-- [x] **Задача 1.1: Подключить все 3 параметра `Climate Risk Simulator` к модели**
-  - **Статус:** ✅ Выполнено. В `CalculatingScreen.svelte` передается `climateAnomalies`, в `strategy.js` пересчитываются `T2M`, `T2M_MAX`, `T2M_MIN`, `GDD`, `PRECTOTCORR`, `ALLSKY_SFC_SW_DWN` и отображение в карточках.
-
-- [x] **Задача 1.2: Оживить переключатель `Primary Management Goal` (`regeneration` / `water` / `yield`)**
-  - **Статус:** ✅ Выполнено. Создан модуль `src/lib/crop/goalData.js` с агрономическими весами целей для 22 культур. Веса интегрированы в `CropRecommendationService.#rank` вместе с вероятностями модели и матрицей севооборота. Добавлены пояснения целей в карточки и PDF-план.
-
----
-
-### Этап 2. Подключение недостающих данных NASA из брифа (2–4 часа)
-
-- [ ] **Задача 2.1: Добавить влажность почвы (SMAP / GLDAS) и температуру поверхности / испарение (ECOSTRESS)**
-  - **Статус:** ⚠️ API и модель готовы (`GWETTOP`, `GWETROOT`, `TS`, `EVPTRNS` запрашиваются в [`src/lib/weather/SoilData.js`](./src/lib/weather/SoilData.js) и передаются в ONNX-модель).
-  - **Что осталось:** Добавить карточки **Root-Zone Soil Moisture (SMAP/GLDAS)** и **Evapotranspiration & Surface Temp (ECOSTRESS)** на экран [`TelemetryScreen.svelte`](./src/screens/TelemetryScreen.svelte) и учитывать дефицит влаги при выборе цели `Water Conservation`.
-
-- [ ] **Задача 2.2: Добавить рельеф, высоту и оценку риска эрозии (SRTM)**
-  - **Статус:** ⚠️ API и модель готовы (`fetchSrtmTerrain()` в [`src/lib/weather/SoilData.js`](./src/lib/weather/SoilData.js) считает высоту и уклон `slope %` через `api.open-meteo.com/v1/elevation` и передает `ELEVATION`/`SLOPE` в модель).
-  - **Что осталось:** Показывать высоту над уровнем моря (м) и уклон поля (%) в профиле поля / телеметрии, а при уклоне >5–8% добавлять предупреждение о риске водной эрозии (SRTM Runoff Risk) и бонус культурам, укрепляющим почву.
-
-- [x] **Задача 2.3: Заменить синтетическую формулу почвы на реальные почвенные данные (USDA WSS / SSURGO / SoilGrids)**
-  - **Статус:** ✅ Выполнено. В [`src/utils/nasaApi.js`](./src/utils/nasaApi.js) добавлен `fetchSoilGrids()` (ISRIC SoilGrids v2.0 по слоям `0-5cm` и `5-15cm`: `phh2o`, `nitrogen`, `soc`, `sand`, `silt`, `clay`) с таймаутом 6.5 с и автоматическим fallback на `deriveSoilAndNutrients()` для городских/недоступных точек.
-
-- [x] **Задача 2.4: Спутниковые слои NASA GIBS (MODIS NDVI / SMAP / IMERG) на карте выбора поля**
-  - **Статус:** ✅ Выполнено. В [`src/components/GoogleMapModal.svelte`](./src/components/GoogleMapModal.svelte) добавлены переключаемые тайловые слои NASA GIBS (`MODIS_Terra_NDVI_8Day`, `SMAP_L4_Analyzed_Surface_Soil_Moisture`, `MODIS_Terra_L3_Land_Surface_Temp_8Day_Day`) с поддержкой overscaling при сильном приближении.
-
-- [ ] **Задача 2.5: Обоснование ценности для фермера и жюри на экране результатов и в PDF**
-  - В [`ResultsScreen.svelte`](./src/screens/ResultsScreen.svelte) и [`downloadPlan.js`](./src/utils/downloadPlan.js) добавить сводные индикаторы 3-летнего плана:
-    - **Water Use Efficiency (SMAP/OpenET):** сколько воды экономит предложенная ротация;
-    - **Soil Health & Nitrogen Balance (USDA/SSURGO):** влияние на плодородие и снижение риска болезней/эрозии;
-    - **Market Viability (USDA AMS/NASS):** востребованность культур.
-  - Добавить страницу/модалку **"Data Sources & NASA Missions"** со списком используемых миссий NASA (это напрямую оценивается жюри Space Apps!).
-
----
-
-## 🛰️ 3. Полный справочник официальных источников данных NASA Space Apps 2026
-
-Ниже собраны все официальные источники из вкладки **Resources** челленджа *Field Shift: Adapting Farms with NASA Data* с описанием и способом интеграции в проект.
-
-### А. Основные спутниковые миссии и данные NASA
-
-1. **[Soil Moisture Active Passive (SMAP)](https://www.earthdata.nasa.gov/data/platforms/space-based-platforms/smap)**
-   - **Что дает:** Глобальные измерения влажности поверхностного слоя почвы и состояния замерзания/оттаивания каждые 2–3 дня. Помогает выявить засушливый стресс, доступность воды и потенциал инфильтрации.
-   - **Как используем в проекте:** Параметры `GWETTOP` и `GWETROOT` через NASA POWER API + тайловый слой SMAP из NASA GIBS + скоринг засухоустойчивости в режиме *Water Conservation*.
-
-2. **[Global Precipitation Measurement (GPM) & IMERG](https://gpm.nasa.gov/data)**
-   - **Что дает:** Глобальные оценки интенсивности и накопления осадков, частоты экстремальных штормов, риска водной эрозии и поступления воды в почву.
-   - **Как используем в проекте:** Данные скорректированных осадков `PRECTOTCORR` (интегрируют спутниковые наблюдения GPM/IMERG), расчет 10-летней нормы и аномалий осадков в `Climate Risk Simulator`.
-
-3. **[Landsat](https://earthexplorer.usgs.gov/) и [MODIS](https://lpdaac.usgs.gov/products/) / [VIIRS](https://search.earthdata.nasa.gov/search?q=VIIRS)**
-   - **Что дает:** Отражательная способность, индекс вегетации **NDVI**, индикаторы стресса растений, периодов голой почвы и сезонных переходов (Landsat — 30 м, MODIS/VIIRS — 250–1000 м).
-   - **Как используем в проекте:** Визуальный оверлей слоя NDVI (MODIS/VIIRS через NASA GIBS) на карте поля в `GoogleMapModal.svelte`.
-
-4. **[NASA POWER (Prediction Of Worldwide Energy Resources)](https://power.larc.nasa.gov/)**
-   - **Что дает:** Агроклиматологические и метеорологические данные: солнечная радиация (`ALLSKY_SFC_SW_DWN`), температура (`T2M`, `T2M_MAX`, `T2M_MIN`), влажность (`RH2M`), ветер (`WS2M`), сумма активных температур (`GDD`).
-   - **Как используем в проекте:** **Ядро нашего климатического движка** в [`src/lib/weather/SoilData.js`](./src/lib/weather/SoilData.js). Питает ONNX-модель и экран телеметрии.
-
-5. **[Shuttle Radar Topography Mission (SRTM)](https://www.earthdata.nasa.gov/data/instruments/srtm)**
-   - **Что дает:** Глобальные цифровые модели рельефа и высот для анализа крутизны склонов (slope), поверхностного стока (runoff) и риска эрозии почвы.
-   - **Как используем в проекте:** Определение высоты и уклона поля по координатам для оценки риска эрозии и подбора почвозащитных культур на склонах.
-
-6. **[ECOSTRESS](https://ecostress.jpl.nasa.gov/data)**
-   - **Что дает:** Температура поверхности земли (LST) и эвапотранспирация (ET) с высоким пространственным разрешением. Выявляет очаги теплового стресса, уязвимость неглубокой корневой системы и потребность культур в воде.
-   - **Как используем в проекте:** Оценка дней теплового стресса (`Heat Stress Days > 32°C`), температуры поверхности земли (`TS`) и испарения влаги.
-
-7. **[NLDAS / GLDAS: Land Data Assimilation Systems](https://www.earthdata.nasa.gov/)**
-   - **Что дает:** Объединяет спутниковые и наземные наблюдения в непрерывные сеточные ряды температуры, осадков, влажности почвы и испарения для отслеживания начала засухи и дефицита влаги.
-   - **Как используем в проекте:** Временные ряды влажности почвы и водного баланса.
-
-8. **[Global Ecosystem Dynamics Investigation (GEDI)](https://gedi.umd.edu/data)**
-   - **Что дает:** Лидарные измерения структуры растительности, высоты полога, индекса листовой поверхности (LAI) и надземной биомассы (Level-4 biomass) вокруг сельхозугодий.
-   - **Как используем в проекте:** Контекст для многолетних и древесно-кустарниковых культур в модели (`apple`, `orange`, `mango`, `papaya`, `pomegranate`, `coconut`, `coffee`).
-
----
-
-### Б. Сельскохозяйственные, почвенные и гидрологические базы США и ФАО ООН
-
-9. **[USDA Ag Data Commons](https://www.nal.usda.gov/services/agdatacommons)**
-   - **Что дает:** Открытые агрономические датасеты Минсельхоза США (почвы, культуры, фенология, управление полями).
-   - **Как используем в проекте:** Калибровка агрономических правил и матрицы севооборота [`rotationData.js`](./src/lib/crop/rotationData.js).
-
-10. **[Web Soil Survey (WSS)](https://websoilsurvey.nrcs.usda.gov/app/) и [USDA NRCS SSURGO / STATSGO2](https://www.nrcs.usda.gov/resources/data-and-reports/soils)**
-    - **Что дает:** Официальные детальные данные о почвах США: текстура, органическое вещество, pH, класс дренажа, гидрологическая группа, водоудерживающая способность и факторы эрозии.
-    - **Как используем в проекте:** Автозаполнение параметров почвы поля по координатам и пресетам в США (Айова и др.).
-
-11. **[Cropland Data Layer (CDL): CropScape](https://nassgeodata.gmu.edu/CropScape/)**
-    - **Что дает:** Ежегодная спутниковая классификация выращиваемых в США культур с разрешением 30 м (кукуруза, соя, пшеница, хлопок, люцерна и др.).
-    - **Как используем в проекте:** Определение типичной предшествующей культуры региона (`Previous Season Crop`) и проверка существующих схем севооборота.
-
-12. **[PRISM Climate Data (Oregon State University)](https://prism.oregonstate.edu/)**
-    - **Что дает:** Высокоточные климатические данные и 30-летние нормы по США с учетом топографии (осадки, температура, точка росы, даты заморозков).
-    - **Как используем в проекте:** Валидация климатических норм и температурных окон вегетации (`Thermal Maturity Window / GDD`).
-
-13. **[National Agriculture Imagery Program (NAIP)](https://naip-usdaonline.hub.arcgis.com/)**
-    - **Что дает:** Аэрофотоснимки сельхозугодий США с разрешением 1 метр в течение вегетационного сезона.
-    - **Как используем в проекте:** Визуальный осмотр границ реального поля в режиме спутниковой карты высокого разрешения.
-
-14. **[USGS National Land Cover Database (NLCD)](https://www.usgs.gov/centers/eros/science/national-land-cover-database) и [USFS LANDFIRE](https://www.landfire.gov/)**
-    - **Что дает:** 30-метровая классификация земного покрова (пашни, пастбища, леса, водно-болотные угодья) и характеристик ландшафта, влияющих на микроклимат, сток воды и вредителей.
-
-15. **[FAO Global Agro-Ecological Zones (GAEZ)](https://gaez.fao.org/)**
-    - **Что дает:** Глобальные слои агроклиматической и почвенной пригодности для десятков культур, потенциал урожайности и водные ограничения по всему миру (не только в США).
-    - **Как используем в проекте:** Обоснование глобальной работы нашего инструмента в любых регионах мира (США, Украина, Европа, Азия и т.д.).
-
-16. **[OpenET](https://openetdata.org/)**
-    - **Что дает:** Полевые спутниковые оценки эвапотранспирации (ET) для управления поливом и оценки эффективности использования воды (Water-Use Efficiency).
-
-17. **[CoCoRaHS](https://www.cocorahs.org/Maps) и [USGS National Water Information Systems (NWIS)](https://waterdata.usgs.gov/nwis)**
-    - **Что дают:** CoCoRaHS — наземные наблюдения за осадками для валидации IMERG; USGS NWIS — уровни грунтовых вод и речного стока для оценки доступности воды для орошения.
-
-18. **[USDA AMS Market News](https://www.ams.usda.gov/market-news) и [USDA NASS QuickStats](https://quickstats.nass.usda.gov/)**
-    - **Что дают:** Рыночные цены на сельхозпродукцию, рентабельность, тренды спроса (AMS) и историческая статистика урожайности по округам/штатам (QuickStats).
-    - **Как используем в проекте:** Индикаторы коммерческой целесообразности в стратегии `Maximum Yield` и карточках культур.
-
----
-
-### В. Ресурсы партнеров космических агентств (ESA / Copernicus)
-
-19. **[Copernicus Sentinel-2 (ESA)](https://dataspace.copernicus.eu/)**
-    - **Что дает:** Бесплатные мультиспектральные снимки с разрешением 10–20 м и высокой частотой пролета (каналы Red-Edge, NIR, SWIR) для расчета NDVI/EVI и картирования голой почвы на уровне отдельного поля.
-
-20. **[ERA5: ECMWF Reanalysis](https://cds.climate.copernicus.eu/datasets/reanalysis-era5-single-levels?tab=overview)**
-    - **Что дает:** Глобальный почасовой климатический реанализ (температура воздуха и почвы, осадки, ветер, влажность, радиация) для построения непрерывных временных рядов и обучения ML-моделей.
-
+## 3. UI, Mobile, Agronomy & Model Engineering
+- [x] 21-class crop ONNX Random Forest (`ml/export_onnx.py` -> `public/models/crop_classifier.onnx`, `10.99 MB <= 15 MB`), Spatial `5°×5°` Block 5-Fold CV, perennial Year 2–3 fix (`alfalfa`, `apple`, `grapes`, `orange`), and 21 crop options synced in `src/data/options.js`.
+- [x] FAO-56 Penman-Monteith `ET0` + crop `Kc` + Saxton & Rawls SOC-adjusted `AWC` indicators (`Water Efficiency`, `Soil Health`, `Climate & Stress Resilience`) + Multi-Scenario Precipitation Stress Comparison (`Dry`, `Baseline`, `Wet`) wired in `ResultsScreen.svelte` & `downloadPlan.js`.
+- [x] Fixed `src/data/options.js` global loam label (`Loam / Silty Loam (Balanced Medium Texture)`).
+- [x] Merged duplicate debug calendar in `src/screens/TelemetryScreen.svelte` into a single `RiskCalendar.svelte` with MODIS NDVI row, `NDVI < 0.25` bare-soil row, Freeze–Thaw transition badge, and `terrainFallback` warning.
+- [x] Removed `.mobile-notice` desktop-only blocker in `src/App.svelte`; responsive mobile navigation & layouts enabled across all views (`<= 720px`).
+- [x] Portable Windows launcher `start.cmd` updated to `cd /d "%~dp0"`.

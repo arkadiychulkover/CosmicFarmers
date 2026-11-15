@@ -179,6 +179,12 @@
 
   @media (max-width: 860px) {
     .header {
+      padding: 28px 28px 0;
+    }
+  }
+
+  @media (max-width: 720px) {
+    .header {
       display: flex;
       justify-content: center;
       align-items: center;

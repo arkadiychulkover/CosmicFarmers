@@ -77,6 +77,48 @@ const FALLBACK_IMAGES = {
       `<ellipse cx="70" cy="78" rx="10" ry="5" transform="rotate(20 70 78)" fill="#62a85a"/>` +
     `</svg>`,
   ),
+  alfalfa: svgDataUrl(
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">` +
+      `<rect width="128" height="128" rx="20" fill="#1e2f23"/>` +
+      `<path d="M64 104 V42 M64 74 L44 62 M64 62 L84 52" stroke="#6fb862" stroke-width="4" stroke-linecap="round"/>` +
+      `<circle cx="42" cy="60" r="8" fill="#5da652"/><circle cx="86" cy="50" r="8" fill="#7ac46d"/>` +
+      `<circle cx="64" cy="34" r="8" fill="#9b6de6"/><circle cx="57" cy="42" r="6" fill="#b188f2"/><circle cx="71" cy="42" r="6" fill="#b188f2"/>` +
+    `</svg>`,
+  ),
+  sorghum: svgDataUrl(
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">` +
+      `<rect width="128" height="128" rx="20" fill="#2b271e"/>` +
+      `<path d="M64 108 V48 M64 82 Q44 74 34 84 M64 72 Q84 64 94 74" stroke="#85a858" stroke-width="4" fill="none" stroke-linecap="round"/>` +
+      `<ellipse cx="64" cy="36" rx="13" ry="20" fill="#b85b35"/>` +
+      `<circle cx="58" cy="30" r="4" fill="#d97b4c"/><circle cx="70" cy="34" r="4" fill="#d97b4c"/><circle cx="63" cy="44" r="4" fill="#cc6b3f"/>` +
+    `</svg>`,
+  ),
+  oats: svgDataUrl(
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">` +
+      `<rect width="128" height="128" rx="20" fill="#242c1e"/>` +
+      `<path d="M52 106 Q54 62 48 26 M76 106 Q74 62 80 26" stroke="#d1bd6c" stroke-width="3.5" fill="none" stroke-linecap="round"/>` +
+      `<ellipse cx="42" cy="42" rx="4" ry="9" transform="rotate(20 42 42)" fill="#e3d284"/>` +
+      `<ellipse cx="56" cy="34" rx="4" ry="9" transform="rotate(-15 56 34)" fill="#e3d284"/>` +
+      `<ellipse cx="72" cy="36" rx="4" ry="9" transform="rotate(15 72 36)" fill="#e3d284"/>` +
+      `<ellipse cx="86" cy="44" rx="4" ry="9" transform="rotate(-20 86 44)" fill="#e3d284"/>` +
+    `</svg>`,
+  ),
+  millet: svgDataUrl(
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">` +
+      `<rect width="128" height="128" rx="20" fill="#282b1d"/>` +
+      `<path d="M46 106 V48 M82 106 V48" stroke="#7aa353" stroke-width="4" stroke-linecap="round"/>` +
+      `<rect x="40" y="22" width="12" height="34" rx="6" fill="#d6b45a"/>` +
+      `<rect x="76" y="26" width="12" height="32" rx="6" fill="#c7a248"/>` +
+    `</svg>`,
+  ),
+  peanut: svgDataUrl(
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">` +
+      `<rect width="128" height="128" rx="20" fill="#2c251d"/>` +
+      `<ellipse cx="48" cy="74" rx="20" ry="13" transform="rotate(-22 48 74)" fill="#d6ae72"/>` +
+      `<ellipse cx="78" cy="60" rx="20" ry="13" transform="rotate(-22 78 60)" fill="#c99c5e"/>` +
+      `<path d="M36 78 C52 68 74 64 92 54" stroke="#9e743c" stroke-width="2" fill="none" stroke-dasharray="3 4"/>` +
+    `</svg>`,
+  ),
 };
 
 const GENERIC_CROP_SVG = svgDataUrl(
