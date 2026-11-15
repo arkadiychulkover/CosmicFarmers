@@ -30,6 +30,8 @@
     loadSoilTexture,
     loadSoilSoc,
     loadSoilSource,
+    loadNdvi,
+    loadLandCover,
   } from '../lib/weather/telemetryRequests.js';
 
   const loaders = {
@@ -45,6 +47,8 @@
     texture: loadSoilTexture,
     soc: loadSoilSoc,
     source: loadSoilSource,
+    ndvi: loadNdvi,
+    landCover: loadLandCover,
   };
 
   let cards = $state({
@@ -60,6 +64,8 @@
     texture: { status: 'loading' },
     soc: { status: 'loading' },
     source: { status: 'loading' },
+    ndvi: { status: 'loading' },
+    landCover: { status: 'loading' },
   });
 
   $effect(() => {
@@ -179,39 +185,27 @@
     };
   }
 
-  const calendarMonths = $derived.by(() => {
-    const p = cards.precip.data;
-    const t = cards.temp.data;
-    const tr = cards.tempRange.data;
-    const m = cards.moisture.data;
-    if (!p?.months12?.length || !t?.monthly12?.length) return [];
+  const MONTHS_12 = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
-    const months = p.months12;
-    const temps = t.monthly12;
-    const mins = tr?.monthlyMin12?.length === 12 ? tr.monthlyMin12 : temps;
-    const wb = p.monthlyWaterBalance12?.length === 12 ? p.monthlyWaterBalance12 : [];
-    const moist = m?.monthlyMoisture12?.length === 12 ? m.monthlyMoisture12 : [];
-    const isSouth = Boolean(t.isSouthernHemisphere);
-    const activeSet = new Set(isSouth ? [8, 9, 10, 11, 0, 1, 2, 3] : [2, 3, 4, 5, 6, 7, 8, 9]);
+  const landCoverData = $derived(cards.landCover.data || $session.nasaData?.landCover || null);
+  const currentCoordKey = $derived(`${Number($session.form.lat).toFixed(4)},${Number($session.form.lon).toFixed(4)}`);
+  const isNonArableAcked = $derived($session.nonArableAckCoord === currentCoordKey);
 
-    return months.map((label, i) => {
-      const tMean = Number(temps[i] ?? 0);
-      const tMin = Number(mins[i] ?? tMean);
-      const net = Number(wb[i] ?? 0);
-      const wet = Number(moist[i] ?? 0.5);
+  const ndviMonths = $derived(
+    cards.ndvi.data?.monthlyNdvi12 ||
+    $session.nasaData?.monthlyNdvi12 ||
+    []
+  );
+  const ndviBareLabels = $derived(
+    cards.ndvi.data?.bareSoilMonths?.length
+      ? cards.ndvi.data.bareSoilMonths.join(', ')
+      : ($session.nasaData?.bareSoilMonths?.length ? $session.nasaData.bareSoilMonths.join(', ') : 'None (< 0.25)')
+  );
 
-      if (tMin <= 0 || tMean < 3) {
-        return { label, code: 'frost', tag: 'Frost', title: `${label}: Frost / Freeze risk (${tMin.toFixed(1)}°C min)` };
-      }
-      if (net < -25 && wet < 0.36 && $session.form.irrigation !== 'irrigated') {
-        return { label, code: 'drought', tag: 'Drought', title: `${label}: Moisture deficit (P−ET ${Math.round(net)} mm)` };
-      }
-      if (!activeSet.has(i) || (tMean >= 4 && tMean <= 14 && (i <= 3 || i >= 8))) {
-        return { label, code: 'cover', tag: 'Cover', title: `${label}: Off-season / Cover-crop window (${tMean.toFixed(1)}°C)` };
-      }
-      return { label, code: 'grow', tag: 'Grow', title: `${label}: Active growing window (${tMean.toFixed(1)}°C)` };
-    });
-  });
+  function precipPercentilesLabel(p) {
+    if (!p || !Number.isFinite(Number(p.p25))) return null;
+    return `Dry p25 ${Math.round(p.p25)} mm · Med ${Math.round(p.median ?? p.p50)} mm · Wet p75 ${Math.round(p.p75)} mm (${p.yearsCount || 10}-yr)`;
+  }
 
   const telemetryAlert = $derived.by(() => {
     const failed = Object.entries(cards)
@@ -279,12 +273,16 @@
 
   const goalTitle = $derived(goalOptions.find((goal) => goal.value === $session.form.goal)?.title || 'Water Conservation');
 
+  const isNonArableBlocked = $derived(
+    Boolean(landCoverData && landCoverData.isArableSuitable === false && !isNonArableAcked)
+  );
+
   const isTelemetryLoading = $derived(
     $session.nasaLoading || Object.values(cards).some((card) => card.status === 'loading')
   );
 
   function calculate() {
-    if (isTelemetryLoading) return;
+    if (isTelemetryLoading || isNonArableBlocked) return;
     $session.result = null;
     $session.collapsed = false;
     goto('/calculating');
@@ -303,6 +301,43 @@
     </button>
   </div>
 
+  {#if landCoverData}
+    {#if !landCoverData.isArableSuitable}
+      <div class="landcover-alert-box">
+        <StatusBanner
+          tone="error"
+          title="Land Cover Mask: {landCoverData.label} ({landCoverData.category})"
+          message="{landCoverData.warning} Source: {landCoverData.source} ({landCoverData.resolution})."
+          items={[
+            isNonArableAcked
+              ? 'Warning acknowledged by operator — strategy calculation unlocked.'
+              : 'Simulation locked until non-arable land-cover warning is acknowledged below.',
+          ]}
+        />
+        <label class="override-check">
+          <input
+            type="checkbox"
+            checked={isNonArableAcked}
+            onchange={(e) => {
+              $session.nonArableAckCoord = e.currentTarget.checked ? currentCoordKey : null;
+            }}
+          />
+          <span>Acknowledge non-arable land-cover warning and proceed anyway</span>
+        </label>
+      </div>
+    {:else}
+      <div class="landcover-pill" class:warn={Boolean(landCoverData.warning)}>
+        <span class="lc-badge">{landCoverData.category}</span>
+        <span class="lc-text">
+          <strong>{landCoverData.label}</strong> · {landCoverData.source} ({landCoverData.resolution})
+          {#if landCoverData.usCdlCrop?.rawLabel}
+            · USDA CDL ({landCoverData.usCdlCrop.year}): <em>{landCoverData.usCdlCrop.rawLabel}</em>
+          {/if}
+        </span>
+      </div>
+    {/if}
+  {/if}
+
   {#if telemetryAlert}
     <StatusBanner
       tone={telemetryAlert.tone}
@@ -318,9 +353,15 @@
       resolution="~50 km grid"
       state={cards.precip.status}
       error={cards.precip.error}
-      title="12-Month Precipitation & P−ET"
+      title="12-Month & 8-Month Precipitation"
       value={cards.precip.data ? cards.precip.data.total12 : ''}
-      unit="mm"
+      unit="mm/yr"
+      rows={cards.precip.data ? [
+        { label: '8-Mo Growing Season Total', value: `${Math.round(cards.precip.data.total)} mm (${Math.round(cards.precip.data.prectotcorr)} mm/mo mean)` },
+        ...(precipPercentilesLabel(cards.precip.data.percentiles12)
+          ? [{ label: '10-Yr Annual Range', value: precipPercentilesLabel(cards.precip.data.percentiles12) }]
+          : []),
+      ] : []}
       note={cards.precip.data ? precipitationNote(cards.precip.data.anomalyPct12, cards.precip.data.waterBalanceTotal12, cards.precip.data.stormDays) : ''}
     >
       {#if cards.precip.data}
@@ -344,6 +385,7 @@
       rows={cards.temp.data ? [
         { label: '12-Mo / Season Mean', value: `${cards.temp.data.mean12} °C (${cards.temp.data.mean} °C)` },
         { label: 'Heat (>32°C) / Frost (≤0°C)', value: `${cards.temp.data.heatDays}d heat · ${cards.temp.data.frostDays}d frost` },
+        { label: 'Freeze–Thaw Transitions (0°C)', value: `${cards.temp.data.freezeThawDays ?? 0} days` },
         { label: 'Frost-Free Window', value: `${cards.temp.data.frostFreeDays} days` },
         { label: 'Last Spring / First Autumn', value: `${formatFrostDate(cards.temp.data.lastSpringFrost)} / ${formatFrostDate(cards.temp.data.firstAutumnFrost)}` },
       ] : []}
@@ -469,6 +511,12 @@
             <p>{risk.text}</p>
             <p class="fine">Slope &gt;5%: warning · &gt;8%: high risk</p>
           </div>
+          {#if cards.terrain.data.terrainFallback}
+            <div class="terrain-fallback-badge" role="status">
+              <strong>Terrain Fallback Active:</strong>
+              <span>{cards.terrain.data.terrainWarning || 'Elevation API unavailable; using default 180m / 1.5° terrain baseline.'}</span>
+            </div>
+          {/if}
         </div>
       {/if}
     </TelemetryCard>
@@ -577,34 +625,55 @@
       {/if}
     </TelemetryCard>
 
-    {#if calendarMonths.length === 12}
+    <TelemetryCard
+      wide
+      source={cards.ndvi.data?.ndviFallback ? 'NASA POWER Temp/Snow Fallback' : 'NASA GIBS · MODIS Terra NDVI'}
+      resolution={cards.ndvi.data?.resolution || (cards.ndvi.data?.ndviFallback ? 'Fallback Estimate' : '250 m – 1 km WMTS')}
+      state={cards.ndvi.status}
+      error={cards.ndvi.error}
+      title="Satellite NDVI & Bare-Soil Telemetry"
+      value={cards.ndvi.data?.meanNdvi !== null && cards.ndvi.data?.meanNdvi !== undefined ? cards.ndvi.data.meanNdvi.toFixed(2) : ''}
+      unit="NDVI"
+      rows={cards.ndvi.data ? [
+        { label: 'Bare-Soil Months (NDVI < 0.25)', value: ndviBareLabels },
+        { label: 'Telemetry Source', value: cards.ndvi.data.bareSoilSource || 'MODIS Terra NDVI' },
+      ] : []}
+      note={cards.ndvi.data?.ndviFallback ? 'Satellite NDVI tiles unavailable; fell back to POWER thermal/snow bare-soil proxy.' : 'Used directly in cover-crop scheduling to flag bare off-season soil (NDVI < 0.25).'}
+    >
+      {#if ndviMonths.length === 12}
+        <div class="ndvi-bars" aria-label="12-month MODIS NDVI profile">
+          {#each ndviMonths as v, idx (idx)}
+            {@const num = v !== null && v !== undefined && Number.isFinite(Number(v)) ? Number(v) : null}
+            {@const pct = num !== null ? Math.max(8, Math.min(100, Math.round(Math.max(0, num) * 100))) : 0}
+            <div class="ndvi-col" title="{MONTHS_12[idx]}: NDVI {num !== null ? num.toFixed(2) : 'N/A'}">
+              <div class="ndvi-track">
+                <span class="ndvi-fill" class:bare={num !== null && num < 0.25} style:height="{pct}%"></span>
+              </div>
+              <span class="ndvi-mon">{MONTHS_12[idx]}</span>
+            </div>
+          {/each}
+        </div>
+      {/if}
+    </TelemetryCard>
+
+    {#if riskMonths.length === 12}
       <TelemetryCard
         wide
-        source="NASA POWER · 12-month stress & cover-crop calendar"
-        resolution="~50 km grid"
+        source="NASA POWER + MODIS Terra NDVI · 12-month stress & bare-soil matrix"
+        resolution={cards.ndvi.data?.ndviFallback ? '~50 km grid (NDVI fallback)' : '~50 km meteo · 250 m NDVI'}
         state="ready"
-        title="Annual Stress & Bare-Soil Cover Calendar (Jan–Dec)"
+        title="Annual Stress, MODIS NDVI & Bare-Soil Calendar"
         note={cards.temp.data && cards.precip.data
-          ? `Frost-free: ${cards.temp.data.frostFreeDays}d (${formatFrostDate(cards.temp.data.lastSpringFrost)} – ${formatFrostDate(cards.temp.data.firstAutumnFrost)}) · Extreme storms: ${cards.precip.data.stormDays}d · Comparing simplified strip vs detailed RiskCalendar matrix below`
+          ? `Frost-free: ${cards.temp.data.frostFreeDays}d (${formatFrostDate(cards.temp.data.lastSpringFrost)} – ${formatFrostDate(cards.temp.data.firstAutumnFrost)}) · Freeze-thaw: ${cards.temp.data.freezeThawDays ?? 0}d · Extreme storms: ${cards.precip.data.stormDays}d`
           : ''}
       >
-        <div class="cal-comparison">
-          <div class="cal-strip" role="list" aria-label="12-month stress and cover-crop calendar">
-            {#each calendarMonths as m (m.label)}
-              <div class="cal-cell {m.code}" role="listitem" title={m.title}>
-                <span class="cal-mon">{m.label}</span>
-                <span class="cal-tag">{m.tag}</span>
-              </div>
-            {/each}
-          </div>
-
-          {#if riskMonths.length === 12}
-            <div class="risk-cal-wrap">
-              <p class="risk-cal-label">Detailed Monthly Stress Matrix (RiskCalendar)</p>
-              <RiskCalendar months={riskMonths} year={riskYear} />
-            </div>
-          {/if}
-        </div>
+        <RiskCalendar
+          months={riskMonths}
+          year={riskYear}
+          freezeThawDays={cards.temp.data?.freezeThawDays ?? null}
+          ndviSource={cards.ndvi.data?.bareSoilSource ?? $session.nasaData?.bareSoilSource ?? null}
+          ndviFallback={Boolean(cards.ndvi.data?.ndviFallback ?? $session.nasaData?.ndviProfile?.ndviFallback)}
+        />
       </TelemetryCard>
     {/if}
 
@@ -642,10 +711,10 @@
   <div class="actions">
     <ActionButton
       loading={isTelemetryLoading}
-      disabled={isTelemetryLoading}
+      disabled={isTelemetryLoading || isNonArableBlocked}
       onclick={calculate}
     >
-      {isTelemetryLoading ? 'Loading Telemetry...' : 'Calculate the Strategy →'}
+      {isTelemetryLoading ? 'Loading Telemetry...' : isNonArableBlocked ? 'Acknowledge Land Cover Warning Above' : 'Calculate the Strategy →'}
     </ActionButton>
     <ActionButton variant="outline" onclick={() => goto('/')}>
       ← Change the farm info
@@ -697,75 +766,108 @@
     gap: 12px;
   }
 
-  .cal-comparison {
-    display: grid;
-    gap: 12px;
-  }
-
-  .risk-cal-wrap {
-    display: grid;
-    gap: 6px;
-    padding-top: 8px;
-    border-top: 1px solid color-mix(in srgb, var(--color-card-dim) 35%, transparent);
-  }
-
-  .risk-cal-label {
-    margin: 0;
-    font-size: 10px;
-    font-weight: 700;
-    letter-spacing: 0.03em;
-    text-transform: uppercase;
-    color: var(--color-card-dim);
-  }
-
-  .cal-strip {
-    display: grid;
-    grid-template-columns: repeat(12, minmax(0, 1fr));
-    gap: 4px;
-  }
-
-  .cal-cell {
-    display: grid;
-    justify-items: center;
-    gap: 3px;
-    padding: 6px 2px;
-    border-radius: 5px;
-    border: 1px solid transparent;
-    background: var(--color-panel);
+  .landcover-pill {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    border-radius: 8px;
+    border: 1px solid var(--color-status-good-border);
+    background: var(--color-status-good-bg);
+    font-size: 11px;
+    line-height: 1.35;
     color: var(--color-text);
   }
 
-  .cal-cell.grow {
-    background: var(--color-status-good-bg);
-    border-color: var(--color-status-good-border);
-  }
-
-  .cal-cell.cover {
-    background: var(--color-status-info-bg);
-    border-color: var(--color-status-info-border);
-  }
-
-  .cal-cell.drought {
-    background: var(--color-status-warn-bg);
+  .landcover-pill.warn {
     border-color: var(--color-status-warn-border);
+    background: var(--color-status-warn-bg);
   }
 
-  .cal-cell.frost {
-    background: var(--color-status-error-bg);
-    border-color: var(--color-status-error-border);
-  }
-
-  .cal-mon {
-    font-size: 9px;
+  .lc-badge {
+    padding: 2px 7px;
+    border-radius: 999px;
+    background: var(--color-panel);
+    border: 1px solid var(--color-border-dim);
+    font-size: 9.5px;
     font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--color-accent);
   }
 
-  .cal-tag {
-    font-size: 7.5px;
+  .landcover-alert-box {
+    display: grid;
+    gap: 8px;
+  }
+
+  .override-check {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    border-radius: 8px;
+    border: 1px solid var(--color-status-warn-border);
+    background: var(--color-status-warn-bg);
+    font-size: 11px;
     font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.02em;
-    color: var(--color-text-dim);
+    cursor: pointer;
+    color: var(--color-text);
+  }
+
+  .terrain-fallback-badge {
+    display: grid;
+    gap: 3px;
+    padding: 8px 10px;
+    border-radius: 6px;
+    border: 1px solid var(--color-status-warn-border);
+    background: var(--color-status-warn-bg);
+    color: var(--color-text);
+    font-size: 10.5px;
+    line-height: 1.35;
+  }
+
+  .ndvi-bars {
+    display: grid;
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+    gap: 4px;
+    align-items: end;
+    height: 76px;
+    padding-top: 6px;
+  }
+
+  .ndvi-col {
+    display: grid;
+    gap: 4px;
+    justify-items: center;
+    height: 100%;
+    grid-template-rows: 1fr auto;
+  }
+
+  .ndvi-track {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: flex-end;
+    border-radius: 3px;
+    background: var(--color-panel);
+    overflow: hidden;
+  }
+
+  .ndvi-fill {
+    width: 100%;
+    background: var(--color-accent);
+    border-radius: 3px 3px 0 0;
+  }
+
+  .ndvi-fill.bare {
+    background: var(--color-heat);
+  }
+
+  .ndvi-mon {
+    font-size: 8px;
+    color: var(--color-card-dim);
   }
 
   .metric {
@@ -864,8 +966,12 @@
   }
 
   @media (max-width: 640px) {
-    .cal-strip {
-      grid-template-columns: repeat(6, minmax(0, 1fr));
+    .grid {
+      grid-template-columns: 1fr;
+    }
+
+    .actions {
+      width: 100%;
     }
   }
 </style>

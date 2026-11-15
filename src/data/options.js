@@ -15,11 +15,16 @@ export const cropOptions = [
   { value: 'apple', label: 'Apple (Malus domestica)' },
   { value: 'grapes', label: 'Grapes (Vitis vinifera)' },
   { value: 'orange', label: 'Orange (Citrus sinensis)' },
+  { value: 'alfalfa', label: 'Alfalfa / Lucerne (Medicago sativa, Perennial)' },
+  { value: 'sorghum', label: 'Sorghum (Sorghum bicolor)' },
+  { value: 'oats', label: 'Oats (Avena sativa)' },
+  { value: 'millet', label: 'Millet (Panicum / Pennisetum spp.)' },
+  { value: 'peanut', label: 'Peanut / Groundnut (Arachis hypogaea)' },
   { value: 'fallow', label: 'Fallow / Cover Crop (Rested Field)' },
 ];
 
 export const soilOptions = [
-  { value: 'loam', label: 'Loam/Silty Loam (Clarion-Nicollet-Webster Glacial Loam)' },
+  { value: 'loam', label: 'Loam / Silty Loam (Balanced Medium Texture)' },
   { value: 'chernozem', label: 'Chernozem (Black Earth)' },
   { value: 'sandy', label: 'Sandy/Sandy Loam' },
   { value: 'custom', label: 'Custom' },
@@ -57,6 +62,10 @@ export const goalOptions = [
   {
     value: 'yield',
     title: 'Maximum Yield',
-    description: 'Pure agro-climatic optimum for peak biomass and commercial output.',
+    description: 'Pure agro-climatic optimum for peak agronomic biomass and harvest yield.',
   },
 ];
+
+export const NASA_NON_ENDORSEMENT_DISCLAIMER =
+  'NASA does not endorse any non-U.S. Government entity and is not responsible for information contained on non-U.S. Government websites. For non-U.S. Government websites, participants must comply with any data use parameters of that specific website.';
+

@@ -8,6 +8,7 @@ const CROP_PHENOLOGY = {
   wheat: { cycleType: 'winter-capable', minSowTemp: 6, overwinterMinTemp: -10, springCycleMonths: 4, winterHarvestOffset: 9, frostSensitive: false },
   rapeseed: { cycleType: 'winter-capable', minSowTemp: 7, overwinterMinTemp: -6, springCycleMonths: 4, winterHarvestOffset: 9, frostSensitive: false },
   barley: { cycleType: 'spring-annual', minSowTemp: 5, overwinterMinTemp: -7, springCycleMonths: 3.5, frostSensitive: false },
+  oats: { cycleType: 'spring-annual', minSowTemp: 5, springCycleMonths: 3.5, frostSensitive: false },
   lentil: { cycleType: 'spring-annual', minSowTemp: 6, springCycleMonths: 3.5, frostSensitive: false },
   chickpea: { cycleType: 'spring-annual', minSowTemp: 8, springCycleMonths: 4, frostSensitive: false },
   potato: { cycleType: 'spring-annual', minSowTemp: 8, springCycleMonths: 4, frostSensitive: true },
@@ -15,13 +16,132 @@ const CROP_PHENOLOGY = {
   kidneybeans: { cycleType: 'spring-annual', minSowTemp: 13, springCycleMonths: 3.5, frostSensitive: true },
   sunflower: { cycleType: 'spring-annual', minSowTemp: 10, springCycleMonths: 4.5, frostSensitive: true },
   maize: { cycleType: 'spring-annual', minSowTemp: 11, springCycleMonths: 5, frostSensitive: true },
+  sorghum: { cycleType: 'warm-annual', minSowTemp: 15, springCycleMonths: 4.5, frostSensitive: true },
+  millet: { cycleType: 'warm-annual', minSowTemp: 16, springCycleMonths: 3.5, frostSensitive: true },
+  peanut: { cycleType: 'warm-annual', minSowTemp: 17, springCycleMonths: 4.5, frostSensitive: true },
   cotton: { cycleType: 'warm-annual', minSowTemp: 16, springCycleMonths: 5.5, frostSensitive: true },
   rice: { cycleType: 'warm-annual', minSowTemp: 18, springCycleMonths: 4.5, frostSensitive: true },
   watermelon: { cycleType: 'warm-annual', minSowTemp: 17, springCycleMonths: 3.5, frostSensitive: true },
+  alfalfa: { cycleType: 'perennial', minSowTemp: 5, springCycleMonths: 5, frostSensitive: false, isForagePerennial: true },
   apple: { cycleType: 'perennial', minSowTemp: 7, springCycleMonths: 5, frostSensitive: false },
   grapes: { cycleType: 'perennial', minSowTemp: 10, springCycleMonths: 5, frostSensitive: false },
   orange: { cycleType: 'perennial', minSowTemp: 13, springCycleMonths: 6, frostSensitive: true },
 };
+
+function parseMonthToken(raw) {
+  if (typeof raw === 'number' && Number.isInteger(raw) && raw >= 0 && raw < 12) return raw;
+  if (typeof raw === 'string') {
+    const t = raw.trim();
+    if (/^\d+$/.test(t)) {
+      const n = Number(t);
+      if (n >= 0 && n < 12) return n;
+    }
+    const idx = MONTHS_12.findIndex((m) => m.toLowerCase() === t.slice(0, 3).toLowerCase());
+    if (idx >= 0) return idx;
+  }
+  if (raw && typeof raw === 'object' && Number.isInteger(raw.monthIndex) && raw.monthIndex >= 0 && raw.monthIndex < 12) {
+    return raw.monthIndex;
+  }
+  return null;
+}
+
+/**
+ * Extract normalized 12-month satellite NDVI and bare-soil telemetry (`NDVI < 0.25`)
+ * from `coverContext` or nested `weather` / `ndviProfile` objects when available.
+ */
+function extractSatelliteNdvi(context = {}) {
+  const weather = context.weather || {};
+  const ndviObj =
+    (context.ndviProfile && !Array.isArray(context.ndviProfile) && typeof context.ndviProfile === 'object'
+      ? context.ndviProfile
+      : null) ||
+    (context.ndvi && typeof context.ndvi === 'object' ? context.ndvi : null) ||
+    (weather.ndviProfile && !Array.isArray(weather.ndviProfile) && typeof weather.ndviProfile === 'object'
+      ? weather.ndviProfile
+      : null) ||
+    (weather.ndvi && typeof weather.ndvi === 'object' ? weather.ndvi : null);
+
+  const rawArray = [
+    Array.isArray(context.monthlyNdvi12) ? context.monthlyNdvi12 : null,
+    Array.isArray(context.ndviProfile) ? context.ndviProfile : null,
+    ndviObj && Array.isArray(ndviObj.monthlyNdvi12) ? ndviObj.monthlyNdvi12 : null,
+    Array.isArray(weather.monthlyNdvi12) ? weather.monthlyNdvi12 : null,
+    Array.isArray(weather.ndviProfile) ? weather.ndviProfile : null,
+  ].find((arr) => arr && arr.length === 12) || null;
+
+  const monthlyNdvi12 = rawArray
+    ? rawArray.map((v) => {
+        const n = Number(v);
+        return v !== null && v !== undefined && Number.isFinite(n) ? Number(n.toFixed(3)) : null;
+      })
+    : null;
+
+  const bareMonthSet = new Set();
+  if (monthlyNdvi12) {
+    for (let m = 0; m < 12; m++) {
+      if (monthlyNdvi12[m] !== null && monthlyNdvi12[m] < 0.25) {
+        bareMonthSet.add(m);
+      }
+    }
+  }
+
+  const rawBare = [
+    context.bareSoilMonths,
+    context.bareSoilMonthIndices,
+    context.bareSoilMask12,
+    ndviObj?.bareSoilMonths,
+    ndviObj?.bareSoilMonthIndices,
+    ndviObj?.bareSoilMask12,
+    weather.bareSoilMonths,
+    weather.bareSoilMonthIndices,
+    weather.bareSoilMask12,
+  ].find((v) => Array.isArray(v));
+
+  if (Array.isArray(rawBare)) {
+    if (rawBare.length === 12 && rawBare.every((v) => typeof v === 'boolean')) {
+      for (let m = 0; m < 12; m++) {
+        if (rawBare[m]) bareMonthSet.add(m);
+      }
+    } else {
+      for (const item of rawBare) {
+        const idx = parseMonthToken(item);
+        if (idx !== null) bareMonthSet.add(idx);
+      }
+    }
+  }
+
+  const validVals = monthlyNdvi12 ? monthlyNdvi12.filter((v) => v !== null) : [];
+  const rawMean = context.meanNdvi ?? ndviObj?.meanNdvi ?? weather.meanNdvi;
+  const meanNdvi = Number.isFinite(Number(rawMean))
+    ? Number(Number(rawMean).toFixed(3))
+    : validVals.length
+      ? Number((validVals.reduce((s, v) => s + v, 0) / validVals.length).toFixed(3))
+      : null;
+
+  const bareSoilSource =
+    context.bareSoilSource ??
+    ndviObj?.bareSoilSource ??
+    ndviObj?.source ??
+    weather.bareSoilSource ??
+    (validVals.length || Array.isArray(rawBare) ? 'satellite-ndvi' : null);
+
+  const ndviFallback = Boolean(
+    context.ndviFallback ??
+      ndviObj?.ndviFallback ??
+      weather.ndviFallback ??
+      String(bareSoilSource || '').toLowerCase().includes('fallback'),
+  );
+  const hasSatelliteNdvi = Boolean(validVals.length > 0 || Array.isArray(rawBare));
+
+  return {
+    monthlyNdvi12,
+    bareMonthSet,
+    meanNdvi,
+    bareSoilSource,
+    ndviFallback,
+    hasSatelliteNdvi,
+  };
+}
 
 function mod12(m) {
   return ((m % 12) + 12) % 12;
@@ -298,7 +418,7 @@ function selectCoverCrop({
   irrigation,
 }) {
   const highClay = Number(clay) >= 30 || soil === 'chernozem';
-  const highDemandNext = ['maize', 'cotton', 'potato', 'wheat', 'rice'].includes(nextCrop);
+  const highDemandNext = ['maize', 'cotton', 'potato', 'wheat', 'rice', 'sorghum'].includes(nextCrop);
   const dryEstablish = irrigation === 'rainfed' && harvestPrecip < 25;
 
   if (warmMonths < 1.8 || minWinterTemp < -14) {
@@ -386,8 +506,32 @@ function computeGapCoverWindow({
   soil,
   clay,
   irrigation,
+  satelliteNdvi,
 }) {
   if (schedule.isPerennial || isPerennialCrop(cropId)) {
+    const isForage = cropId === 'alfalfa' || CROP_PHENOLOGY[cropId]?.isForagePerennial;
+    if (isForage) {
+      return {
+        hasBareWindow: false,
+        isAlleyCover: false,
+        isPerennialStand: true,
+        coverCropId: null,
+        coverCrop: null,
+        coverTag: 'Perennial Living Forage Stand',
+        soilBenefit: 'Dense perennial alfalfa canopy and deep taproot keep living roots in the soil year-round, protecting against erosion while fixing nitrogen.',
+        reason: 'Perennial forage stand: continuous vegetative cover protects soil year-round without separate alley cover seeding.',
+        bareMonths: 0,
+        satelliteBareMonths: 0,
+        warmCoverMonths: 0,
+        warmCoverDays: 0,
+        sowWindow: null,
+        terminateWindow: null,
+        windowMonths: [],
+        satelliteGrounded: Boolean(satelliteNdvi?.hasSatelliteNdvi),
+        bareSoilSource: satelliteNdvi?.bareSoilSource ?? null,
+      };
+    }
+
     return {
       hasBareWindow: false,
       isAlleyCover: true,
@@ -397,6 +541,7 @@ function computeGapCoverWindow({
       soilBenefit: 'Living inter-row clover prevents orchard erosion, boosts infiltration, and attracts pollinators.',
       reason: 'Perennial orchard/vineyard: maintain living inter-row alley cover to prevent erosion and build organic matter.',
       bareMonths: 0,
+      satelliteBareMonths: 0,
       warmCoverMonths: 0,
       warmCoverDays: 0,
       sowWindow: {
@@ -411,6 +556,8 @@ function computeGapCoverWindow({
         winterKills: false,
       },
       windowMonths: [],
+      satelliteGrounded: Boolean(satelliteNdvi?.hasSatelliteNdvi),
+      bareSoilSource: satelliteNdvi?.bareSoilSource ?? null,
     };
   }
 
@@ -425,18 +572,36 @@ function computeGapCoverWindow({
     bareMonths = 0;
   }
 
+  // Ground transition bare-ground risk with satellite NDVI (< 0.25) when available:
+  // If phenology predicts a marginal 1-month gap for non-winter succession while remote sensing
+  // observes >= 2 consecutive bare-soil months starting at gapStart, expand to capture cover risk.
+  const isDirectWinterSuccession = !schedule.isWinterCrop && nextSchedule.isWinterCrop;
+  if (bareMonths === 1 && !isDirectWinterSuccession && satelliteNdvi?.hasSatelliteNdvi) {
+    const m0 = gapStart;
+    const m1 = mod12(gapStart + 1);
+    if (satelliteNdvi.bareMonthSet.has(m0) && satelliteNdvi.bareMonthSet.has(m1)) {
+      bareMonths = 2;
+    }
+  }
+
   if (bareMonths < 2) {
+    const satObs = satelliteNdvi?.hasSatelliteNdvi
+      ? [...satelliteNdvi.bareMonthSet].length
+      : 0;
     return {
       hasBareWindow: false,
       isAlleyCover: false,
       coverCrop: null,
       reason: 'Tight crop transition (<2 months gap); direct succession leaves minimal bare-soil exposure.',
       bareMonths,
+      satelliteBareMonths: satObs,
       warmCoverMonths: 0,
       warmCoverDays: 0,
       sowWindow: null,
       terminateWindow: null,
       windowMonths: [],
+      satelliteGrounded: Boolean(satelliteNdvi?.hasSatelliteNdvi),
+      bareSoilSource: satelliteNdvi?.bareSoilSource ?? null,
     };
   }
 
@@ -444,6 +609,16 @@ function computeGapCoverWindow({
   for (let k = 0; k < bareMonths; k++) {
     gapMonthIndices.push(mod12(gapStart + k));
   }
+
+  const gapSatelliteBareIndices = satelliteNdvi?.hasSatelliteNdvi
+    ? gapMonthIndices.filter((m) => satelliteNdvi.bareMonthSet.has(m))
+    : [];
+  const gapNdviVals = satelliteNdvi?.monthlyNdvi12
+    ? gapMonthIndices.map((m) => satelliteNdvi.monthlyNdvi12[m]).filter((v) => v !== null)
+    : [];
+  const meanGapNdvi = gapNdviVals.length
+    ? Number((gapNdviVals.reduce((s, v) => s + v, 0) / gapNdviVals.length).toFixed(3))
+    : null;
 
   // Count warm/mild frost-free months between harvest and first winter freeze
   let warmCoverMonths = 0;
@@ -482,6 +657,19 @@ function computeGapCoverWindow({
     ? `Winter-kills at hard freeze (${MONTHS_12[gapMonthIndices.find((m) => freezeMonths.has(m)) ?? prePlantTermStart]})`
     : `Terminate ${formatMonthSpan(prePlantTermStart, prePlantTermEnd, 15, 5)} (2–3 wks pre-sow)`;
 
+  let reason = picked.reason;
+  const isRealSatellite = Boolean(satelliteNdvi?.hasSatelliteNdvi && !satelliteNdvi?.ndviFallback);
+  if (satelliteNdvi?.hasSatelliteNdvi) {
+    const src = satelliteNdvi.bareSoilSource ? ` (${satelliteNdvi.bareSoilSource})` : '';
+    const prefix = isRealSatellite ? 'Satellite NDVI' : 'Off-season climate estimate';
+    if (gapSatelliteBareIndices.length > 0) {
+      const ndviStr = meanGapNdvi !== null ? `, mean gap NDVI ${meanGapNdvi.toFixed(2)}` : '';
+      reason = `${picked.reason} ${prefix} indicates ${gapSatelliteBareIndices.length}/${gapMonthIndices.length} bare-soil mo (<0.25${ndviStr})${src}.`;
+    } else if (meanGapNdvi !== null) {
+      reason = `${picked.reason} ${isRealSatellite ? 'Historical off-season NDVI' : 'Estimated off-season NDVI'} averages ${meanGapNdvi.toFixed(2)}${src}.`;
+    }
+  }
+
   return {
     hasBareWindow: true,
     isAlleyCover: false,
@@ -489,8 +677,13 @@ function computeGapCoverWindow({
     coverCrop: picked.coverCrop,
     coverTag: picked.coverTag,
     soilBenefit: picked.soilBenefit,
-    reason: picked.reason,
+    reason,
     bareMonths,
+    satelliteBareMonths: gapSatelliteBareIndices.length,
+    satelliteBareMonthIndices: gapSatelliteBareIndices,
+    meanGapNdvi,
+    satelliteGrounded: isRealSatellite,
+    bareSoilSource: satelliteNdvi?.bareSoilSource ?? null,
     warmCoverMonths,
     warmCoverDays,
     sowWindow: {
@@ -508,7 +701,7 @@ function computeGapCoverWindow({
   };
 }
 
-function buildCalendar12(year1Schedule, year1Cover, profile, freezeMonths) {
+function buildCalendar12(year1Schedule, year1Cover, profile, freezeMonths, satelliteNdvi) {
   const activeMonths = new Set();
   const sowMonths = new Set([year1Schedule.sowWindow.startMonthIndex]);
   const harvestMonths = new Set([year1Schedule.harvestWindow.startMonthIndex, year1Schedule.harvestWindow.endMonthIndex]);
@@ -527,6 +720,10 @@ function buildCalendar12(year1Schedule, year1Cover, profile, freezeMonths) {
     const waterBalance = Math.round(profile.waterBalance[m]);
     const frostRisk = freezeMonths.has(m) || minTemp <= 0;
     const droughtRisk = waterBalance < -35 && temp >= 12;
+    const ndviVal = satelliteNdvi?.monthlyNdvi12 ? satelliteNdvi.monthlyNdvi12[m] : null;
+    const satBare = satelliteNdvi?.hasSatelliteNdvi
+      ? Boolean(satelliteNdvi.bareMonthSet.has(m) || (ndviVal !== null && ndviVal < 0.25))
+      : null;
 
     let status = 'bare';
     let label = 'Bare off-season window';
@@ -545,8 +742,14 @@ function buildCalendar12(year1Schedule, year1Cover, profile, freezeMonths) {
       label = `Cover crop (${year1Cover.coverCrop})`;
     } else if (frostRisk) {
       status = 'frost';
-      label = 'Winter freeze / dormant';
+      label = satBare ? `Winter freeze / bare (NDVI ${ndviVal !== null ? ndviVal.toFixed(2) : '<0.25'})` : 'Winter freeze / dormant';
+    } else if (satBare === true) {
+      label = ndviVal !== null ? `Bare soil risk (NDVI ${ndviVal.toFixed(2)})` : 'Bare soil risk (satellite NDVI < 0.25)';
+    } else if (satBare === false && ndviVal !== null) {
+      label = `Off-season residue cover (NDVI ${ndviVal.toFixed(2)})`;
     }
+
+    const bareSoilRisk = satBare !== null ? satBare : status === 'bare';
 
     return {
       monthIndex: m,
@@ -559,15 +762,13 @@ function buildCalendar12(year1Schedule, year1Cover, profile, freezeMonths) {
       waterBalance,
       frostRisk,
       droughtRisk,
+      ndvi: ndviVal,
+      bareSoilRisk,
     };
   });
 }
 
-/**
- * Compute planting/harvest windows, off-season bare/dark windows, warm frost-free
- * cover months, and concrete cover-crop recommendations for a multi-year plan.
- */
-export function computePlanCoverWindows(years = [], context = {}) {
+function buildScheduleContext(context = {}) {
   const {
     weather = {},
     params = {},
@@ -584,14 +785,69 @@ export function computePlanCoverWindows(years = [], context = {}) {
     ? Number(weather.frostFreeDays)
     : profile.min.filter((m) => m > 0).length * 30;
   const freezeMonths = getWinterFreezeMonths(profile, firstAutumnFrost, lastSpringFrost);
+  const satelliteNdvi = extractSatelliteNdvi(context);
+
+  return {
+    weather,
+    lat,
+    soil,
+    clay,
+    irrigation,
+    profile,
+    lastSpringFrost,
+    firstAutumnFrost,
+    frostFreeDays,
+    freezeMonths,
+    satelliteNdvi,
+  };
+}
+
+/**
+ * Estimate the off-season cover crop window between `prevCropId` harvest and
+ * `nextCropId` planting under a given climate/soil context.
+ */
+export function estimateTransitionCoverWindow(prevCropId, nextCropId, context = {}) {
+  if (!prevCropId) return null;
+  const ctx = buildScheduleContext(context);
+  const schedOpts = {
+    lat: ctx.lat,
+    frostFreeDays: ctx.frostFreeDays,
+    lastSpringFrost: ctx.lastSpringFrost,
+    firstAutumnFrost: ctx.firstAutumnFrost,
+    irrigation: ctx.irrigation,
+  };
+  const schedule = computeCropSchedule(prevCropId, ctx.profile, schedOpts);
+  const nextSchedule = computeCropSchedule(nextCropId || prevCropId, ctx.profile, schedOpts);
+
+  return computeGapCoverWindow({
+    cropId: prevCropId,
+    nextCropId: nextCropId || prevCropId,
+    schedule,
+    nextSchedule,
+    profile: ctx.profile,
+    freezeMonths: ctx.freezeMonths,
+    soil: ctx.soil,
+    clay: ctx.clay,
+    irrigation: ctx.irrigation,
+    satelliteNdvi: ctx.satelliteNdvi,
+  });
+}
+
+/**
+ * Compute planting/harvest windows, off-season bare/dark windows, warm frost-free
+ * cover months, and concrete cover-crop recommendations for a multi-year plan.
+ */
+export function computePlanCoverWindows(years = [], context = {}) {
+  const ctx = buildScheduleContext(context);
+  const { weather, profile, lastSpringFrost, firstAutumnFrost, frostFreeDays, freezeMonths, satelliteNdvi } = ctx;
 
   const schedules = years.map((y) =>
     computeCropSchedule(y.crop || y.id, profile, {
-      lat,
+      lat: ctx.lat,
       frostFreeDays,
       lastSpringFrost,
       firstAutumnFrost,
-      irrigation,
+      irrigation: ctx.irrigation,
     }),
   );
 
@@ -613,9 +869,10 @@ export function computePlanCoverWindows(years = [], context = {}) {
       nextSchedule,
       profile,
       freezeMonths,
-      soil,
-      clay,
-      irrigation,
+      soil: ctx.soil,
+      clay: ctx.clay,
+      irrigation: ctx.irrigation,
+      satelliteNdvi,
     });
 
     if (coverWindow.hasBareWindow) {
@@ -633,7 +890,7 @@ export function computePlanCoverWindows(years = [], context = {}) {
   });
 
   const calendar12 = years.length
-    ? buildCalendar12(schedules[0], yearWindows[0]?.coverWindow, profile, freezeMonths)
+    ? buildCalendar12(schedules[0], yearWindows[0]?.coverWindow, profile, freezeMonths, satelliteNdvi)
     : [];
 
   return {
@@ -645,6 +902,17 @@ export function computePlanCoverWindows(years = [], context = {}) {
       frostFreeDays,
       lastSpringFrost: weather.lastSpringFrost ?? null,
       firstAutumnFrost: weather.firstAutumnFrost ?? null,
+      satelliteNdvi: satelliteNdvi.hasSatelliteNdvi
+        ? {
+            monthlyNdvi12: satelliteNdvi.monthlyNdvi12,
+            bareSoilMonths: [...satelliteNdvi.bareMonthSet].sort((a, b) => a - b),
+            meanNdvi: satelliteNdvi.meanNdvi,
+            bareSoilSource: satelliteNdvi.bareSoilSource,
+          }
+        : null,
+      bareSoilSource: satelliteNdvi.bareSoilSource,
+      meanNdvi: satelliteNdvi.meanNdvi,
+      observedBareMonths: satelliteNdvi.hasSatelliteNdvi ? satelliteNdvi.bareMonthSet.size : null,
       calendar12,
     },
   };

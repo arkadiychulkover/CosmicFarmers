@@ -1,0 +1,29 @@
+# CosmicFarmers / Field Shift — Project Tasks & Implementation Status
+
+**Workspace**: `d:\CosmicValey\CosmicFarmers` (branch `Arkadii`)
+**Last Updated**: 2026-11-15
+
+## Summary of Completed Upgrades
+
+| Area | Scope & Delivered Changes | Key Files |
+| :--- | :--- | :--- |
+| **ML Model & Dataset Expansion** | Expanded training pipeline from 16 to 21 crops (`+ alfalfa, millet, oats, peanut, sorghum`, 2,402 rows across EU/US CropScape/ESA WorldCereal RDM); added 5°×5° Spatial Block 5-Fold CV (`StratifiedGroupKFold`); exported 10.99 MB ONNX model (`rf_200_d10_l3_bal`); fixed perennial Year 2–3 re-inference; added real MODIS NDVI `< 0.25` bare-soil window grounding. | `ml/export_onnx.py`, `ml/classes.json`, `public/models/crop_classifier.onnx`, `src/lib/crop/classes.json`, `src/lib/crop/coverCropWindows.js`, `src/lib/crop/CropRecommendationService.js`, `src/data/options.js` |
+| **Geospatial & Earth-Observation Pipeline** | Fixed Southern Hemisphere cross-year (`May–Apr`) POWER retrieval, chronological daily sorting & frost boundary logic; added SMAP-proxy `freezeThawDays`, 10-yr rainfall percentiles (`p25/p50/p75`), distinct 8-mo seasonal vs. 12-mo annual precipitation metrics, and `terrainFallback` disclosure; built live CORS-open `MODIS_Terra_NDVI_8Day`/`Monthly` tile PNG decoder (`ndviService.js`), CONUS USGS NLCD + USDA SSURGO/CropScape CDL client (`usdaSoilCdl.js`), and global Sentinel-2 10m + OSM + elevation/null-soil land-cover mask (`landCoverMask.js`). | `src/lib/weather/SoilData.js`, `src/lib/weather/ndviService.js`, `src/lib/weather/landCoverMask.js`, `src/lib/weather/usdaSoilCdl.js`, `src/lib/weather/telemetryRequests.js`, `src/utils/nasaApi.js` |
+| **FAO-56 Agronomic Indicators & Scenarios** | Removed all `Market Viability` / commercial claims and framed `yield` strictly as agronomic biomass & harvest potential; implemented FAO-56 Penman-Monteith `ET0`, crop `Kc`, and Saxton & Rawls SOC-adjusted `AWC` water balance; outputs `Water Efficiency`, `Soil Health`, `Climate & Stress Resilience`, `precipitationSummary`, and 10-yr `p25`/`p75` `computeScenarioComparison` (`Dry`, `Baseline`, `Wet`). | `src/lib/crop/goalData.js`, `src/lib/crop/strategy.js`, `src/lib/crop/features.js`, `src/lib/crop/index.js` |
+| **Frontend UX, Map Fallback & PDF** | Preserved desktop-first workspace with a centered `<= 720px` mobile placeholder (`.mobile-notice`, `.mobile-github`, centered `Header` brand, and preserved `.app-footer` NASA disclaimer); merged duplicate calendar strip into unified `RiskCalendar` with MODIS NDVI & freeze-thaw indicators and `wide` MODIS NDVI card placement in `TelemetryScreen`; wired Land Cover Mask pill/banner + non-arable confirmation override + US CDL crop prompt + SRTM `terrainFallback` badges + Multi-Scenario Comparison table; added interactive OSM + NASA GIBS `<canvas>` slippy map & Nominatim search fallback in `GoogleMapModal.svelte`; added verbatim NASA Non-Endorsement disclaimer + CC BY 4.0 / ODbL / Public Domain licenses across Footer, `DataSourcesModal`, and `downloadPlan.js` PDF; fixed `start.cmd` (`cd /d "%~dp0"`) and global soil label in `options.js`. | `src/App.svelte`, `start.cmd`, `src/stores/session.svelte.js`, `src/components/Header.svelte`, `src/components/GoogleMapModal.svelte`, `src/components/DataSourcesModal.svelte`, `src/components/charts/RiskCalendar.svelte`, `src/screens/FarmSoilScreen.svelte`, `src/screens/TelemetryScreen.svelte`, `src/screens/CalculatingScreen.svelte`, `src/screens/ResultsScreen.svelte`, `src/utils/downloadPlan.js` |
+
+## Source Integration Matrix (Active vs. U.S.-Only vs. Excluded)
+- **NASA POWER Agroclimatology (`power.larc.nasa.gov`, NASA Public Domain)**: Active globally (`~50 km` grid).
+- **NASA GIBS WMTS & MODIS Terra NDVI (`gibs.earthdata.nasa.gov`, NASA EOSDIS Public Domain)**: Active globally for both 3D Globe / Map overlays and live 12-month NDVI PNG sampling.
+- **ISRIC SoilGrids v2.0 (`rest.isric.org`, CC BY 4.0)**: Active globally (`250 m` raster, zero synthetic N/P/K assumptions).
+- **Open-Meteo Elevation (`api.open-meteo.com`, CC BY 4.0)**: Active globally (`~90 m` DEM, discloses explicit `terrainFallback` when unreachable).
+- **Esri / Impact Observatory Sentinel-2 10m & ESA WorldCereal RDM (`CC BY 4.0`)**: Active globally (`10 m` land-cover mask + ML training reference).
+- **OpenStreetMap Overpass / Slippy Tiles / Nominatim (`ODbL`)**: Active globally (land-cover fallback + interactive map coordinate picker & search fallback).
+- **USGS NLCD Annual Land Cover (`di-nlcd.img.arcgis.com`, 30 m) & USDA NRCS SSURGO (`sdmdataaccess.nrcs.usda.gov`, Public Domain)**: Active inside U.S. CONUS (`24–50°N, 125–66°W`), CORS-open.
+- **USDA NASS CropScape CDL (`nassgeodata.gmu.edu`, 30 m EPSG:5070, Public Domain)**: U.S. CONUS-only historical crop lookup; active in Node/SSR, safely skipped in direct browser calls due to missing server ACAO headers.
+- **Google Maps JS API (Optional `VITE_GOOGLE_MAPS_API_KEY`)**: Optional enhancement; automatically falls back to OpenStreetMap + NASA GIBS canvas when key is absent, blocked, or fails auth (`gm_authFailure`).
+- **Excluded / Not Required**: Raw 70 m ISS ECOSTRESS scenes (authentication/granule workflow incompatible with keyless client architecture; POWER `EVPTRNS`/`TS` proxy explicitly documented instead) and Terrascope WMS (`ECONNRESET` during live probes).
+
+## Verification Notes
+- Unit, integration & static UI compliance checks reside in `tests/` (`vitest run`) covering `staticUiChecks.test.js`, `presetsRandom.test.js`, `soilData.test.js`, `landCoverMask.test.js`, `ndviService.test.js`, `cropModelAndService.test.js`, and `agronomy.test.js`.
+- Production bundle compiles via Vite (`npm run build`).
