@@ -1,8 +1,16 @@
-import { getWeather, parseWeatherResponse } from '../lib/weather/SoilData.js';
+import {
+  applyNdviToWeather,
+  getSeasonConfig,
+  getWeather,
+  parseWeatherResponse,
+} from '../lib/weather/SoilData.js';
+import { fetchNdviProfile, computeFallbackNdviProfile } from '../lib/weather/ndviService.js';
+import { fetchLandCoverMask, isSoilRecordNullOrEmpty } from '../lib/weather/landCoverMask.js';
+import { isWithinUsConusBounds, queryUsdaSsurgo, ssurgoToSoilGridsFallback } from '../lib/weather/usdaSoilCdl.js';
 
-export const WEATHER_CACHE_KEY = 'nasa-preset-cache-v9';
+export const WEATHER_CACHE_KEY = 'nasa-preset-cache-v10';
 const SOILGRIDS_CACHE_KEY = 'soilgrids-coord-cache-v4';
-const SOILGRIDS_TIMEOUT_MS = 5000;
+const SOILGRIDS_TIMEOUT_MS = 4500;
 const inflightRequests = new Map();
 
 const DEFAULT_D_FACTORS = {
@@ -229,7 +237,7 @@ export function deriveSoilAndNutrients(parsed, lat, lon) {
   };
 }
 
-export async function fetchSoilGrids(lat, lon, { signal, parsed = null } = {}) {
+export async function fetchSoilGrids(lat, lon, { signal, parsed = null, usSsurgo = null } = {}) {
   const numLat = Number(lat);
   const numLon = Number(lon);
 
@@ -257,10 +265,30 @@ export async function fetchSoilGrids(lat, lon, { signal, parsed = null } = {}) {
 
   if (signal?.aborted) return null;
 
+  // Inside CONUS, fall back to lab-measured USDA NRCS SSURGO soil horizons before climate proxy
+  if (isWithinUsConusBounds(numLat, numLon)) {
+    const ssurgo = usSsurgo || await queryUsdaSsurgo(numLat, numLon, { signal }).catch(() => null);
+    const ssurgoRaw = ssurgoToSoilGridsFallback(ssurgo);
+    if (ssurgoRaw) {
+      const estN = ssurgoRaw.soc !== null ? Number(clamp(ssurgoRaw.soc * 0.086 + 0.2, 0.4, 4.5).toFixed(2)) : null;
+      return buildSoilRecord(
+        {
+          phRaw: ssurgoRaw.ph,
+          clayPct: ssurgoRaw.clay,
+          sandPct: ssurgoRaw.sand,
+          siltPct: ssurgoRaw.silt,
+          totalNGkg: estN,
+          socGkg: ssurgoRaw.soc,
+        },
+        'USDA NRCS SSURGO (SoilGrids fallback)',
+      );
+    }
+  }
+
   return deriveSoilAndNutrients(parsed, numLat, numLon);
 }
 
-function buildPayload(lat, lon, weather, derived, seasonYear) {
+function buildPayload(lat, lon, weather, derived, seasonYear, landCover = null) {
   const rawGdd = Number(weather.gdd?.value ?? weather.gdd) || 1800;
   const normalizedGdd = Math.round(rawGdd);
   const t2m = Number(weather.t2m) || 15;
@@ -270,6 +298,31 @@ function buildPayload(lat, lon, weather, derived, seasonYear) {
   const slope = Number.isFinite(Number(weather.slope ?? weather.terrain?.slope))
     ? Number(weather.slope ?? weather.terrain?.slope)
     : 1.5;
+
+  const terrainFallback = Boolean(weather.terrainFallback ?? weather.terrain?.terrainFallback);
+  const terrainWarning =
+    weather.terrainWarning ??
+    weather.terrain?.terrainWarning ??
+    (terrainFallback
+      ? 'Terrain lookup failed (Open-Meteo elevation API unavailable); using fallback defaults (180m elevation, 1.5° slope).'
+      : null);
+
+  const ndviProfile = weather.ndviProfile || (
+    Array.isArray(weather.monthlyNdvi12)
+      ? {
+          monthlyNdvi12: weather.monthlyNdvi12,
+          bareSoilMonths: weather.bareSoilMonths || [],
+          meanNdvi: weather.meanNdvi ?? null,
+          bareSoilSource: weather.bareSoilSource || null,
+          ndviFallback: Boolean(weather.ndviFallback),
+        }
+      : null
+  );
+
+  const resolvedLandCover = landCover ?? weather.landCover ?? null;
+  const weatherWithExtras = resolvedLandCover && !weather.landCover
+    ? { ...weather, landCover: resolvedLandCover }
+    : weather;
 
   return {
     lat: Number(Number(lat).toFixed(4)),
@@ -288,6 +341,11 @@ function buildPayload(lat, lon, weather, derived, seasonYear) {
     T2M_MIN: Number(weather.t2m_min) || 5,
     RH2M: Number(weather.rh2m) || 60,
     PRECTOTCORR: Number(weather.prectotcorr) || 50,
+    totalPrecip12: Number(weather.totalPrecip12 ?? weather.precipitation?.total12 ?? 0),
+    seasonTotalPrecip: Number(weather.seasonTotalPrecip ?? weather.precipitation?.total ?? 0),
+    prectotcorr: Number(weather.prectotcorr) || 50,
+    precipPercentiles: weather.precipPercentiles ?? weather.precipitation?.percentiles12 ?? null,
+    precipPercentilesSeason: weather.precipPercentilesSeason ?? weather.precipitation?.percentilesSeason ?? null,
     ALLSKY_SFC_SW_DWN: Number(weather.allsky) || 18,
     GDD: normalizedGdd,
     WS2M: Number(weather.ws2m) || 3,
@@ -297,7 +355,15 @@ function buildPayload(lat, lon, weather, derived, seasonYear) {
     EVPTRNS: Number(weather.evptrns ?? weather.ecostress?.evapotranspiration) || 3.2,
     ELEVATION: elevation,
     SLOPE: slope,
-    terrainFallback: Boolean(weather.terrainFallback ?? weather.terrain?.terrainFallback),
+    terrainFallback,
+    terrainWarning,
+    freezeThawDays: weather.freezeThawDays ?? weather.stress?.freezeThawDays ?? 0,
+    landCover: resolvedLandCover,
+    ndviProfile,
+    monthlyNdvi12: ndviProfile?.monthlyNdvi12 ?? weather.monthlyNdvi12 ?? null,
+    bareSoilMonths: ndviProfile?.bareSoilMonths ?? weather.bareSoilMonths ?? null,
+    meanNdvi: ndviProfile?.meanNdvi ?? weather.meanNdvi ?? null,
+    bareSoilSource: ndviProfile?.bareSoilSource ?? weather.bareSoilSource ?? null,
     isSouthernHemisphere: Boolean(weather.isSouthernHemisphere ?? Number(lat) < 0),
     seasonYear,
     daily_t2m: weather.daily_t2m || [],
@@ -307,7 +373,7 @@ function buildPayload(lat, lon, weather, derived, seasonYear) {
     daily_precip_12: weather.daily_precip_12 || [],
     seasonDailyPrecip: weather.seasonDailyPrecip || [],
     riskCalendarMonths: weather.riskCalendarMonths || [],
-    weather,
+    weather: weatherWithExtras,
   };
 }
 
@@ -325,6 +391,8 @@ function readPresetCache(presetId, numLat, numLon) {
       Array.isArray(entry.data.riskCalendarMonths) &&
       entry.data.riskCalendarMonths.length === 12 &&
       Array.isArray(entry.data.daily_t2m_max_12) &&
+      Array.isArray(entry.data.monthlyNdvi12) &&
+      entry.data.precipPercentiles &&
       isValidRawSoilRecord(entry.soilData) &&
       Math.abs(entry.lat - numLat) < 0.001 &&
       Math.abs(entry.lon - numLon) < 0.001
@@ -335,11 +403,11 @@ function readPresetCache(presetId, numLat, numLon) {
   return null;
 }
 
-function writePresetCache(presetId, lat, lon, parsed, seasonYear, soilData) {
+function writePresetCache(presetId, lat, lon, parsed, seasonYear, soilData, landCover) {
   try {
     const raw = sessionStorage.getItem(WEATHER_CACHE_KEY);
     const all = raw ? JSON.parse(raw) : {};
-    all[presetId] = { lat, lon, data: parsed, seasonYear, soilData };
+    all[presetId] = { lat, lon, data: parsed, seasonYear, soilData, landCover };
     sessionStorage.setItem(WEATHER_CACHE_KEY, JSON.stringify(all));
   } catch {}
 }
@@ -356,49 +424,101 @@ export async function fetchNasaDataForCoords(lat, lon, options = {}) {
     return null;
   }
 
-  const { bypassCache = false, presetId = null, signal } = options;
+  const { bypassCache = false, presetId = null, precomputedLandCover = null, signal } = options;
   const canUsePresetCache = Boolean(!bypassCache && presetId && presetId !== 'random');
 
   if (canUsePresetCache) {
     const cached = readPresetCache(presetId, numLat, numLon);
     if (cached) {
-      return buildPayload(numLat, numLon, cached.data, cached.soilData, cached.seasonYear);
+      return buildPayload(
+        numLat,
+        numLon,
+        cached.data,
+        cached.soilData,
+        cached.seasonYear,
+        cached.landCover ?? null,
+      );
     }
   }
 
   if (signal?.aborted) return null;
 
   const coordKey = `${numLat.toFixed(4)},${numLon.toFixed(4)}`;
-  let pending = inflightRequests.get(coordKey);
+  const cachedInflight = inflightRequests.get(coordKey);
+  let pending = cachedInflight && !cachedInflight.signal?.aborted ? cachedInflight.promise : null;
   if (!pending) {
-    const weatherPromise = getWeather(numLon, numLat).then((raw) => ({
+    const weatherPromise = getWeather(numLon, numLat, { signal }).then((raw) => ({
       parsed: parseWeatherResponse(raw),
       seasonYear: raw.seasonYear,
     }));
+    const ndviPromise = fetchNdviProfile(numLat, numLon, { signal }).catch(() => null);
+    const landCoverPromise = precomputedLandCover
+      ? Promise.resolve(precomputedLandCover)
+      : fetchLandCoverMask(numLat, numLon, { signal }).catch(() => null);
 
+    let entry;
     pending = Promise.all([
       weatherPromise,
-      weatherPromise
-        .then((w) => fetchSoilGrids(numLat, numLon, { parsed: w.parsed }))
+      Promise.all([weatherPromise, landCoverPromise])
+        .then(([w, lc]) => fetchSoilGrids(numLat, numLon, { parsed: w.parsed, usSsurgo: lc?.usSsurgo }))
         .catch(() => fetchSoilGrids(numLat, numLon)),
+      ndviPromise,
+      landCoverPromise,
     ])
-      .then(([weatherRes, soilGrids]) => ({ ...weatherRes, soilGrids }))
+      .then(([weatherRes, soilGrids, ndviRaw, landCoverRaw]) => ({
+        ...weatherRes,
+        soilGrids,
+        ndviRaw,
+        landCoverRaw,
+      }))
       .finally(() => {
-        inflightRequests.delete(coordKey);
+        if (inflightRequests.get(coordKey) === entry) {
+          inflightRequests.delete(coordKey);
+        }
       });
-    inflightRequests.set(coordKey, pending);
+    entry = { promise: pending, signal };
+    inflightRequests.set(coordKey, entry);
   }
 
-  const { parsed, seasonYear, soilGrids } = await pending;
+  const { parsed, seasonYear, soilGrids, ndviRaw, landCoverRaw } = await pending;
   if (signal?.aborted) return null;
+
+  const ndviProfile =
+    ndviRaw && !ndviRaw.ndviFallback
+      ? ndviRaw
+      : computeFallbackNdviProfile({
+          monthlyTemp12: parsed.monthlyTemp12,
+          seasonKeys: getSeasonConfig(numLat).monthKeys,
+          lat: numLat,
+        });
+
+  let landCover = landCoverRaw;
+  if (
+    (!landCover || (landCover.source === 'Fallback Heuristic' || landCover.source === 'Timeout Fallback')) &&
+    parsed.elevation <= 0 &&
+    isSoilRecordNullOrEmpty(soilGrids)
+  ) {
+    landCover = {
+      category: 'water',
+      label: 'Open Water / Sea-Level Area',
+      isArableSuitable: false,
+      warning: 'Open water / submerged area detected — non-arable location.',
+      source: 'Elevation & Soil Null Check',
+      resolution: 'DEM',
+      usCdlCrop: landCover?.usCdlCrop ?? null,
+      usSsurgo: landCover?.usSsurgo ?? null,
+    };
+  }
+
+  const enrichedWeather = applyNdviToWeather(parsed, ndviProfile);
 
   const derived = isValidRawSoilRecord(soilGrids)
     ? soilGrids
-    : deriveSoilAndNutrients(parsed, numLat, numLon);
-  const payload = buildPayload(numLat, numLon, parsed, derived, seasonYear);
+    : deriveSoilAndNutrients(enrichedWeather, numLat, numLon);
+  const payload = buildPayload(numLat, numLon, enrichedWeather, derived, seasonYear, landCover);
 
   if (canUsePresetCache) {
-    writePresetCache(presetId, payload.lat, payload.lon, parsed, seasonYear, derived);
+    writePresetCache(presetId, payload.lat, payload.lon, payload.weather, seasonYear, derived, landCover);
   }
 
   return payload;

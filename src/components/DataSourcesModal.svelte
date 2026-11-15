@@ -1,59 +1,91 @@
 <script>
-  let { open = false, onclose = null } = $props();
+  let { open = $bindable(false), onclose = null } = $props();
 
   const datasets = [
     {
-      name: 'NASA POWER Agroclimatology',
+      name: 'NASA POWER Agroclimatology (MERRA-2 / CERES)',
       resolution: '~50 km grid (0.5° × 0.625°)',
-      temporal: 'Daily 12-month window + 10-year historical climatology',
-      variables: 'T2M, T2M_MAX, T2M_MIN, PRECTOTCORR, RH2M, WS2M, GDD (base 10°C), frost & extreme-storm counts',
-      notes: 'Primary meteorological driver for growing-season statistics, water balance (P − ET), and stress alerts.',
+      license: 'NASA Public Domain',
+      temporal: 'Daily 12-month window + 10-year historical climatology (aligned for NH & SH)',
+      variables: 'T2M, T2M_MAX, T2M_MIN, TS (surface skin temp / freeze-thaw proxy), PRECTOTCORR, ALLSKY_SFC_SW_DWN, RH2M, WS2M, GWETTOP, GWETROOT, EVPTRNS',
+      notes: 'Primary meteorological driver for growing-season statistics, FAO-56 water balance (P − ETc), 10-year rainfall percentiles (p25/median/p75), frost bounds, freeze-thaw transitions, and extreme-storm stress.',
     },
     {
-      name: 'NASA POWER / CERES Solar Irradiance',
-      resolution: '~50 km–1° grid',
-      temporal: 'Daily & growing-season mean',
-      variables: 'ALLSKY_SFC_SW_DWN (MJ/m²/day)',
-      notes: 'CERES satellite radiative transfer assimilated into NASA POWER for canopy photosynthetically active energy.',
+      name: 'NASA GIBS / MODIS Terra NDVI (8-Day & Monthly)',
+      resolution: '250 m – 1 km WMTS tiles',
+      license: 'NASA EOSDIS Public Domain',
+      temporal: '12-month MODIS_Terra_NDVI_8Day + MODIS_Terra_L3_NDVI_Monthly composite',
+      variables: 'Monthly Normalized Difference Vegetation Index (MODIS_NDVI LUT), Satellite Bare-Soil Mask (NDVI < 0.25)',
+      notes: 'CORS-open GIBS tiles decoded in-browser/Node to drive real satellite bare-soil cover-crop windows instead of coarse temperature proxies; falls back cleanly to climate heuristics if satellite tiles fail.',
     },
     {
-      name: 'Soil Moisture (SMAP L4 / MERRA-2 via POWER)',
-      resolution: '~50 km POWER grid (SMAP L4 native ~9–11 km)',
-      temporal: 'Daily root-zone & surface wetness',
-      variables: 'GWETTOP (0–5 cm), GWETROOT (0–100 cm)',
-      notes: 'Reflects regional root-zone moisture assimilation; field-scale irrigation management is selected separately on Page 1.',
-    },
-    {
-      name: 'Evapotranspiration & Surface Temp (POWER Proxy)',
-      resolution: '~50 km grid (ECOSTRESS proxy)',
-      temporal: 'Daily & monthly sums (mm/day, °C)',
-      variables: 'EVPTRNS (evapotranspiration), TS (land skin temperature)',
-      notes: 'Labeled transparently as a NASA POWER / MERRA-2 proxy rather than raw 70 m ISS ECOSTRESS thermal scenes.',
-    },
-    {
-      name: 'SRTM / Open-Meteo Terrain DEM',
-      resolution: '~30–90 m',
-      temporal: 'Static elevation & derived slope (%)',
-      variables: 'ELEVATION (m), SLOPE (%)',
-      notes: 'Captures local runoff and erosion risk; automatically discloses when a fallback terrain estimate is used.',
+      name: 'NASA GIBS Earth-Observation Visual Layers',
+      resolution: '250 m – 10 km WMTS tiles',
+      license: 'NASA EOSDIS Public Domain',
+      temporal: 'Selected inspection date (nearest resolved valid GIBS tile)',
+      variables: 'BlueMarble_NextGeneration, MODIS_Terra_NDVI_8Day, VIIRS True Color, MODIS LST (1 km), SMAP Soil Moisture (~9 km), GPM IMERG (~10 km)',
+      notes: 'Visual earth-observation overlays rendered on the 3D WebGL Globe and OSM + GIBS interactive coordinate picker; excluded from ML feature inference.',
     },
     {
       name: 'ISRIC SoilGrids v2.0',
-      resolution: '250 m topsoil raster (0–5 cm & 5–15 cm)',
-      temporal: 'Static soil property ensemble',
+      resolution: '250 m global topsoil raster',
+      license: 'CC BY 4.0',
+      temporal: 'Static pedological ensemble (depth-weighted 0–5 cm & 5–15 cm)',
       variables: 'pH (H₂O), SOC (g/kg), Total N (g/kg), Clay, Sand, Silt (%)',
-      notes: 'Direct physical/chemical units without pedotransfer N/P/K assumptions; falls back to ~5 km nearest sample or POWER climate model where masked.',
+      notes: '© ISRIC — World Soil Information (CC BY 4.0). Direct physical/chemical units with zero synthetic N/P/K assumptions; falls back to ~5 km sample, USDA SSURGO inside CONUS, or climate heuristic where masked.',
     },
     {
-      name: 'NASA GIBS Visual Satellite Overlays',
-      resolution: '250 m – 10 km (MODIS, SMAP, GPM IMERG)',
-      temporal: 'Daily & 8-day composites (with nearest-date resolver)',
-      variables: 'MODIS NDVI (250 m), MODIS LST (1 km), SMAP Soil Moisture (~9 km), GPM IMERG Precipitation (~10 km)',
-      notes: 'Used purely for visual spatial exploration on the 3D Globe and Google Map; excluded from ML crop scoring.',
+      name: 'USDA NRCS SSURGO & NASS CropScape CDL (U.S. CONUS)',
+      resolution: 'Mapunit / 30 m (CONUS)',
+      license: 'USDA Public Domain',
+      temporal: 'Current SSURGO soil horizon survey & latest completed annual CropScape raster',
+      variables: 'Measured soil horizons (pH, OM/SOC, clay/sand/silt), farmland class, and CropScape CDL crop history (`cropId`)',
+      notes: 'U.S. CONUS only (24–50°N, 125–66°W). SSURGO provides CORS-open SoilGrids fallback; CropScape CDL detects historical crop cover in SSR/Node and skips cleanly if browser CORS blocks.',
+    },
+    {
+      name: 'USGS NLCD Annual Land Cover & MRLC WMS (U.S. CONUS)',
+      resolution: '30 m CONUS raster',
+      license: 'USGS Public Domain',
+      temporal: 'Latest annual National Land Cover Database classification',
+      variables: 'Cultivated crops, pasture/hay, forest, urban developed classes, water, wetlands, barren/ice',
+      notes: 'CORS-open U.S. arable land-cover mask; issues explicit non-arable warnings requiring user confirmation when coordinates fall on Water, Urban, Forest, Wetland, or Barren surfaces.',
+    },
+    {
+      name: 'Esri / Impact Observatory Sentinel-2 10m Land Cover & ESA WorldCereal / WorldCover',
+      resolution: '10 m global optical raster',
+      license: 'CC BY 4.0',
+      temporal: 'Annual 10 m Sentinel-2 classification (2023) & ESA WorldCereal RDM field labels',
+      variables: 'Global cropland, rangeland, trees/forest, built area, flooded vegetation, water, bare/snow + ML crop training labels',
+      notes: 'Derived from ESA Copernicus Sentinel-2 data & ESA WorldCereal RDM / WorldCover (CC BY 4.0). Powers global arable land-cover masking and 21-crop spatial block CV model training.',
+    },
+    {
+      name: 'Open-Meteo Elevation API (SRTM / Copernicus DEM)',
+      resolution: '~90 m DEM',
+      license: 'CC BY 4.0',
+      temporal: 'Static topography',
+      variables: 'Field elevation (m), local slope (°), ocean/polder sea-level disambiguation',
+      notes: '© Open-Meteo / Copernicus DEM / NASA SRTM (CC BY 4.0). Discloses an explicit terrainFallback warning badge when the elevation service is unreachable.',
+    },
+    {
+      name: 'OpenStreetMap (Overpass API, Basemap Tiles & Nominatim)',
+      resolution: 'Vector features & web tiles',
+      license: 'ODbL (© OpenStreetMap)',
+      temporal: 'Live community-maintained vector database',
+      variables: 'Landuse/natural/building tags (global fallback), Nominatim geocoding, slippy map tiles',
+      notes: '© OpenStreetMap contributors under the Open Database License (ODbL). Provides secondary global land-cover checks and the interactive coordinate picker fallback when Google Maps is unavailable.',
+    },
+    {
+      name: 'Google Maps JavaScript API (Optional)',
+      resolution: 'Satellite & street geocoding',
+      license: 'Google Maps Platform ToS',
+      temporal: 'Live interactive coordinate picker',
+      variables: 'Optional field plot pinpointing & place search via user-supplied VITE_GOOGLE_MAPS_API_KEY',
+      notes: 'Automatically switches to OpenStreetMap + NASA GIBS canvas mode when unconfigured, blocked, or auth fails.',
     },
   ];
 
   function closeModal() {
+    open = false;
     onclose?.();
   }
 
@@ -99,11 +131,21 @@
       </div>
 
       <div class="list">
+        <div class="disclaimer-box" role="note" aria-label="NASA Non-Endorsement Disclaimer">
+          <strong>NASA Non-Endorsement &amp; Non-U.S. Government Data-Use Notice</strong>
+          <p>
+            NASA does not endorse any non-U.S. Government entity and is not responsible for information contained on non-U.S. Government websites. For non-U.S. Government websites, participants must comply with any data use parameters of that specific website.
+          </p>
+        </div>
+
         {#each datasets as ds (ds.name)}
           <article class="item">
             <div class="item-head">
               <h3>{ds.name}</h3>
-              <span class="badge">{ds.resolution}</span>
+              <div class="badges">
+                <span class="badge">{ds.resolution}</span>
+                <span class="badge license">{ds.license}</span>
+              </div>
             </div>
             <p class="meta"><b>Temporal:</b> {ds.temporal}</p>
             <p class="meta"><b>Parameters:</b> {ds.variables}</p>
@@ -247,6 +289,13 @@
     color: var(--color-text);
   }
 
+  .badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+    align-items: center;
+  }
+
   .badge {
     padding: 2px 8px;
     border-radius: 999px;
@@ -255,6 +304,43 @@
     color: var(--color-accent);
     font-size: 9px;
     font-weight: 600;
+  }
+
+  .badge.license {
+    color: var(--color-text);
+    background: color-mix(in srgb, var(--color-card) 30%, transparent);
+  }
+
+  .disclaimer-box {
+    display: grid;
+    gap: 4px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    border: 1px solid var(--color-status-warn-border);
+    background: var(--color-status-warn-bg);
+  }
+
+  .disclaimer-box strong {
+    font-size: 11px;
+    color: var(--color-text);
+  }
+
+  .disclaimer-box p {
+    margin: 0;
+    font-size: 10.5px;
+    line-height: 1.45;
+    color: var(--color-text);
+  }
+
+  @media (max-width: 720px) {
+    .backdrop {
+      padding: 10px;
+    }
+
+    .dialog {
+      max-height: 92vh;
+      padding: 14px;
+    }
   }
 
   .meta {

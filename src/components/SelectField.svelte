@@ -169,13 +169,14 @@
     z-index: 10;
     width: max-content;
     min-width: 100%;
-    max-width: 360px;
+    max-width: min(360px, calc(100vw - 40px));
+    max-height: 260px;
     margin: 0;
     padding: 0;
     list-style: none;
     border: 1px solid var(--color-border-strong);
     border-radius: 6px;
-    overflow: hidden;
+    overflow-y: auto;
   }
 
   li {

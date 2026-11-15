@@ -1,4 +1,4 @@
 @echo off
-cd /d "C:\Users\Max\Downloads\CosmicValley"
+cd /d "%~dp0"
 npm.cmd run dev -- --open
 pause

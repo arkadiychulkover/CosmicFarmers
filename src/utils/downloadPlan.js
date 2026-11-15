@@ -120,7 +120,7 @@ export async function downloadPlan(result, form) {
   const goalTitle = form.goal === 'water'
     ? 'Water Conservation'
     : form.goal === 'yield'
-    ? 'Maximum Yield'
+    ? 'Agronomic Biomass & Harvest Yield'
     : 'Soil Regeneration';
 
   const soil = result.soilProfile || form;
@@ -133,12 +133,37 @@ export async function downloadPlan(result, form) {
   const sandVal = Number(soil.sand ?? form.sand ?? 42).toFixed(1);
   const siltVal = Number(soil.silt ?? form.silt ?? 34).toFixed(1);
 
-  for (const line of [
+  const profileLines = [
     `Location: lat ${form.lat}, lon ${form.lon}`,
     `Primary management goal: ${goalTitle} | Irrigation regime: ${irrigationText}`,
     `Raw SoilGrids Profile (${soilLabel}): pH ${phVal} | SOC ${socVal} g/kg | Total N ${nVal} g/kg | Clay ${clayVal}% / Sand ${sandVal}% / Silt ${siltVal}%`,
     `Previous season: ${result.previousName || 'None'}`,
-  ]) {
+  ];
+
+  if (result.landCover) {
+    const lc = result.landCover;
+    const ackNote = lc.isArableSuitable === false ? ' [NON-ARABLE WARNING ACKNOWLEDGED]' : '';
+    profileLines.push(
+      `Land Cover Mask: ${lc.label} (${lc.category}) via ${lc.source} (${lc.resolution})${ackNote}`,
+    );
+  }
+  if (result.precipitationSummary) {
+    const ps = result.precipitationSummary;
+    const pctl = ps.percentiles10Yr;
+    const pctlText = pctl && Number.isFinite(Number(pctl.p25))
+      ? ` | 10-yr p25/Med/p75: ${Math.round(pctl.p25)}/${Math.round(pctl.median ?? pctl.p50)}/${Math.round(pctl.p75)} mm`
+      : '';
+    profileLines.push(
+      `Precipitation: 8-mo growing season ${ps.seasonPrecip8Mm} mm (${ps.monthlyMeanSeasonMm} mm/mo mean) | 12-mo annual ${ps.annualPrecip12Mm} mm${pctlText}`,
+    );
+  }
+  if (result.terrainFallback) {
+    profileLines.push(
+      `Terrain Warning: ${result.terrainWarning || 'Elevation API unavailable; fallback terrain estimate (180m / 1.5 deg slope) used.'}`,
+    );
+  }
+
+  for (const line of profileLines) {
     y = paragraph(doc, line, margin, y + 2, { size: 9.5 });
   }
 
@@ -161,16 +186,33 @@ export async function downloadPlan(result, form) {
 
   if (result.coverSummary) {
     const cs = result.coverSummary;
+    const ft = result.freezeThawDays ?? cs.freezeThawDays;
     y += 5;
-    y = ensureSpace(doc, y, 24);
+    y = ensureSpace(doc, y, 28);
     y = paragraph(doc, 'OFF-SEASON BARE-SOIL & COVER SUMMARY', margin, y, { size: 9, style: 'bold', color: 120 }) + 1;
     y = paragraph(
       doc,
-      `Bare/dark windows: ${cs.bareWindowsCount ?? 0} (${cs.totalBareMonths ?? 0} total bare mo) | Warm frost-free cover months: ${cs.warmCoverMonths ?? 0} | Frost-free season: ${cs.frostFreeDays ?? 0} days`,
+      `Bare/dark windows: ${cs.bareWindowsCount ?? 0} (${cs.totalBareMonths ?? 0} total bare mo) | Warm frost-free cover months: ${cs.warmCoverMonths ?? 0} | Frost-free season: ${cs.frostFreeDays ?? 0} days${ft !== undefined && ft !== null ? ` | Freeze-thaw transitions: ${ft} days` : ''}`,
       margin,
       y + 1,
       { size: 9.5, color: 45 },
     );
+    if (cs.bareSoilSource || cs.satelliteNdvi) {
+      const sat = cs.satelliteNdvi;
+      const meanText = Number.isFinite(Number(cs.meanNdvi ?? sat?.meanNdvi))
+        ? ` | Mean annual NDVI ${Number(cs.meanNdvi ?? sat?.meanNdvi).toFixed(2)}`
+        : '';
+      const obsText = Number.isFinite(Number(cs.observedBareMonths))
+        ? ` (${cs.observedBareMonths} mo with NDVI < 0.25)`
+        : '';
+      y = paragraph(
+        doc,
+        `NDVI bare-soil telemetry: ${cs.bareSoilSource || sat?.bareSoilSource || 'MODIS Terra NDVI'}${meanText}${obsText}`,
+        margin,
+        y + 1,
+        { size: 8.5, color: 75 },
+      );
+    }
   }
 
   y += 6;
@@ -215,16 +257,77 @@ export async function downloadPlan(result, form) {
 
   if (Array.isArray(result.indicators) && result.indicators.length) {
     y += 7;
-    y = ensureSpace(doc, y, 28);
-    y = paragraph(doc, '3-YEAR PLAN IMPACT SUMMARY', margin, y, { size: 9, style: 'bold', color: 120 }) + 2;
+    y = ensureSpace(doc, y, 36);
+    y = paragraph(doc, '3-YEAR AGRONOMIC IMPACT SUMMARY', margin, y, { size: 9, style: 'bold', color: 120 }) + 2;
     for (const ind of result.indicators) {
-      y = ensureSpace(doc, y, 12);
+      y = ensureSpace(doc, y, 16);
       y = paragraph(
         doc,
         `${ind.label}: ${ind.value} (${ind.score}/100) - ${ind.note}`,
         margin,
         y + 1.5,
-        { size: 9.5, color: 50 },
+        { size: 9.5, style: 'bold', color: 40 },
+      );
+      const d = ind.details;
+      if (d && ind.key === 'water') {
+        y = paragraph(
+          doc,
+          `FAO-56 3-yr ETc: ${d.cropEtc3YrMm ?? 'N/A'} mm (avg Kc ${d.avgKc ?? 'N/A'}) | Effective precip: ${d.effectivePrecip3YrMm ?? 'N/A'} mm | Irrigation demand: ${d.irrigationDemand3YrMm ?? 0} mm (${d.irrigationDemand3YrM3Ha ?? 0} m3/ha) | Water saved vs ${d.baselineCrop || 'monoculture'}: ${d.waterSavedMm ?? 0} mm (${d.waterSavedPct ?? 0}%)`,
+          margin + 2,
+          y + 0.5,
+          { size: 8.5, color: 75, width: CONTENT_W - 2 },
+        );
+      } else if (d && ind.key === 'soil') {
+        y = paragraph(
+          doc,
+          `Projected 3-yr SOC shift: ${d.deltaSocGkg >= 0 ? '+' : ''}${d.deltaSocGkg ?? 0} g/kg | Total N shift: ${d.deltaNitrogenGkg >= 0 ? '+' : ''}${d.deltaNitrogenGkg ?? 0} g/kg | N-fixing crops/covers: ${d.nFixingCrops ?? 0}/${d.nFixingCovers ?? 0} | Bare months bridged: ${d.bridgedBareMonths ?? 0}`,
+          margin + 2,
+          y + 0.5,
+          { size: 8.5, color: 75, width: CONTENT_W - 2 },
+        );
+      } else if (d && ind.key === 'climate') {
+        y = paragraph(
+          doc,
+          `Reliability: ${d.reliabilityLabel || 'Verified'} | Heat (>32C): ${d.heatDays ?? 0}d | Storms (>=25mm): ${d.stormDays ?? 0}d | Freeze-thaw (0C): ${d.freezeThawDays ?? 0}d | Frost-free: ${d.frostFreeDays ?? 0}d | Unique crops: ${d.uniqueCropCount ?? 0}`,
+          margin + 2,
+          y + 0.5,
+          { size: 8.5, color: 75, width: CONTENT_W - 2 },
+        );
+      }
+    }
+  }
+
+  const scenarioList = result.scenarioComparison?.scenarios || result.scenarios || [];
+  if (Array.isArray(scenarioList) && scenarioList.length) {
+    y += 7;
+    y = ensureSpace(doc, y, 42);
+    y = paragraph(doc, 'MULTI-SCENARIO PRECIPITATION COMPARISON', margin, y, { size: 9, style: 'bold', color: 120 }) + 1;
+    if (result.scenarioComparison?.varianceSource) {
+      y = paragraph(
+        doc,
+        `Baseline variance basis: ${result.scenarioComparison.varianceSource}`,
+        margin,
+        y + 1,
+        { size: 8.5, color: 85 },
+      );
+    }
+    for (const sc of scenarioList) {
+      y = ensureSpace(doc, y, 16);
+      const deltaSign = sc.suitabilityDeltaPct >= 0 ? '+' : '';
+      const rainSign = sc.precipDeltaPct >= 0 ? '+' : '';
+      y = paragraph(
+        doc,
+        `${sc.label} (${rainSign}${sc.precipDeltaPct}% rain | 8-mo ${sc.seasonPrecip8Mm} mm / 12-mo ${sc.annualPrecip12Mm} mm): Suitability ${sc.overallScore}/100 (${deltaSign}${sc.suitabilityDeltaPct}%), Risk: ${String(sc.riskLevel || 'moderate').toUpperCase()}`,
+        margin,
+        y + 2,
+        { size: 9, style: 'bold', color: 45 },
+      );
+      y = paragraph(
+        doc,
+        `3-yr ETc ${sc.etc3YrMm} mm | Irrigation need ${sc.irrigationDemand3YrMm} mm (${sc.irrigationDemand3YrM3Ha} m3/ha) | Water ${sc.waterScore} / Soil ${sc.soilScore} / Climate ${sc.climateScore} - ${sc.note}`,
+        margin + 2,
+        y + 0.5,
+        { size: 8, color: 80, width: CONTENT_W - 2 },
       );
     }
   }
@@ -360,6 +463,29 @@ export async function downloadPlan(result, form) {
       }
     }
   });
+
+  doc.addPage();
+  let dy = margin + 2;
+  dy = paragraph(doc, 'DATA SOURCES, OPEN LICENSES & MANDATORY NOTICE', margin, dy, { size: 10, style: 'bold', color: 40 }) + 3;
+  for (const attr of [
+    'NASA POWER Agroclimatology (MERRA-2 / CERES) & NASA GIBS / MODIS Terra NDVI: U.S. Government / NASA Public Domain.',
+    'ISRIC SoilGrids v2.0 (250 m soil properties): Licensed under CC BY 4.0 (ISRIC - World Soil Information).',
+    'Open-Meteo Elevation API (SRTM / Copernicus DEM ~90 m): Licensed under CC BY 4.0.',
+    'Esri / Impact Observatory Sentinel-2 10m Land Cover & ESA WorldCereal RDM / WorldCover: Licensed under CC BY 4.0.',
+    'USGS NLCD Annual Land Cover (30 m CONUS) & USDA NRCS SSURGO / NASS CropScape CDL: U.S. Government Public Domain.',
+    'OpenStreetMap (Overpass API, Basemap Tiles & Nominatim): Licensed under ODbL (OpenStreetMap contributors).',
+  ]) {
+    dy = paragraph(doc, `- ${attr}`, margin, dy + 1.5, { size: 8.5, color: 60 });
+  }
+  dy += 5;
+  dy = paragraph(doc, 'NASA NON-ENDORSEMENT & NON-U.S. GOVERNMENT DATA-USE DISCLAIMER', margin, dy, { size: 9, style: 'bold', color: 35 }) + 1;
+  paragraph(
+    doc,
+    'NASA does not endorse any non-U.S. Government entity and is not responsible for information contained on non-U.S. Government websites. For non-U.S. Government websites, participants must comply with any data use parameters of that specific website.',
+    margin,
+    dy + 1,
+    { size: 9, color: 50 },
+  );
 
   const total = doc.getNumberOfPages();
   for (let p = 1; p <= total; p++) {
