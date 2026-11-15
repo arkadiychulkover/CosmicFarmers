@@ -102,7 +102,6 @@ async function hasNonEmptyPixels(blob, ext) {
     }
   }
 
-  // Fallback for Node.js / non-DOM environments: transparent 256/512 PNGs are ~300-1100 bytes
   return blob.size > 1200;
 }
 
@@ -204,7 +203,6 @@ export async function resolveNearestGibsDate({
     const probeOpts = { layerId, projection, tileMatrixSet, ext, zoomLevel, row, col };
 
     pending = (async () => {
-      // Check requestedDate first unless known to exceed static archive end
       const archiveEnd = defaults.archiveEnd;
       if (!archiveEnd || safeRequested <= archiveEnd) {
         const directOk = await probeTileDate(probeOpts, safeRequested);

@@ -131,7 +131,6 @@
     {/each}
   {/if}
 
-  <!-- Legend row -->
   <rect x={padL} y="97" width="6" height="5" rx="1" class="precip-bar" />
   <text x={padL + 9} y="102" class="legend">P (mm)</text>
   {#if etLine}
