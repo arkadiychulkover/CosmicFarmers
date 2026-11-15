@@ -1,18 +1,6 @@
-/**
- * USDA NRCS Soil Data Access (SSURGO) and NASS CropScape CDL client utilities.
- *
- * Verified API & CORS behavior (2026-11-15 probes):
- * - USDA SDA / SSURGO (`https://sdmdataaccess.nrcs.usda.gov/Tabular/post.rest`):
- *   CORS-open (`Access-Control-Allow-Origin: *`), ~200–1200ms, CONUS/US soil horizons + farmland class.
- * - USDA NASS CropScape CDL (`https://nassgeodata.gmu.edu/axis2/services/CDLService/GetCDLValue`):
- *   Requires EPSG:5070 (Albers Equal Area Conic) coordinates. Works in Node/SSR/proxies; sends no
- *   `Access-Control-Allow-Origin` header in direct browser fetches, so callers treat failures gracefully.
- */
-
 const SDA_ENDPOINT = 'https://sdmdataaccess.nrcs.usda.gov/Tabular/post.rest';
 const CDL_ENDPOINT = 'https://nassgeodata.gmu.edu/axis2/services/CDLService/GetCDLValue';
 
-// Keep in sync with ml/export_onnx.py CROPS (21 classes) and CDL_TO_CROP.
 export const CDL_TO_CROP = Object.freeze({
   1: 'maize',
   2: 'cotton',
@@ -41,46 +29,34 @@ export const CDL_TO_CROP = Object.freeze({
 });
 
 export const CDL_NON_CROP_CATEGORY = Object.freeze({
-  37: 'pasture', // Other Hay/Non Alfalfa
-  61: 'cropland', // Fallow/Idle Cropland
-  62: 'pasture', // Pasture/Grass
-  81: 'barren', // Clouds/NoData
-  82: 'urban', // Developed
-  83: 'water', // Water
-  87: 'wetland', // Wetlands
-  88: 'barren', // Nonag/Undefined
-  111: 'water', // Open Water
-  112: 'barren', // Perennial Ice/Snow
-  121: 'urban', // Developed/Open Space
-  122: 'urban', // Developed/Low Intensity
-  123: 'urban', // Developed/Med Intensity
-  124: 'urban', // Developed/High Intensity
-  131: 'barren', // Barren
-  141: 'forest', // Deciduous Forest
-  142: 'forest', // Evergreen Forest
-  143: 'forest', // Mixed Forest
-  152: 'pasture', // Shrubland
-  176: 'pasture', // Grassland/Pasture
-  190: 'wetland', // Woody Wetlands
-  195: 'wetland', // Herbaceous Wetlands
+  37: 'pasture',
+  61: 'cropland',
+  62: 'pasture',
+  81: 'barren',
+  82: 'urban',
+  83: 'water',
+  87: 'wetland',
+  88: 'barren',
+  111: 'water',
+  112: 'barren',
+  121: 'urban',
+  122: 'urban',
+  123: 'urban',
+  124: 'urban',
+  131: 'barren',
+  141: 'forest',
+  142: 'forest',
+  143: 'forest',
+  152: 'pasture',
+  176: 'pasture',
+  190: 'wetland',
+  195: 'wetland',
 });
 
-/**
- * Checks whether coordinates lie within the contiguous US bounds supported by NLCD/CDL/SSURGO.
- * @param {number} lat
- * @param {number} lon
- * @returns {boolean}
- */
 export function isWithinUsConusBounds(lat, lon) {
   return Number.isFinite(lat) && Number.isFinite(lon) && lat >= 24 && lat <= 50 && lon >= -125 && lon <= -66;
 }
 
-/**
- * Creates a combined AbortSignal capped at timeoutMs while respecting an optional external signal.
- * @param {number} timeoutMs
- * @param {AbortSignal | undefined} externalSignal
- * @returns {{ signal: AbortSignal, cleanup: () => void }}
- */
 function createTimedSignal(timeoutMs, externalSignal) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(new Error(`Request timed out after ${timeoutMs}ms`)), timeoutMs);
@@ -104,13 +80,6 @@ function createTimedSignal(timeoutMs, externalSignal) {
   };
 }
 
-/**
- * Projects WGS84 geographic coordinates (lat, lon) into EPSG:5070 (NAD83 / Conus Albers meters)
- * required by USDA CropScape CDL and USGS NLCD ImageServer.
- * @param {number} lat - Latitude in degrees
- * @param {number} lon - Longitude in degrees
- * @returns {{ x: number, y: number }}
- */
 export function wgs84ToEpsg5070(lat, lon) {
   const deg2rad = Math.PI / 180;
   const a = 6378137.0;
@@ -163,11 +132,6 @@ function toFiniteNumber(value) {
   return Number.isFinite(n) ? n : null;
 }
 
-/**
- * Infers a normalized land-cover hint from a single USDA SSURGO mapunit/component row.
- * @param {object} row
- * @returns {{ isWater: boolean, isUrbanMisc: boolean, categoryHint: string | null }}
- */
 function classifySsurgoRow(row) {
   const muname = String(row?.muname || '').trim();
   const compname = String(row?.compname || '').trim();
@@ -196,14 +160,6 @@ function classifySsurgoRow(row) {
   return { isWater, isUrbanMisc, isPrimeOrFarmland, categoryHint };
 }
 
-/**
- * Queries USDA NRCS Soil Data Access (SSURGO) at a point for mapunit, farmland classification,
- * drainage class, hydrologic group, and top-horizon soil properties (0–30 cm representative values).
- * @param {number} lat
- * @param {number} lon
- * @param {{ timeoutMs?: number, signal?: AbortSignal, endpoint?: string }} [options]
- * @returns {Promise<object>}
- */
 export async function queryUsdaSsurgo(lat, lon, options = {}) {
   const { timeoutMs = 4500, signal, endpoint = SDA_ENDPOINT } = options;
   if (!isWithinUsConusBounds(lat, lon)) {
@@ -218,7 +174,6 @@ export async function queryUsdaSsurgo(lat, lon, options = {}) {
   const latNum = Number(lat).toFixed(6);
   const lonNum = Number(lon).toFixed(6);
 
-  // Use TOP 1 representative component & weighted 0-30cm horizon properties via WKT point intersect.
   const sql = `
     SELECT TOP 1
       mu.mukey, mu.muname, mu.farmlndcl,
@@ -278,7 +233,6 @@ export async function queryUsdaSsurgo(lat, lon, options = {}) {
       };
     }
 
-    // SDA JSON returns array-of-arrays (first row is column values matching SELECT order unless JSON+columnname).
     const r = rows[0];
     const row = Array.isArray(r)
       ? {
@@ -302,7 +256,6 @@ export async function queryUsdaSsurgo(lat, lon, options = {}) {
 
     const classification = classifySsurgoRow(row);
     const omPct = toFiniteNumber(row.om_r);
-    // Van Bemmelen factor (1.724): SOC (%) = OM (%) / 1.724 => g/kg = (% / 1.724) * 10
     const socGkg = omPct !== null ? Number(((omPct / 1.724) * 10).toFixed(2)) : null;
 
     return {
@@ -343,25 +296,12 @@ export async function queryUsdaSsurgo(lat, lon, options = {}) {
   }
 }
 
-/**
- * Returns the latest completed USDA CropScape CDL year (available ~Feb following harvest).
- * @returns {number}
- */
 export function getLatestCdlYear() {
   const now = new Date();
   const y = now.getFullYear();
   return now.getMonth() < 2 ? y - 2 : y - 1;
 }
 
-/**
- * Queries USDA NASS CropScape CDL value at a CONUS coordinate.
- * Note: Direct browser calls to `nassgeodata.gmu.edu` lack `Access-Control-Allow-Origin` headers
- * and will safely fall back to `{ ok: false, corsOrNetworkBlocked: true }`.
- * @param {number} lat
- * @param {number} lon
- * @param {{ year?: number, timeoutMs?: number, signal?: AbortSignal, endpoint?: string }} [options]
- * @returns {Promise<object | null>}
- */
 export async function queryUsdaCropScapeCdl(lat, lon, options = {}) {
   const {
     year = getLatestCdlYear(),
@@ -387,7 +327,6 @@ export async function queryUsdaCropScapeCdl(lat, lon, options = {}) {
     }
     const xml = await res.text();
 
-    // Example XML: <Result>{x: 205642, y: 2113617, value: 1, category: "Corn", color: "#FFD300"}</Result>
     const resultMatch = xml.match(/<(?:\w+:)?Result[^>]*>([\s\S]*?)<\/(?:\w+:)?Result>/i);
     const body = resultMatch ? resultMatch[1] : xml;
 
@@ -432,14 +371,6 @@ export async function queryUsdaCropScapeCdl(lat, lon, options = {}) {
   }
 }
 
-/**
- * Queries USDA NRCS SSURGO and CropScape CDL in parallel for CONUS coordinates.
- * Never throws on CORS/network errors (aborts only on external signal).
- * @param {number} lat
- * @param {number} lon
- * @param {{ year?: number, timeoutMs?: number, signal?: AbortSignal, includeCdl?: boolean }} [options]
- * @returns {Promise<{ inUsBounds: boolean, usSsurgo: object | null, usCdlCrop: object | null }>}
- */
 export async function fetchUsdaSoilAndCdl(lat, lon, options = {}) {
   const { year, timeoutMs = 4500, signal, includeCdl = true } = options;
   if (!isWithinUsConusBounds(lat, lon)) {
@@ -468,12 +399,6 @@ export async function fetchUsdaSoilAndCdl(lat, lon, options = {}) {
   };
 }
 
-/**
- * Converts a successful USDA SSURGO record into a SoilGrids-compatible property bundle
- * for fallback when `rest.isric.org` times out inside the US.
- * @param {object | null | undefined} usSsurgo
- * @returns {object | null}
- */
 export function ssurgoToSoilGridsFallback(usSsurgo) {
   if (!usSsurgo || !usSsurgo.ok || !usSsurgo.mapped || usSsurgo.isWaterOrUnmapped) return null;
   const hasAny =

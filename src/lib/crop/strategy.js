@@ -1,10 +1,11 @@
+// Note on Super Intelligence (SI) Assistance: SI tools assisted with refactoring, edge-case debugging, and FAO-56 formula cross-checks; core agronomic strategy logic authored by the CosmicValley team.
 import { CropRecommendationService } from './CropRecommendationService.js';
 import { RotationMatrix } from './RotationMatrix.js';
 import { cropModel } from './modelStore.js';
 import { CROP_INFO } from './cropInfo.js';
 import { CROP_CLASSES, PREDECESSOR_TO_MODEL, irrigationToFeature } from './features.js';
-import { cropOptions, soilOptions, irrigationOptions } from '../../data/options.js';
-import { ROTATION_MATRIX, isPerennialCrop } from './rotationData.js';
+import { cropOptions, soilOptions, irrigationOptions, goalOptions } from '../../data/options.js';
+import { ROTATION_MATRIX, isPerennialCrop, applySoilCarryover } from './rotationData.js';
 import {
   goalNote,
   telemetryNote,
@@ -838,7 +839,256 @@ export function computeScenarioComparison(years = [], inputOrParams = {}, option
   };
 }
 
-function toViewModel(plan, input, params) {
+const STRATEGY_GOALS = ['regeneration', 'water', 'yield'];
+
+function createCachedModel(model) {
+  const cache = new Map();
+  let queue = Promise.resolve();
+  return {
+    load: () => model.load(),
+    predict: (features) => {
+      const key = Array.from(features, (v) => Number(v).toFixed(4)).join(',');
+      if (!cache.has(key)) {
+        const task = () => Promise.resolve(model.predict(features));
+        const pending = queue.then(task, task).catch((err) => {
+          cache.delete(key);
+          throw err;
+        });
+        queue = pending.catch(() => {});
+        cache.set(key, pending);
+      }
+      return cache.get(key);
+    },
+  };
+}
+
+function evaluateGoalPlan(rawPlan, goalKey, params, prevModelCrop, coverContext) {
+  const rawYears = rawPlan?.years || [];
+  const { yearWindows, coverSummary } = computePlanCoverWindows(rawYears, coverContext);
+  const mappedYears = rawYears.map((y, idx) => {
+    const info = CROP_INFO[y.crop] || { name: y.crop };
+    const winner = y.options?.find((o) => o.crop === y.crop) || y.options?.[0] || { percent: 0 };
+    return {
+      year: y.year,
+      id: y.crop,
+      crop: y.crop,
+      name: info.name,
+      match: winner.percent,
+      previousId: y.previousCrop,
+      isPerennial: Boolean(y.isPerennial || yearWindows[idx]?.isPerennial),
+      isPerennialContinuation: Boolean(y.isPerennialContinuation),
+      soilCarryover: y.soilCarryover || null,
+      coverWindow: yearWindows[idx]?.coverWindow || null,
+    };
+  });
+  const indicators = computePlanIndicators(mappedYears, params, prevModelCrop, coverContext);
+  return {
+    goal: goalKey,
+    rawPlan,
+    yearWindows,
+    coverSummary,
+    mappedYears,
+    indicators,
+  };
+}
+
+function buildStrategyDataGaps(input, coverContext, irrigation) {
+  const gaps = [
+    'NASA POWER ~50 km grid and Penman-Monteith/MODIS proxies omit field microclimate, lab P/K & micronutrients, and cultivar price volatility.',
+  ];
+  if (input.soil !== 'custom') {
+    gaps.push('Soil chemistry uses regional preset defaults until replaced by plot soil lab tests.');
+  }
+  if (coverContext.terrainFallback) {
+    gaps.push(coverContext.terrainWarning || 'Elevation/slope used fallback grid; verify micro-drainage in field.');
+  }
+  if (!coverContext.precipPercentiles) {
+    gaps.push('10-year seasonal precipitation percentiles unavailable; climatological mean used.');
+  }
+  if (!coverContext.ndviProfile) {
+    gaps.push('Monthly MODIS NDVI bare-soil profile unavailable; frost window estimate used.');
+  }
+  if (irrigation !== 'rainfed') {
+    gaps.push('Irrigation volume estimates assume local water permit allocation, pump power, and delivery efficiency.');
+  }
+  return gaps.join(' ');
+}
+
+function buildMonocropBaselineEntry({ baselineCrop, params, prevModelCrop, coverContext, irrigation, sharedGaps }) {
+  let carryParams = { ...params };
+  const baselineYears = [1, 2, 3].map((yr) => {
+    const carry = applySoilCarryover(carryParams, baselineCrop, null);
+    carryParams = carry.nextParams;
+    return {
+      year: yr,
+      id: baselineCrop,
+      crop: baselineCrop,
+      previousCrop: yr === 1 ? prevModelCrop : baselineCrop,
+      isPerennial: isPerennialCrop(baselineCrop),
+      isPerennialContinuation: yr > 1 && isPerennialCrop(baselineCrop),
+      soilCarryover: {
+        nitrogen: carry.nextParams.nitrogen,
+        soc: carry.nextParams.soc,
+        deltaNitrogen: carry.deltaNitrogen,
+        deltaSoc: carry.deltaSoc,
+        coverCrop: null,
+        note: carry.note,
+      },
+      coverWindow: null,
+    };
+  });
+
+  const indicators = computePlanIndicators(baselineYears, params, prevModelCrop, coverContext);
+  const waterD = indicators.find((i) => i.key === 'water')?.details || {};
+  const soilD = indicators.find((i) => i.key === 'soil')?.details || {};
+  const climScore = indicators.find((i) => i.key === 'climate')?.score ?? 0;
+  const cropShort = (CROP_INFO[baselineCrop]?.name || baselineCrop).split(' (')[0];
+
+  const irrText = irrigation === 'rainfed'
+    ? `${waterD.moistureDeficit3YrMm ?? 0} mm rainfed deficit`
+    : `${(waterD.irrigationDemand3YrM3Ha ?? 0).toLocaleString('en-US')} m³/ha irrig`;
+
+  return {
+    key: 'baseline',
+    title: 'Existing Monocrop Baseline',
+    badge: 'BASELINE',
+    isBaseline: true,
+    isActive: false,
+    sequenceLabel: `${cropShort} -> ${cropShort} -> ${cropShort}`,
+    coverLabel: 'None (continuous monocrop without cover-crop carryover)',
+    metrics: {
+      etc3YrMm: waterD.cropEtc3YrMm ?? 0,
+      irrigationDemand3YrM3Ha: waterD.irrigationDemand3YrM3Ha ?? 0,
+      moistureDeficit3YrMm: waterD.moistureDeficit3YrMm ?? 0,
+      waterSavedMm: waterD.waterSavedMm ?? 0,
+      waterSavedPct: waterD.waterSavedPct ?? 0,
+      deltaSocGkg: soilD.deltaSocGkg ?? 0,
+      deltaNitrogenGkg: soilD.deltaNitrogenGkg ?? 0,
+      nFixingCrops: soilD.nFixingCrops ?? 0,
+      climateScore: climScore,
+      avgMatchPct: null,
+    },
+    why: `Business-as-usual reference: repeats 3 consecutive years of ${cropShort} without rotational breaks or cover crops so each NASA-guided option can be weighed against continuing current monoculture.`,
+    evidence: `3-yr ETc ${waterD.cropEtc3YrMm ?? 0} mm (${irrText}), SOC ${(soilD.deltaSocGkg ?? 0) >= 0 ? '+' : ''}${soilD.deltaSocGkg ?? 0} g/kg, N ${(soilD.deltaNitrogenGkg ?? 0) >= 0 ? '+' : ''}${soilD.deltaNitrogenGkg ?? 0} g/kg, resilience ${climScore}/100.`,
+    benefits: `No transition overhead: reuses existing single-crop machinery, planter calibration, herbicide program, and storage infrastructure.`,
+    gaps: sharedGaps,
+    risks: `High risk of host-specific pest, pathogen, and herbicide-resistant weed buildup across 3 consecutive years; organic-matter drawdown without cover breaks; zero crop diversification against drought or heat shocks.`,
+  };
+}
+
+function buildGoalStrategyEntry(goalKey, evalPlan, activeGoal, params, precipitationSummary, irrigation, sharedGaps) {
+  const goalOpt = goalOptions.find((g) => g.value === goalKey);
+  const title = goalOpt?.title || goalKey;
+  const waterD = evalPlan.indicators.find((i) => i.key === 'water')?.details || {};
+  const soilD = evalPlan.indicators.find((i) => i.key === 'soil')?.details || {};
+  const climScore = evalPlan.indicators.find((i) => i.key === 'climate')?.score ?? 0;
+
+  const shortNames = evalPlan.mappedYears.map((y) => (y.name || y.crop).split(' (')[0]);
+  const sequenceLabel = shortNames.join(' -> ');
+
+  const uniqueCovers = [
+    ...new Set(evalPlan.yearWindows.map((w) => w.coverWindow?.coverCrop?.name).filter(Boolean)),
+  ];
+  const unbridged = soilD.unbridgedBareMonths ?? 0;
+  const coverLabel = uniqueCovers.length > 0
+    ? `Cover bridges: ${uniqueCovers.join(', ')} (${unbridged} unbridged bare mo)`
+    : 'Continuous perennial canopy or full-season ground cover';
+
+  const matches = evalPlan.mappedYears.map((y) => y.match).filter((m) => Number.isFinite(m) && m > 0);
+  const avgMatchPct = matches.length > 0
+    ? Math.round(matches.reduce((a, b) => a + b, 0) / matches.length)
+    : null;
+
+  const savedMm = waterD.waterSavedMm ?? 0;
+  const savedPct = waterD.waterSavedPct ?? 0;
+  const baseCrop = waterD.baselineCrop || 'monocrop';
+  const waterVsBase = savedMm >= 0
+    ? `+${savedMm} mm ETc saved (${savedPct}% vs. ${baseCrop})`
+    : `${Math.abs(savedMm)} mm higher ETc than ${baseCrop} base`;
+  const irrText = irrigation === 'rainfed'
+    ? `${waterD.moistureDeficit3YrMm ?? 0} mm rainfed deficit`
+    : `${(waterD.irrigationDemand3YrM3Ha ?? 0).toLocaleString('en-US')} m³/ha irrig`;
+  const gddRound = Math.round(Number(params.GDD || 0)).toLocaleString('en-US');
+
+  let why;
+  let benefits;
+  let risks;
+  if (goalKey === 'regeneration') {
+    why = `Prioritizes N-fixing legumes, deep rooting, and overwinter cover bridges for initial SOC ${params.soc} g/kg, Total N ${params.nitrogen} g/kg, and ${Number(params.SLOPE ?? 0).toFixed(1)}% slope.`;
+    benefits = `vs. ${baseCrop} baseline: ${waterVsBase}; projected 3-yr ΔSOC ${soilD.deltaSocGkg >= 0 ? '+' : ''}${soilD.deltaSocGkg} g/kg, ΔN ${soilD.deltaNitrogenGkg >= 0 ? '+' : ''}${soilD.deltaNitrogenGkg} g/kg, ${soilD.nFixingCrops}/3 N-fixers, resilience ${climScore}/100.`;
+    risks = `Lower primary-cereal share in legume/cover years; cover-crop establishment depends on autumn rainfall and timely spring termination before seeding; confirm local cover-seed, inoculant, and off-take access.`;
+  } else if (goalKey === 'water') {
+    why = `Weights drought-tolerant crops and lower canopy Kc (avg ${waterD.avgKc}) against ${precipitationSummary.seasonPrecip8Mm} mm growing-season rain and ${Math.round(waterD.avgAwcMmPerM ?? 0)} mm/m soil AWC.`;
+    benefits = `vs. ${baseCrop} baseline: ${waterVsBase}; ${irrText}; 3-yr ΔSOC ${soilD.deltaSocGkg >= 0 ? '+' : ''}${soilD.deltaSocGkg} g/kg, climate resilience ${climScore}/100.`;
+    risks = `Lower-ETc crops can forego peak biomass upside in wet (p75) years and remain exposed to brief flowering heatwaves; verify infiltration, sowing-moisture triggers, and regional buyer demand with an agronomist.`;
+  } else {
+    why = `Selects the highest ONNX agro-climatic suitability across 21 NASA POWER & soil variables (${precipitationSummary.seasonPrecip8Mm} mm season rain, ${gddRound} GDD, ${irrigation} regime).`;
+    benefits = `${avgMatchPct !== null ? `${avgMatchPct}% mean ONNX fit; ` : ''}${waterVsBase}; ${irrText}; targets maximum seasonal biomass and harvest output (resilience ${climScore}/100).`;
+    risks = `Higher canopy water and nitrogen demand amplifies drought exposure in dry (p25) seasons; requires disciplined top-dressing, disease scouting, and harvest/storage logistics review before commitment.`;
+  }
+
+  const isActive = goalKey === activeGoal;
+  return {
+    key: goalKey,
+    title,
+    badge: isActive ? 'ACTIVE' : 'ALTERNATIVE',
+    isBaseline: false,
+    isActive,
+    sequenceLabel,
+    coverLabel,
+    metrics: {
+      etc3YrMm: waterD.cropEtc3YrMm ?? 0,
+      irrigationDemand3YrM3Ha: waterD.irrigationDemand3YrM3Ha ?? 0,
+      moistureDeficit3YrMm: waterD.moistureDeficit3YrMm ?? 0,
+      waterSavedMm: savedMm,
+      waterSavedPct: savedPct,
+      deltaSocGkg: soilD.deltaSocGkg ?? 0,
+      deltaNitrogenGkg: soilD.deltaNitrogenGkg ?? 0,
+      nFixingCrops: soilD.nFixingCrops ?? 0,
+      climateScore: climScore,
+      avgMatchPct,
+    },
+    why,
+    evidence: `${avgMatchPct !== null ? `ONNX fit ${avgMatchPct}%, ` : ''}ETc ${waterD.cropEtc3YrMm ?? 0} mm (${irrText}), SOC ${(soilD.deltaSocGkg ?? 0) >= 0 ? '+' : ''}${soilD.deltaSocGkg ?? 0} g/kg, resilience ${climScore}/100.`,
+    benefits,
+    gaps: sharedGaps,
+    risks,
+  };
+}
+
+function buildStrategyComparison({ evaluatedByGoal, activeGoal, activeIndicators, input, params, prevModelCrop, coverContext, precipitationSummary, irrigation }) {
+  const sharedGaps = buildStrategyDataGaps(input, coverContext, irrigation);
+  const activeWaterD = activeIndicators.find((i) => i.key === 'water')?.details || {};
+  const baselineCrop = activeWaterD.baselineCrop || prevModelCrop || (Number(params?.T2M ?? 15) >= 15 ? 'maize' : 'wheat');
+
+  const baselineEntry = buildMonocropBaselineEntry({
+    baselineCrop,
+    params,
+    prevModelCrop,
+    coverContext,
+    irrigation,
+    sharedGaps,
+  });
+
+  const goalEntries = STRATEGY_GOALS
+    .filter((key) => evaluatedByGoal[key])
+    .map((key) =>
+      buildGoalStrategyEntry(
+        key,
+        evaluatedByGoal[key],
+        activeGoal,
+        params,
+        precipitationSummary,
+        irrigation,
+        sharedGaps,
+      ),
+    );
+
+  return [baselineEntry, ...goalEntries];
+}
+
+function toViewModel(plan, input, params, plansByGoal = null) {
+  const activeGoal = input.goal || 'regeneration';
   const gdd = Math.round(params.GDD).toLocaleString('en-US');
 
   const soilName = label(soilOptions, input.soil) || 'loam';
@@ -849,7 +1099,19 @@ function toViewModel(plan, input, params) {
   const soilSummary = `pH ${params.ph}, SOC ${params.soc} g/kg, Total N ${params.nitrogen} g/kg, Clay ${params.clay}% / Sand ${params.sand}% / Silt ${params.silt}% (${soil}, ${irrigationLabel.toLowerCase()})`;
 
   const coverContext = buildCoverContext(input, params);
-  const { yearWindows, coverSummary } = computePlanCoverWindows(plan.years || [], coverContext);
+  const prevModelCrop = PREDECESSOR_TO_MODEL[input.predecessor] ?? null;
+
+  const sourcePlans = plansByGoal && Object.keys(plansByGoal).length > 0
+    ? plansByGoal
+    : { [activeGoal]: plan };
+  const evaluatedByGoal = Object.fromEntries(
+    Object.entries(sourcePlans)
+      .filter(([, p]) => Boolean(p))
+      .map(([gKey, raw]) => [gKey, evaluateGoalPlan(raw, gKey, params, prevModelCrop, coverContext)]),
+  );
+
+  const activeEval = evaluatedByGoal[activeGoal] || evaluateGoalPlan(plan, activeGoal, params, prevModelCrop, coverContext);
+  const { yearWindows, coverSummary, indicators } = activeEval;
 
   const precipitationSummary = resolvePrecipitationSummary(input, params, coverContext.precipPercentiles);
   const precipLine = `${precipitationSummary.seasonPrecip8Mm} mm growing-season (${precipitationSummary.seasonLabel}, 8-mo) / ${precipitationSummary.annualPrecip12Mm} mm annual (12-mo) rainfall`;
@@ -864,8 +1126,8 @@ function toViewModel(plan, input, params) {
     };
     const winner = y.options?.find((o) => o.crop === y.crop) || y.options?.[0] || { percent: 0 };
     const rotation = rotationNote(y.previousCrop, y.crop, y.isPerennialContinuation);
-    const goalMsg = goalNote(input.goal, y.crop);
-    const telMsg = telemetryNote(input.goal, params, y.crop);
+    const goalMsg = goalNote(activeGoal, y.crop);
+    const telMsg = telemetryNote(activeGoal, params, y.crop);
     const carryoverMsg = y.soilCarryover?.note
       ? `Soil carryover into Year ${y.year}: ${y.soilCarryover.note} (effective Total N ${y.soilCarryover.nitrogen} g/kg, SOC ${y.soilCarryover.soc} g/kg).`
       : '';
@@ -911,8 +1173,8 @@ function toViewModel(plan, input, params) {
       climate: 'Standard climate requirements',
       advisory: 'Consult local agronomic extension',
     };
-    const goalMsg = goalNote(input.goal, option.crop);
-    const telMsg = telemetryNote(input.goal, params, option.crop);
+    const goalMsg = goalNote(activeGoal, option.crop);
+    const telMsg = telemetryNote(activeGoal, params, option.crop);
     const advisory = [info.advisory, goalMsg, telMsg].filter(Boolean).join(' ');
 
     return {
@@ -930,20 +1192,30 @@ function toViewModel(plan, input, params) {
     };
   });
 
-  const prevModelCrop = PREDECESSOR_TO_MODEL[input.predecessor] ?? null;
-  const indicators = computePlanIndicators(years, params, prevModelCrop, coverContext);
   const scenarioComparison = computeScenarioComparison(years, input, {
     params,
-    goal: input.goal || 'regeneration',
+    goal: activeGoal,
     previousCrop: prevModelCrop,
     coverContext,
     precipitationSummary,
     precipPercentiles: coverContext.precipPercentiles,
   });
 
+  const strategyComparison = buildStrategyComparison({
+    evaluatedByGoal,
+    activeGoal,
+    activeIndicators: indicators,
+    input,
+    params,
+    prevModelCrop,
+    coverContext,
+    precipitationSummary,
+    irrigation,
+  });
+
   return {
     version: 3,
-    goal: input.goal || 'regeneration',
+    goal: activeGoal,
     irrigation,
     irrigationLabel,
     soilProfile: {
@@ -976,6 +1248,7 @@ function toViewModel(plan, input, params) {
     indicators,
     scenarios: scenarioComparison.scenarios,
     scenarioComparison,
+    strategyComparison,
     recommendations,
     years,
   };
@@ -986,26 +1259,42 @@ export async function runStrategy(input, { signal } = {}) {
   const previousCrop = PREDECESSOR_TO_MODEL[input.predecessor] ?? null;
   const goal = input.goal ?? 'regeneration';
   const coverContext = buildCoverContext(input, params);
+  const cachedModel = createCachedModel(cropModel);
 
-  let scopedRecord = { params, previousCrop, goal, coverContext };
-  const service = new CropRecommendationService({
-    model: cropModel,
-    repository: {
-      loadLast: () => scopedRecord,
-      saveLast: (record) => {
-        scopedRecord = record;
+  const buildGoalPlan = (g) => {
+    let scopedRecord = { params, previousCrop, goal: g, coverContext };
+    const service = new CropRecommendationService({
+      model: cachedModel,
+      repository: {
+        loadLast: () => scopedRecord,
+        saveLast: (record) => {
+          scopedRecord = record;
+        },
       },
-    },
-    rotation: new RotationMatrix(CROP_CLASSES, ROTATION_MATRIX),
-    goal,
-  });
+      rotation: new RotationMatrix(CROP_CLASSES, ROTATION_MATRIX),
+      goal: g,
+    });
+    return service.getPlan();
+  };
 
-  const [plan] = await Promise.all([
-    service.getPlan(),
-    cropModel.load(),
+  const goalsToRun = STRATEGY_GOALS.includes(goal) ? STRATEGY_GOALS : [goal, ...STRATEGY_GOALS];
+
+  const computeAllPlans = async () => {
+    await cachedModel.load();
+    const entries = [];
+    for (const g of goalsToRun) {
+      if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
+      entries.push([g, await buildGoalPlan(g)]);
+    }
+    return Object.fromEntries(entries);
+  };
+
+  const [plansByGoal] = await Promise.all([
+    computeAllPlans(),
     sleep(MIN_CALC_MS, signal),
   ]);
 
   if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
-  return toViewModel(plan, input, params);
+  const activePlan = plansByGoal[goal] || plansByGoal.regeneration;
+  return toViewModel(activePlan, input, params, plansByGoal);
 }
