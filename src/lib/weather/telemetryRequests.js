@@ -427,13 +427,6 @@ export async function loadSoilSource(lat, lon, signal) {
   };
 }
 
-/**
- * Loads the 12-month MODIS satellite NDVI profile and bare-soil mask (NDVI < 0.25).
- * @param {number} lat
- * @param {number} lon
- * @param {AbortSignal} [signal]
- * @returns {Promise<object>}
- */
 export async function loadNdvi(lat, lon, signal) {
   const w = await getWeatherShared(lat, lon, signal);
   if (w?.ndviProfile) return w.ndviProfile;
@@ -444,13 +437,6 @@ export async function loadNdvi(lat, lon, signal) {
   });
 }
 
-/**
- * Loads the fused US NLCD/USDA + global Sentinel-2 land-use / land-cover suitability mask.
- * @param {number} lat
- * @param {number} lon
- * @param {AbortSignal} [signal]
- * @returns {Promise<object>}
- */
 export async function loadLandCover(lat, lon, signal) {
   const cached = cachedPayload(lat, lon);
   if (cached?.landCover) return cached.landCover;

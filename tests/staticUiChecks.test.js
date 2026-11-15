@@ -99,6 +99,16 @@ describe('Static & UI Compliance Checks', () => {
     expect(soilChart).toContain('class="soil-legend"');
     expect(soilChart).not.toMatch(/<rect[^>]*class="group-pill"/);
 
+    const goalSelector = readRepoFile('src/components/GoalSelector.svelte');
+    expect(goalSelector).toMatch(/\.card\s*\{[\s\S]*?position:\s*relative;/);
+    expect(goalSelector).toMatch(/input\s*\{[\s\S]*?top:\s*0;[\s\S]*?left:\s*0;/);
+
+    const globus = readRepoFile('src/components/globus.svelte');
+    expect(globus).toContain('unwrapPolygonRing');
+    expect(globus).toContain('tracePolygonRings');
+    expect(globus).toContain("ctx.fill(landPath, 'evenodd')");
+    expect(globus).toContain("ctx.clip(landPath, 'evenodd')");
+
     const telemetry = readRepoFile('src/screens/TelemetryScreen.svelte');
     expect(telemetry).toContain('nonArableAckCoord');
     expect(telemetry).toContain('freezeThawDays');

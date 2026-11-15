@@ -179,10 +179,13 @@
 
 <div class="app">
   <Header />
-
+  
   <div class="layout">
+    
     <section class="panel" class:collapsed={$session.collapsed}>
-      <div class="content">
+      
+      <div class="content" class:input-page={currentPath === '/' || currentPath === '/telemetry'}>
+        
         <Router
           id="panel-router"
           routes={panelRoutes}
@@ -331,6 +334,7 @@
   }
 
   .content {
+    position: relative;
     flex: 1;
     min-width: 0;
     padding: 32px clamp(16px, 4vw, 36px);
@@ -344,6 +348,11 @@
     height: 100%;
     scrollbar-width: none;
     -ms-overflow-style: none;
+  }
+
+  .content.input-page {
+    margin-top: 30px;
+    height: auto;
   }
 
   .content::-webkit-scrollbar {

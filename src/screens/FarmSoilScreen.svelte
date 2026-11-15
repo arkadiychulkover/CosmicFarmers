@@ -1,5 +1,5 @@
 <script>
-  import { tick } from 'svelte';
+  import { flushSync } from 'svelte';
   import { goto } from '@mateothegreat/svelte5-router';
   import Presets from '../components/Presets.svelte';
   import NumberField from '../components/NumberField.svelte';
@@ -124,46 +124,37 @@
   });
 
   let belowWarning = $state(null);
-  let warningTop = null;
   let scrollLock = null;
 
-  $effect(() => {
-    const signature = oodBanner ? `${oodBanner.title}\n${oodBanner.items.join('\n')}` : '';
-    const marker = belowWarning;
-    const scroller = marker?.closest('.content');
-    if (!marker || !scroller || !signature) return;
-    let cancelled = false;
-    tick().then(() => {
-      if (cancelled) return;
-      const top = marker.getBoundingClientRect().top;
-      if (warningTop !== null) {
-        const delta = top - warningTop;
-        if (delta) {
-          if (scrollLock) scrollLock.top += delta;
-          scroller.scrollTop += delta;
-        }
-      }
-      warningTop = marker.getBoundingClientRect().top;
-    });
-    return () => {
-      cancelled = true;
-    };
-  });
+  function preserveOffset(node, fn) {
+    const scroller = node?.closest('.content');
+    const before = node ? node.getBoundingClientRect().top : null;
+    flushSync(fn);
+    if (!node || !scroller || before === null) return;
+    const delta = node.getBoundingClientRect().top - before;
+    if (Math.abs(delta) < 1) return;
+    if (scrollLock) scrollLock.top += delta;
+    scroller.scrollTop += delta;
+  }
 
   function updateSoilField(key, value) {
     const num = Number(value);
     if (Number.isNaN(num)) return;
-    $session.form[key] = num;
-    $session.customSoilEdited = true;
+    preserveOffset(belowWarning ?? textureTrack, () => {
+      $session.form[key] = num;
+      $session.customSoilEdited = true;
+    });
   }
 
   function setTexture(clay, sand) {
     const nextClay = Math.min(100, Math.max(0, Number(clay) || 0));
     const nextSand = Math.min(100 - nextClay, Math.max(0, Number(sand) || 0));
-    $session.form.clay = Number(nextClay.toFixed(1));
-    $session.form.sand = Number(nextSand.toFixed(1));
-    $session.form.silt = Number((100 - $session.form.clay - $session.form.sand).toFixed(1));
-    $session.customSoilEdited = true;
+    preserveOffset(textureTrack, () => {
+      $session.form.clay = Number(nextClay.toFixed(1));
+      $session.form.sand = Number(nextSand.toFixed(1));
+      $session.form.silt = Number((100 - $session.form.clay - $session.form.sand).toFixed(1));
+      $session.customSoilEdited = true;
+    });
   }
 
   let textureTrack = $state(null);
@@ -762,6 +753,11 @@
 
   .irr-card input {
     position: absolute;
+    top: 0;
+    left: 0;
+    width: 0;
+    height: 0;
+    margin: 0;
     opacity: 0;
     pointer-events: none;
   }
