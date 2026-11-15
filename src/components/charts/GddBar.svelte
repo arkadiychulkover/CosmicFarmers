@@ -129,7 +129,7 @@
   }
 
   .track {
-    fill: #293751;
+    fill: var(--color-panel);
   }
 
   .tick {

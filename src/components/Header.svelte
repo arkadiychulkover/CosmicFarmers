@@ -1,4 +1,5 @@
-<script>  import { githubUrl } from '../data/links.js';
+<script>
+  import { githubUrl } from '../data/links.js';
   import { session } from '../stores/session.svelte.js';
 
   const light = $derived($session.theme === 'light');
@@ -26,10 +27,9 @@
   </div>
 
   <div class="brand">
-    <div class="row">
-      <span class="logo" aria-hidden="true"></span>
-      <span class="name">Field Shift</span>
-    </div>
+    <a href="/" class="brand-link">
+      <img src="/photos/logo.svg" alt="Cosmic Valley" class="logo-img" />
+    </a>
     <p>Powered by NASA POWER Agroclimatology</p>
   </div>
 
@@ -47,7 +47,8 @@
   </div>
 </header>
 
-<style>  .header {
+<style>
+  .header {
     display: grid;
     grid-template-columns: 1fr auto 1fr;
     align-items: start;
@@ -89,39 +90,37 @@
   }
 
   .brand {
-    display: grid;
-    gap: 8px;
-    justify-items: start;
-  }
-
-  .row {
     display: flex;
+    flex-direction: column;
     align-items: center;
-    gap: 12px;
+    gap: 8px;
+    text-align: center;
   }
 
-  .logo {
-    width: 35px;
-    height: 35px;
-    border-radius: 2px;
-    background: var(--color-text-dim);
+  .brand-link {
+    display: inline-flex;
+    align-items: center;
+    text-decoration: none;
   }
 
-  .name {
-    font-family: var(--font-display);
-    font-size: 20px;
-    font-weight: 600;
-    letter-spacing: 0;
-    line-height: 1;
-    text-transform: uppercase;
+  .logo-img {
+    height: 42px;
+    width: auto;
+    display: block;
+    object-fit: contain;
+  }
+
+  :global([data-theme='light']) .logo-img {
+    filter: brightness(0.15);
   }
 
   p {
     margin: 0;
-    font-size: 9px;
+    font-size: 12px;
     font-weight: 700;
     line-height: 1;
     color: var(--color-text-dim);
+    letter-spacing: 0.04em;
   }
 
   .switch {
@@ -176,5 +175,28 @@
 
   .switch[aria-checked='true'] .thumb {
     transform: translateX(0);
+  }
+
+  @media (max-width: 860px) {
+    .header {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: auto;
+      padding: 24px 16px 12px;
+    }
+
+    .start,
+    .end {
+      display: none;
+    }
+
+    .brand {
+      align-items: center;
+    }
+
+    .logo-img {
+      height: 46px;
+    }
   }
 </style>

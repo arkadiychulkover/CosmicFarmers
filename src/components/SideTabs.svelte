@@ -103,6 +103,7 @@
 
   .tab:hover:not(.active) {
     background: var(--color-tab-hover);
+    color: var(--color-text);
   }
 
   .tab.active {

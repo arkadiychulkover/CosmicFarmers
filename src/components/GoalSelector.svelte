@@ -66,7 +66,7 @@
   }
 
   span {
-    font-size: 9px;
+    font-size: 12px;
     font-weight: 700;
     color: var(--color-text-dim);
   }

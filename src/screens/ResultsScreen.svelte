@@ -3,8 +3,10 @@
   import ActionButton from "../components/ActionButton.svelte";
   import CropFeatureCard from "../components/CropFeatureCard.svelte";
   import CropMiniCard from "../components/CropMiniCard.svelte";
+  import StatusBanner from "../components/StatusBanner.svelte";
   import YearSlide from "../components/YearSlide.svelte";
   import { presets } from "../data/presets.js";
+  import { cropImage } from "../data/crops.js";
   import { downloadPlan } from "../utils/downloadPlan.js";
   import { session } from "../stores/session.svelte.js";
 
@@ -19,15 +21,130 @@
   let index = $state(0);
   let exporting = $state(false);
   let slideEls = $state([]);
-  let reveals = $state([1, 0, 0]);
+  let reveals = $state([1]);
   let scrollRaf = null;
 
   const result = $derived($session.result);
   const recommendations = $derived(result?.recommendations ?? []);
+  const indicators = $derived(result?.indicators ?? []);
+  const confidence = $derived(result?.confidence ?? null);
+  const coverSummary = $derived(result?.coverSummary ?? null);
   const top = $derived(recommendations[0] ?? null);
   const others = $derived(recommendations.slice(1));
   const years = $derived(result?.years ?? []);
-  const last = $derived(Math.max(0, years.length - 1));
+
+  function coverSlug(name) {
+    const s = String(name || "").toLowerCase();
+    if (s.includes("rye")) return "winter-rye";
+    if (s.includes("radish")) return "oilseed-radish";
+    if (s.includes("oat") || s.includes("pea")) return "oats-field-pea";
+    if (s.includes("vetch")) return "hairy-vetch";
+    return "crimson-clover";
+  }
+
+  const timelineStages = $derived.by(() => {
+    const stages = [];
+    years.forEach((entry, idx) => {
+      stages.push({
+        key: `yr-${entry.year}`,
+        isCoverStage: false,
+        nodeLabel: String(entry.year),
+        smallLabel: `Year ${entry.year}`,
+        titleLabel: LABELS[idx] ?? `Rotation Stage ${idx + 1}`,
+        item: entry,
+        noteTitle: "Rotation Insight",
+        noteText: entry.rotation || entry.why?.advisory || "Agronomically balanced rotation.",
+        coverNote: entry.coverWindow?.reason && !entry.coverWindow?.hasBareWindow && !entry.coverWindow?.isAlleyCover
+          ? entry.coverWindow.reason
+          : null,
+        altOptions: entry.options,
+      });
+
+      const cw = entry.coverWindow;
+      if (cw?.hasBareWindow || cw?.isAlleyCover) {
+        const nextEntry = years[(idx + 1) % years.length];
+        const nextName = (nextEntry?.name || "Next Crop").split(" (")[0];
+        const coverId = cw.coverCropId || coverSlug(cw.coverCrop);
+        const warmLabel = cw.isAlleyCover
+          ? "Perennial inter-row living mulch protected through dormancy and active fruit cycle."
+          : `${cw.warmCoverMonths ?? 0} warm frost-free months inside a ${cw.bareMonths ?? 0}-month bare/dark gap before planting ${nextName}.`;
+        stages.push({
+          key: `cov-${entry.year}`,
+          isCoverStage: true,
+          nodeLabel: `${entry.year}+`,
+          smallLabel: cw.isAlleyCover
+            ? `Year ${entry.year} · Inter-Row Cover`
+            : `Year ${entry.year} → ${entry.year < years.length ? `Year ${entry.year + 1}` : "Cycle"} · Off-Season`,
+          titleLabel: cw.isAlleyCover ? "Orchard / Vineyard Alley Cover" : "Off-Season Cover Crop",
+          item: {
+            id: coverId,
+            name: cw.coverCrop,
+            tag: cw.coverTag || (cw.isAlleyCover ? "Perennial Alley Cover" : "Off-Season Cover Crop"),
+            isCoverStage: true,
+            isAlleyCover: Boolean(cw.isAlleyCover),
+            warmCoverMonths: cw.warmCoverMonths ?? 0,
+            bareMonths: cw.bareMonths ?? 0,
+            sowWindow: cw.sowWindow,
+            harvestWindow: cw.terminateWindow,
+            sowLabel: "Cover Sow Window",
+            harvestLabel: cw.terminateWindow?.winterKills ? "Winter-Kill" : "Terminate / Mulch",
+            coverWindow: null,
+            why: {
+              soil: cw.soilBenefit || cw.reason,
+              climate: warmLabel,
+              advisory: cw.reason,
+            },
+          },
+          noteTitle: cw.isAlleyCover ? "Living Alley Protection" : "Dark-Season Gap Bridged",
+          noteText: cw.reason,
+          coverNote: null,
+          altOptions: null,
+        });
+      }
+    });
+    return stages;
+  });
+
+  const last = $derived(Math.max(0, timelineStages.length - 1));
+
+  const topSchedule = $derived(
+    years[0] && top && years[0].id === top.id ? years[0] : years[0] ?? null,
+  );
+
+  const confidenceBanner = $derived.by(() => {
+    if (!confidence) return null;
+    const score = confidence.confidenceScore ?? 0;
+    if (confidence.status === "ood" || confidence.isOod) {
+      return {
+        tone: "error",
+        title: `Out-of-Distribution Prediction (${score}/100)`,
+        message: "Field conditions fall outside the model's training distribution; suitability scores are penalized.",
+        items: (confidence.reasons || []).slice(0, 4),
+      };
+    }
+    if (confidence.status === "low") {
+      return {
+        tone: "warn",
+        title: `Low Model Confidence (${score}/100)`,
+        message: "Model probabilities or field bounds indicate reduced prediction certainty:",
+        items: (confidence.reasons || []).slice(0, 4),
+      };
+    }
+    if (confidence.status === "medium") {
+      return {
+        tone: "warn",
+        title: `Moderate Model Confidence (${score}/100)`,
+        message: "Some field parameters sit near the outer tails of the training set:",
+        items: (confidence.reasons || []).slice(0, 3),
+      };
+    }
+    return {
+      tone: "good",
+      title: `High Model Confidence (${score}/100)`,
+      message: `In-distribution match for ${result?.irrigationLabel || "Rainfed"} management.`,
+      items: [],
+    };
+  });
 
   const preset = $derived(
     presets?.find((p) => p.id === $session.activePresetId && p.values),
@@ -44,7 +161,7 @@
   });
 
   function updateScrollProgress() {
-    if (!page || !years.length) return;
+    if (!page || !timelineStages.length) return;
     const vp = page.getBoundingClientRect();
     const enterStart = vp.bottom - 20;
     const enterEnd = vp.top + vp.height * 0.45;
@@ -53,7 +170,7 @@
 
     let closestIdx = 0;
     let closestDist = Infinity;
-    const nextReveals = years.map((_, i) => {
+    const nextReveals = timelineStages.map((_, i) => {
       const el = slideEls[i];
       if (!el) return i === 0 ? 1 : 0;
       const r = el.getBoundingClientRect();
@@ -99,7 +216,7 @@
 
   function openTimeline() {
     index = 0;
-    reveals = years.map((_, i) => (i === 0 ? 1 : 0));
+    reveals = timelineStages.map((_, i) => (i === 0 ? 1 : 0));
     showTimeline = true;
     requestAnimationFrame(() => {
       if (page) page.scrollTop = 0;
@@ -152,12 +269,105 @@
     <header>
       <h2>Your Crop Strategy</h2>
       <p>
-        Based on your field, soil and climate stress test, this is your RECOMMENDED NEXT CROP:
+        {result.irrigationLabel || "Rainfed"} regime · {result.soilProfile?.soilLabel || "Loam"} (pH {result.soilProfile?.ph ?? $session.form.ph}) · Recommended next crop:
       </p>
     </header>
 
+    {#if confidenceBanner}
+      <StatusBanner
+        compact
+        tone={confidenceBanner.tone}
+        title={confidenceBanner.title}
+        message={confidenceBanner.message}
+        items={confidenceBanner.items}
+      />
+    {/if}
+
+    {#if indicators.length}
+      <div class="indicators" aria-label="3-year rotation impact summary">
+        {#each indicators as ind (ind.key)}
+          <div class="ind-card">
+            <span class="ind-label">{ind.label}</span>
+            <strong class="ind-val">{ind.value}</strong>
+            <div class="ind-bar"><span style:width="{ind.score}%"></span></div>
+            <small class="ind-note">{ind.note}</small>
+          </div>
+        {/each}
+      </div>
+    {/if}
+
     {#if top}
-      <CropFeatureCard item={top} />
+      <CropFeatureCard
+        item={top}
+        sowWindow={topSchedule?.sowWindow}
+        harvestWindow={topSchedule?.harvestWindow}
+        coverWindow={topSchedule?.coverWindow}
+      />
+    {/if}
+
+    {#if coverSummary}
+      <section class="cover-panel" aria-label="Off-season bare soil and cover-crop summary">
+        <div class="cover-head">
+          <h3>Multi-Year Calendar & Cover Windows</h3>
+          <span class="cover-meta">
+            {coverSummary.bareWindowsCount} bare/dark {coverSummary.bareWindowsCount === 1 ? "window" : "windows"} · {coverSummary.warmCoverMonths} warm cover mo · {coverSummary.frostFreeDays}d frost-free
+          </span>
+        </div>
+
+        {#if coverSummary.calendar12?.length === 12}
+          <div class="cal-strip" role="list" aria-label="Year 1 12-month crop and cover calendar">
+            {#each coverSummary.calendar12 as m (m.monthIndex)}
+              <div class="cal-cell {m.status}" role="listitem" title="{m.month}: {m.label} ({m.temp}°C, P−ET {m.waterBalance} mm)">
+                <span class="cal-mon">{m.month}</span>
+                <span class="cal-st">{m.status === 'cash-crop' ? 'grow' : m.status === 'cover-crop' ? 'cover' : m.status}</span>
+              </div>
+            {/each}
+          </div>
+        {/if}
+
+        {#if years.length}
+          <div class="year-summary-list">
+            {#each years as yr (yr.year)}
+              {@const cw = yr.coverWindow}
+              {@const hasCover = Boolean(cw?.hasBareWindow || cw?.isAlleyCover)}
+              {@const covId = hasCover ? (cw.coverCropId || coverSlug(cw.coverCrop)) : null}
+              <div class="plan-pair" class:has-cover={hasCover}>
+                <div class="stage-mini">
+                  <div class="stage-thumb" style:background-image={`url("${cropImage(yr.id)}")`} aria-hidden="true"></div>
+                  <div class="stage-meta">
+                    <div class="stage-head">
+                      <span class="stage-kicker">Year {yr.year} · Cash Crop</span>
+                      <span class="stage-score">{yr.match}%</span>
+                    </div>
+                    <strong>{yr.name.split(" (")[0]}</strong>
+                    <div class="stage-dates">
+                      {#if yr.sowWindow}<span>Sow: {yr.sowWindow.label}</span>{/if}
+                      {#if yr.harvestWindow}<span>Harvest: {yr.harvestWindow.label}</span>{/if}
+                    </div>
+                  </div>
+                </div>
+
+                {#if hasCover}
+                  <div class="stage-mini cover">
+                    <div class="stage-thumb" style:background-image={`url("${cropImage(covId)}")`} aria-hidden="true"></div>
+                    <div class="stage-meta">
+                      <div class="stage-head">
+                        <span class="stage-kicker cover">{cw.isAlleyCover ? `Year ${yr.year} · Alley Cover` : `Year ${yr.year} · Cover Crop`}</span>
+                        <span class="stage-badge">{cw.isAlleyCover ? 'Alley' : `${cw.warmCoverMonths ?? 0} warm mo`}</span>
+                      </div>
+                      <strong>{cw.coverCrop}</strong>
+                      <div class="stage-dates">
+                        {#if cw.sowWindow?.label}<span>Sow: {cw.sowWindow.label}</span>{/if}
+                        {#if cw.terminateWindow?.label}<span>{cw.terminateWindow.label}</span>{/if}
+                      </div>
+                    </div>
+                  </div>
+                {/if}
+              </div>
+            {/each}
+          </div>
+        {/if}
+      </section>
     {/if}
 
     <div class="minis">
@@ -190,7 +400,10 @@
       <div class="intro">
         <h2>3-Year Multi-Season<br />Rotation Trajectory</h2>
         <span class="arrow" aria-hidden="true">↓</span>
-        <p>Previous season: {result.previousName || "None"}</p>
+        <p>
+          Previous: {result.previousName || "None"} · {result.irrigationLabel || "Rainfed"}
+          {#if coverSummary} · {coverSummary.bareWindowsCount} bare-soil {coverSummary.bareWindowsCount === 1 ? "gap" : "gaps"} ({coverSummary.warmCoverMonths} warm cover mo){/if}
+        </p>
       </div>
 
       <div class="place">
@@ -214,9 +427,21 @@
     </div>
 
     <div class="viewport">
+      {#if confidenceBanner && confidenceBanner.tone !== "good"}
+        <div class="timeline-banner">
+          <StatusBanner
+            compact
+            tone={confidenceBanner.tone}
+            title={confidenceBanner.title}
+            message={confidenceBanner.message}
+            items={confidenceBanner.items}
+          />
+        </div>
+      {/if}
+
       <div class="line" aria-hidden="true"></div>
 
-      {#each years as entry, i (entry.year)}
+      {#each timelineStages as st, i (st.key)}
         {@const side = i % 2 === 0 ? "left" : "right"}
         <section
           class="slide {side}"
@@ -224,25 +449,28 @@
           style:--reveal={reveals[i] ?? (i === 0 ? 1 : 0)}
           role="group"
           aria-roledescription="slide"
-          aria-label="Year {entry.year} of {years.length}"
+          aria-label="Stage {i + 1} of {timelineStages.length}: {st.item.name}"
         >
-          <span class="node" aria-hidden="true">{entry.year}</span>
+          <span class="node" class:cover={st.isCoverStage} aria-hidden="true">{st.nodeLabel}</span>
 
           <div class="main">
             <p class="label">
-              <small>Year {entry.year}</small>
-              <b>{LABELS[i] ?? `Rotation Stage ${i + 1}`}</b>
+              <small>{st.smallLabel}</small>
+              <b>{st.titleLabel}</b>
             </p>
-            <div class="card"><YearSlide item={entry} /></div>
+            <div class="card"><YearSlide item={st.item} /></div>
           </div>
 
           <aside class="note">
-            <strong>Rotation insight</strong>
-            <p>{entry.rotation || entry.why?.advisory || "Agronomically balanced rotation."}</p>
-            {#if entry.options && entry.options.length > 1}
+            <strong>{st.noteTitle}</strong>
+            <p>{st.noteText}</p>
+            {#if st.coverNote}
+              <p class="cover-note">{st.coverNote}</p>
+            {/if}
+            {#if st.altOptions && st.altOptions.length > 1}
               <p class="alt">
                 Also considered:
-                {#each entry.options.filter((o) => o.id !== entry.id) as o, k (o.id)}{k ? ", " : " "}{o.name} {o.percent}%{/each}
+                {#each st.altOptions.filter((o) => o.id !== st.item.id) as o, k (o.id)}{k ? ", " : " "}{o.name} {o.percent}%{/each}
               </p>
             {/if}
           </aside>
@@ -288,12 +516,13 @@
       </div>
     </div>
 
-    <nav class="dots" aria-label="Rotation years">
-      {#each years as entry, i (entry.year)}
+    <nav class="dots" aria-label="Rotation stages">
+      {#each timelineStages as st, i (st.key)}
         <button
           type="button"
           class:active={i === index}
-          aria-label="Year {entry.year}: {entry.name}"
+          class:cover={st.isCoverStage}
+          aria-label="{st.smallLabel}: {st.item.name}"
           aria-current={i === index ? "step" : undefined}
           onclick={() => go(i)}
         ></button>
@@ -302,7 +531,8 @@
   </div>
 {/if}
 
-<style>  .results {
+<style>
+  .results {
     display: grid;
     gap: 12px;
     width: var(--results-width, 387px);
@@ -336,8 +566,235 @@
   .results header p {
     margin: 0;
     font-size: 9px;
-    font-weight: 700;
     line-height: 1.4;
+    color: var(--color-text-dim);
+  }
+
+  .indicators {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .ind-card {
+    display: grid;
+    gap: 4px;
+    padding: 8px 10px;
+    border: 1px solid var(--color-border-dim);
+    border-radius: 6px;
+    background: var(--color-panel);
+  }
+
+  .ind-label {
+    font-size: 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--color-text-dim);
+  }
+
+  .ind-val {
+    font-family: var(--font-display);
+    font-size: 13px;
+    font-weight: 600;
+    line-height: 1.1;
+    color: var(--color-accent);
+  }
+
+  .ind-bar {
+    height: 4px;
+    border-radius: 2px;
+    background: color-mix(in srgb, var(--color-bg) 70%, #000);
+    overflow: hidden;
+  }
+
+  .ind-bar span {
+    display: block;
+    height: 100%;
+    border-radius: 2px;
+    background: var(--color-accent);
+  }
+
+  .ind-note {
+    font-size: 8px;
+    line-height: 1.2;
+    color: var(--color-text-dim);
+  }
+
+  .cover-panel {
+    display: grid;
+    gap: 8px;
+    padding: 10px 12px;
+    border: 1px solid var(--color-border-dim);
+    border-radius: 10px;
+    background: var(--color-panel);
+  }
+
+  .cover-head {
+    display: grid;
+    gap: 2px;
+  }
+
+  .cover-head h3 {
+    margin: 0;
+    font-family: var(--font-display);
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--color-text);
+  }
+
+  .cover-meta {
+    font-size: 8.5px;
+    color: var(--color-text-dim);
+  }
+
+  .cal-strip {
+    display: grid;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: 3px;
+  }
+
+  .cal-cell {
+    display: grid;
+    justify-items: center;
+    padding: 4px 2px;
+    border-radius: 4px;
+    border: 1px solid var(--color-border-dim);
+    background: var(--color-field);
+  }
+
+  .cal-cell.sow,
+  .cal-cell.harvest {
+    border-color: var(--color-status-info-border);
+    background: var(--color-status-info-bg);
+  }
+
+  .cal-cell.cash-crop,
+  .cal-cell.cover-crop {
+    border-color: var(--color-status-good-border);
+    background: var(--color-status-good-bg);
+  }
+
+  .cal-cell.bare {
+    border-color: var(--color-status-warn-border);
+    background: var(--color-status-warn-bg);
+  }
+
+  .cal-cell.frost {
+    border-color: var(--color-status-error-border);
+    background: var(--color-status-error-bg);
+  }
+
+  .cal-mon {
+    font-size: 8px;
+    font-weight: 700;
+    color: var(--color-text);
+  }
+
+  .cal-st {
+    font-size: 6.8px;
+    text-transform: uppercase;
+    color: var(--color-text-dim);
+  }
+
+  .year-summary-list {
+    display: grid;
+    gap: 10px;
+  }
+
+  .plan-pair {
+    display: grid;
+    gap: 6px;
+  }
+
+  .plan-pair.has-cover {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  @media (max-width: 440px) {
+    .plan-pair.has-cover {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  .stage-mini {
+    display: grid;
+    grid-template-columns: 44px minmax(0, 1fr);
+    gap: 8px;
+    align-items: center;
+    padding: 7px 8px;
+    border-radius: 8px;
+    border: 1px solid var(--color-border-dim);
+    background: color-mix(in srgb, var(--color-bg) 42%, transparent);
+  }
+
+  .stage-mini.cover {
+    border-color: var(--color-status-good-border);
+    background: var(--color-status-good-bg);
+  }
+
+  .stage-thumb {
+    width: 44px;
+    height: 44px;
+    border-radius: 6px;
+    background-size: cover;
+    background-position: center;
+    background-color: var(--color-result-card);
+    flex-shrink: 0;
+  }
+
+  .stage-meta {
+    display: grid;
+    gap: 2px;
+    min-width: 0;
+  }
+
+  .stage-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .stage-kicker {
+    font-size: 7px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--color-text-dim);
+  }
+
+  .stage-kicker.cover {
+    color: var(--color-tone-good);
+  }
+
+  .stage-score {
+    font-size: 8.5px;
+    font-weight: 700;
+    color: var(--color-accent);
+  }
+
+  .stage-badge {
+    font-size: 7.5px;
+    font-weight: 700;
+    color: var(--color-tone-good);
+  }
+
+  .stage-meta strong {
+    font-size: 10px;
+    line-height: 1.2;
+    color: var(--color-text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .stage-dates {
+    display: grid;
+    gap: 1px;
+    font-size: 7.5px;
+    line-height: 1.3;
     color: var(--color-text-dim);
   }
 
@@ -402,7 +859,7 @@
     position: absolute;
     top: 14%;
     left: clamp(24px, 6vw, 110px);
-    max-width: 300px;
+    max-width: 340px;
     text-align: center;
   }
 
@@ -420,7 +877,6 @@
   .intro p {
     margin: 6px 0 0;
     font-size: 9px;
-    font-weight: 700;
     color: var(--color-text-dim);
   }
 
@@ -441,8 +897,7 @@
   }
 
   .place small {
-    font-size: 9px;
-    font-weight: 700;
+    font-size: 7px;
     color: var(--color-text-dim);
   }
 
@@ -473,6 +928,13 @@
     z-index: 2;
     padding: 12px 0 64px;
     overflow: visible;
+  }
+
+  .timeline-banner {
+    position: relative;
+    z-index: 3;
+    width: min(640px, calc(100% - 32px));
+    margin: 0 auto 24px;
   }
 
   .slide {
@@ -511,10 +973,9 @@
     position: relative;
     grid-row: 2;
     align-self: end;
-    max-width: 240px;
+    max-width: 260px;
     margin-bottom: 24px;
-    font-size: 9px;
-    font-weight: 700;
+    font-size: 8.5px;
     line-height: 1.5;
     color: var(--color-text-dim);
     opacity: calc(0.08 + 0.92 * var(--reveal));
@@ -549,7 +1010,15 @@
     border: 1px solid var(--color-text);
     border-radius: 50%;
     background: color-mix(in srgb, var(--color-bg) 80%, #000);
-    font-size: 11px;
+    font-size: 10px;
+    font-weight: 700;
+  }
+
+  .node.cover {
+    border-color: var(--color-status-good-border);
+    background: var(--color-status-good-bg);
+    color: var(--color-tone-good);
+    font-size: 9px;
   }
 
   .left .main {
@@ -568,14 +1037,12 @@
     min-height: 30px;
     align-content: center;
     font-size: 9px;
-    font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.06em;
   }
 
   .label small {
-    font-size: 9px;
-    font-weight: 700;
+    font-size: 8px;
     color: var(--color-text-dim);
   }
 
@@ -624,13 +1091,18 @@
 
   .note strong {
     display: block;
-    font-size: 9px;
-    font-weight: 700;
+    font-size: 8.5px;
+    font-weight: 600;
     color: var(--color-text);
   }
 
   .note p {
     margin: 2px 0 0;
+  }
+
+  .note .cover-note {
+    margin-top: 5px;
+    color: var(--color-tone-good);
   }
 
   .note .alt {
@@ -738,9 +1210,17 @@
       transform 0.3s;
   }
 
+  .dots button.cover {
+    border-color: var(--color-tone-good);
+  }
+
   .dots button.active {
     background: var(--color-text);
     transform: scale(1.3);
+  }
+
+  .dots button.cover.active {
+    background: var(--color-tone-good);
   }
 
   .dots button:focus-visible {
@@ -748,15 +1228,10 @@
     outline-offset: 2px;
   }
 
-  @keyframes nudge {
-    50% {
-      transform: translateY(4px);
-    }
-  }
-
   @media (max-width: 720px) {
     .slide {
       grid-template-columns: 1fr;
+      grid-template-rows: auto auto auto;
       padding-left: 40px;
       padding-right: 16px;
       width: 100%;
@@ -768,6 +1243,7 @@
 
     .main, .left .main, .right .main {
       grid-column: 1;
+      grid-row: 1 / 3;
       padding: 0;
     }
 
@@ -779,7 +1255,26 @@
       margin-left: 0;
     }
 
-    .note, .curve {
+    .curve {
+      display: none;
+    }
+
+    .note,
+    .left .note,
+    .right .note {
+      grid-column: 1;
+      grid-row: 3;
+      justify-self: stretch;
+      max-width: none;
+      margin: 8px 0 0;
+      padding: 8px 12px;
+      text-align: left;
+      border-left: 2px solid var(--color-border-dim);
+      border-radius: 6px;
+      background: color-mix(in srgb, var(--color-panel) 55%, transparent);
+    }
+
+    .note::before {
       display: none;
     }
 
