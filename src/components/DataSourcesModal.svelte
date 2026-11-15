@@ -23,7 +23,7 @@
       resolution: '250 m – 10 km WMTS tiles',
       license: 'NASA EOSDIS Public Domain',
       temporal: 'Selected inspection date (nearest resolved valid GIBS tile)',
-      variables: 'BlueMarble_NextGeneration, MODIS_Terra_NDVI_8Day, VIIRS True Color, MODIS LST (1 km), SMAP Soil Moisture (~9 km), GPM IMERG (~10 km)',
+      variables: 'BlueMarble_NextGeneration, MODIS_Terra_NDVI_8Day, MODIS_Terra_L3_Land_Surface_Temp_8Day_Day (1 km), SMAP_L4_Analyzed_Surface_Soil_Moisture (~9 km), IMERG_Precipitation_Rate (~10 km), CERES_EBAF_Surface_Shortwave_Flux_Down_All_Sky_Monthly',
       notes: 'Visual earth-observation overlays rendered on the 3D WebGL Globe and OSM + GIBS interactive coordinate picker; excluded from ML feature inference.',
     },
     {
@@ -81,6 +81,14 @@
       temporal: 'Live interactive coordinate picker',
       variables: 'Optional field plot pinpointing & place search via user-supplied VITE_GOOGLE_MAPS_API_KEY',
       notes: 'Automatically switches to OpenStreetMap + NASA GIBS canvas mode when unconfigured, blocked, or auth fails.',
+    },
+    {
+      name: 'Crop Card Photography & Cover Visuals',
+      resolution: '1204 × 672 WebP (UI & PDF cards)',
+      license: 'SI-generated & watermarked (26/26)',
+      temporal: 'Static illustrative crop visuals',
+      variables: '26 crop species visuals used in Result cards, Timeline slides, and PDF reports',
+      notes: 'All 26 crop visuals carry clear SI watermarks without NASA branding: 13 (alfalfa, apple, barley, chickpea, cotton, crimson-clover, grapes, hairy-vetch, kidneybeans, lentil, maize, soybean, wheat) were generated using Google Gemini SI tools ("Gemini · SI"), and 13 (millet, oats, oats-field-pea, oilseed-radish, orange, peanut, potato, rapeseed, rice, sorghum, sunflower, watermelon, winter-rye) were generated using xAI Grok SI tools ("Grok · SI" + native GROK corner mark), all saved as 1204 × 672 WebP.',
     },
   ];
 

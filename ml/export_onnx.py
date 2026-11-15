@@ -1,3 +1,4 @@
+# Note on Super Intelligence (SI) Assistance: SI tools assisted with debugging API retry logic, spatial CV refactoring, and code comments; ML pipeline authored by the CosmicValley team.
 import io
 import os
 import re
@@ -150,41 +151,40 @@ OSM_CROP_MAP = {
 }
 
 US_AGRO_ZONES = [
-    (41.87, -93.09),   # Iowa (maize, soybean)
-    (38.50, -98.00),   # Kansas (wheat, maize)
-    (33.57, -101.85),  # West Texas (cotton, sorghum)
-    (35.75, -90.95),   # Arkansas Delta (rice, soybean, cotton)
-    (46.80, -117.15),  # Palouse WA/ID (wheat, barley, lentil, chickpea)
-    (47.42, -120.31),  # Wenatchee WA (apple)
-    (43.55, -112.05),  # Snake River Plain ID (potato, barley, wheat, alfalfa)
-    (42.60, -113.80),  # Magic Valley ID (potato, barley, maize, alfalfa)
-    (47.05, -119.30),  # Columbia Basin WA (potato, apple, maize, alfalfa)
-    (46.80, -67.95),   # Aroostook ME (potato, barley, oats)
-    (44.30, -89.55),   # Central Sands WI (potato, maize, soybean, alfalfa, oats)
-    (47.55, -100.45),  # North Dakota (wheat, barley, rapeseed, lentil, kidneybeans, sunflower, oats)
-    (48.10, -105.50),  # NE Montana (lentil, chickpea, wheat, barley, oats)
-    (43.00, -85.60),   # West Michigan (apple, maize, soybean, alfalfa)
-    (38.29, -122.28),  # Napa CA (grapes)
-    (36.65, -119.65),  # Central Valley CA (grapes, orange, cotton, watermelon, alfalfa)
-    (39.30, -121.85),  # Sacramento Valley CA (rice, alfalfa)
-    (31.45, -83.55),   # Georgia (cotton, watermelon, peanut)
-    (28.53, -81.37),   # Central Florida (orange, watermelon)
-    (27.95, -81.60),   # South-Central Florida (orange)
-    # Targeted priority zones for sorghum, alfalfa, oats, millet, peanut
-    (38.20, -99.50),   # Central/West Kansas (sorghum, alfalfa, wheat)
-    (37.60, -98.50),   # South-Central Kansas (sorghum, wheat)
-    (27.80, -97.60),   # Coastal Bend TX (sorghum, cotton)
-    (43.80, -90.50),   # Driftless WI / SE MN (alfalfa, oats)
-    (42.50, -99.00),   # North-Central Nebraska (alfalfa, sorghum)
-    (39.30, -112.60),  # Millard UT (alfalfa)
-    (33.00, -115.50),  # Imperial Valley CA (alfalfa)
-    (45.50, -99.50),   # Central South Dakota (oats, millet, alfalfa, sorghum)
-    (44.50, -93.50),   # Southern Minnesota (alfalfa, oats)
-    (40.50, -102.50),  # NE Colorado / SW Nebraska (millet, sorghum, wheat)
-    (41.10, -103.50),  # High Plains NE/WY (millet, oats, wheat)
-    (31.30, -85.80),   # SE Alabama Wiregrass (peanut, cotton)
-    (36.10, -77.10),   # NE North Carolina (peanut, soybean, cotton)
-    (32.70, -102.60),  # Gaines County TX (peanut, cotton, sorghum)
+    (41.87, -93.09),
+    (38.50, -98.00),
+    (33.57, -101.85),
+    (35.75, -90.95),
+    (46.80, -117.15),
+    (47.42, -120.31),
+    (43.55, -112.05),
+    (42.60, -113.80),
+    (47.05, -119.30),
+    (46.80, -67.95),
+    (44.30, -89.55),
+    (47.55, -100.45),
+    (48.10, -105.50),
+    (43.00, -85.60),
+    (38.29, -122.28),
+    (36.65, -119.65),
+    (39.30, -121.85),
+    (31.45, -83.55),
+    (28.53, -81.37),
+    (27.95, -81.60),
+    (38.20, -99.50),
+    (37.60, -98.50),
+    (27.80, -97.60),
+    (43.80, -90.50),
+    (42.50, -99.00),
+    (39.30, -112.60),
+    (33.00, -115.50),
+    (45.50, -99.50),
+    (44.50, -93.50),
+    (40.50, -102.50),
+    (41.10, -103.50),
+    (31.30, -85.80),
+    (36.10, -77.10),
+    (32.70, -102.60),
 ]
 
 GLOBAL_AGRO_CENTERS = {
@@ -208,15 +208,15 @@ GLOBAL_AGRO_CENTERS = {
         (52.10, 11.60),
         (52.40, 16.90),
         (44.40, 26.10),
-        (60.80, 23.10),   # Southern Finland
-        (55.90, 13.50),   # Skane Sweden
-        (41.60, -4.70),   # Castile Spain
-        (37.60, -5.10),   # Andalusia Spain
+        (60.80, 23.10),
+        (55.90, 13.50),
+        (41.60, -4.70),
+        (37.60, -5.10),
     ],
     "CANADA": [
-        (52.13, -106.67), # Saskatchewan
-        (49.90, -97.14),  # Manitoba
-        (46.24, -63.13),  # Prince Edward Island (potato)
+        (52.13, -106.67),
+        (49.90, -97.14),
+        (46.24, -63.13),
     ],
     "INDIA": [
         (30.90, 75.85),
@@ -765,7 +765,6 @@ def get_real_nasa_power(lat, lon, year):
             items.append((date_str, float(val)))
         return items
 
-    # 8-month growing season stats (consistent with JS SoilData.js)
     def season_arr(key):
         items = valid_series(key, season_months)
         if len(items) < 150:
@@ -799,7 +798,6 @@ def get_real_nasa_power(lat, lon, year):
         "EVPTRNS": round(float(np.mean(evptrns)), 2),
     }
 
-    # 12-month hydrology stats for infer_irrigation
     prec_12m_items = valid_series("PRECTOTCORR")
     gwetroot_12m_items = valid_series("GWETROOT")
     gwettop_12m_items = valid_series("GWETTOP")
@@ -837,7 +835,6 @@ def get_real_nasa_power(lat, lon, year):
 
 
 def infer_irrigation(pt, nasa_12m):
-    # Step A: Check OSM tags on Overpass points
     osm_tags = pt.get("osm_tags") or {}
     irrigated_tag = str(osm_tags.get("irrigated", "")).lower().strip()
     if irrigated_tag in ("yes", "true", "1"):
@@ -856,7 +853,6 @@ def infer_irrigation(pt, nasa_12m):
     if water_src in ("canal", "well", "borehole", "river", "pond", "reservoir", "lake", "irrigation", "groundwater", "spring"):
         return 1.0
 
-    # Step B: Check ESA WorldCereal RDM properties
     rdm_props = pt.get("rdm_props") or {}
     for k in ("irrigation", "irr", "management"):
         raw_val = rdm_props.get(k)
@@ -878,7 +874,6 @@ def infer_irrigation(pt, nasa_12m):
         except Exception:
             pass
 
-    # Step C: 12-month NASA POWER moisture & monsoon heuristics
     precip_12m = float(nasa_12m.get("precip_12m", 0.0))
     gwetroot = float(nasa_12m.get("GWETROOT", 0.0))
     gwettop = float(nasa_12m.get("GWETTOP", 0.0))
@@ -988,7 +983,6 @@ def get_real_soilgrids(lat, lon):
             _soil_cache[cache_key] = dict(res)
         return res
 
-    # USDA SDA fallback in exact same raw SoilGrids units
     if -125.0 <= lon <= -66.0 and 24.0 <= lat <= 50.0:
         q = f"""SELECT TOP 1 ch.ph1to1h2o_r, ch.om_r, ch.claytotal_r, ch.sandtotal_r, ch.silttotal_r
         FROM mapunit mu
@@ -1226,7 +1220,6 @@ def main():
     y = df["label"].astype(str)
     classes = sorted(y.unique().tolist())
 
-    # Spatial 5° x 5° block 5-fold cross-validation
     spatial_blocks = (
         np.floor(df["lat"] / 5.0).astype(int).astype(str)
         + "_"
@@ -1301,7 +1294,6 @@ def main():
             "onnx_bytes": cand_bytes,
         })
 
-    # Prefer best Spatial CV Top-1 + Macro-F1 while keeping ONNX compact (<= 15 MB)
     compact_results = [r for r in results if r["size_mb"] <= 15.0] or results
     best = max(compact_results, key=lambda r: (r["top1"] + 0.5 * r["macro_f1"] + 0.15 * r["top3"]))
 
@@ -1310,7 +1302,6 @@ def main():
     print(f"\nВыбрана лучшая конфигурация: {best['name']} (Spatial Top-1={best['top1']:.2f}%, Top-3={best['top3']:.2f}%, Macro-F1={best['macro_f1']:.2f}%, ONNX={best['size_mb']:.2f} MB)\n")
     print(classification_report(y, best["oof_pred"], zero_division=0))
 
-    # Verify ONNX inference parity in memory BEFORE writing to disk so public/models/crop_classifier.onnx is never broken
     sess = ort.InferenceSession(onnx_bytes)
     inp_name = sess.get_inputs()[0].name
     out_names = [o.name for o in sess.get_outputs()]

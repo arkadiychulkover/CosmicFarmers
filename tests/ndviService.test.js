@@ -33,17 +33,14 @@ function pngChunk(type, data) {
   return Buffer.concat([len, typeBuf, data, crcBuf]);
 }
 
-/**
- * Generates a valid 256x256 RGBA PNG buffer filled with a solid color (using zlib deflate).
- */
 function makeSolidPng256(r, g, b, a = 255) {
   const width = 256;
   const height = 256;
   const ihdr = Buffer.alloc(13);
   ihdr.writeUInt32BE(width, 0);
   ihdr.writeUInt32BE(height, 4);
-  ihdr[8] = 8; // bitDepth
-  ihdr[9] = 6; // RGBA colorType
+  ihdr[8] = 8;
+  ihdr[9] = 6;
   ihdr[10] = 0;
   ihdr[11] = 0;
   ihdr[12] = 0;
@@ -52,7 +49,7 @@ function makeSolidPng256(r, g, b, a = 255) {
   const raw = Buffer.alloc(height * (1 + stride));
   for (let y = 0; y < height; y++) {
     const rowStart = y * (1 + stride);
-    raw[rowStart] = 0; // filter 0
+    raw[rowStart] = 0;
     for (let x = 0; x < width; x++) {
       const px = rowStart + 1 + x * 4;
       raw[px] = r;
@@ -76,21 +73,16 @@ describe('ndviService.js Satellite PNG Decoding & Bare-Soil Detection', () => {
     expect(tile.px).toBeGreaterThanOrEqual(0);
     expect(tile.px).toBeLessThan(256);
 
-    // Low bare-soil RGB from MODIS_NDVI_PALETTE
     expect(rgbToModisNdvi(185, 171, 155, 255)).toBeCloseTo(0.1626, 3);
-    // High vegetation RGB from MODIS_NDVI_PALETTE
     expect(rgbToModisNdvi(18, 110, 0, 255)).toBeCloseTo(0.7451, 3);
-    // Snow / ice entries
     expect(rgbToModisNdvi(225, 225, 225, 255)).toBe(-0.15);
-    // Nodata fill color
     expect(rgbToModisNdvi(0, 26, 105, 255)).toBeNull();
-    // Transparent pixel
     expect(rgbToModisNdvi(18, 110, 0, 0)).toBeNull();
   });
 
   it('decodes synthetic 256x256 MODIS PNG tiles in Node without DOM and detects bareSoilMonths (< 0.25)', async () => {
-    const bareRgb = MODIS_NDVI_PALETTE[32]; // ~0.1626 (bare)
-    const lushRgb = MODIS_NDVI_PALETTE[114]; // ~0.7451 (active crop)
+    const bareRgb = MODIS_NDVI_PALETTE[32];
+    const lushRgb = MODIS_NDVI_PALETTE[114];
 
     const barePng = makeSolidPng256(bareRgb[0], bareRgb[1], bareRgb[2]);
     const lushPng = makeSolidPng256(lushRgb[0], lushRgb[1], lushRgb[2]);
@@ -100,7 +92,6 @@ describe('ndviService.js Satellite PNG Decoding & Bare-Soil Detection', () => {
     expect(decoded.height).toBe(256);
     expect(decoded.rgba[0]).toBe(bareRgb[0]);
 
-    // Months Jan, Feb, Nov, Dec -> bare (~0.16); Mar-Oct -> lush (~0.75)
     vi.stubGlobal('fetch', vi.fn(async (url) => {
       const match = String(url).match(/\/default\/(\d{4})-(\d{2})-\d{2}\//);
       const month = match ? Number(match[2]) : 6;
@@ -127,8 +118,8 @@ describe('ndviService.js Satellite PNG Decoding & Bare-Soil Detection', () => {
   });
 
   it('backfills nodata 8-day tiles with MODIS_Terra_L3_NDVI_Monthly composite tiles', async () => {
-    const bareRgb = MODIS_NDVI_PALETTE[28]; // ~0.1426
-    const lushRgb = MODIS_NDVI_PALETTE[104]; // ~0.6451
+    const bareRgb = MODIS_NDVI_PALETTE[28];
+    const lushRgb = MODIS_NDVI_PALETTE[104];
     const nodataPng = makeSolidPng256(0, 26, 105);
     const barePng = makeSolidPng256(bareRgb[0], bareRgb[1], bareRgb[2]);
     const lushPng = makeSolidPng256(lushRgb[0], lushRgb[1], lushRgb[2]);
@@ -138,7 +129,6 @@ describe('ndviService.js Satellite PNG Decoding & Bare-Soil Detection', () => {
       const isMonthly = s.includes('MODIS_Terra_L3_NDVI_Monthly');
       const match = s.match(/\/default\/(\d{4})-(\d{2})-\d{2}\//);
       const month = match ? Number(match[2]) : 6;
-      // 8-day fails / returns nodata for Jan & Feb, monthly fills them cleanly
       const buf = !isMonthly && [1, 2].includes(month)
         ? nodataPng
         : [1, 2, 12].includes(month)
@@ -175,7 +165,7 @@ describe('ndviService.js Satellite PNG Decoding & Bare-Soil Detection', () => {
       lat: -34.6,
     });
     expect(directFb.ndviFallback).toBe(true);
-    expect(directFb.monthlyNdvi12[0]).toBeGreaterThan(0.4); // SH Jan summer is active
+    expect(directFb.monthlyNdvi12[0]).toBeGreaterThan(0.4);
 
     const ac = new AbortController();
     ac.abort(new DOMException('Aborted', 'AbortError'));

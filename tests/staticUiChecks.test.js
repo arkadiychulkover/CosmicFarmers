@@ -120,6 +120,8 @@ describe('Static & UI Compliance Checks', () => {
 
     const results = readRepoFile('src/screens/ResultsScreen.svelte');
     expect(results).toContain('scenarioComparison');
+    expect(results).toContain('strategyComparison');
+    expect(results).toContain('Strategy Comparison vs. Monocrop');
     expect(results).toContain('8-mo');
     expect(results).toContain('12-mo');
     expect(results).toContain('m³/ha');
@@ -127,6 +129,8 @@ describe('Static & UI Compliance Checks', () => {
 
     const pdf = readRepoFile('src/utils/downloadPlan.js');
     expect(pdf).toContain('scenarioComparison');
+    expect(pdf).toContain('strategyComparison');
+    expect(pdf).toContain('ROTATION STRATEGY COMPARISON');
     expect(pdf).toContain('8-mo');
     expect(pdf).toContain('12-mo');
     expect(pdf).toContain('m3/ha');

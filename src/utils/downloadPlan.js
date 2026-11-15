@@ -1,3 +1,4 @@
+// Note on Super Intelligence (SI) Assistance: SI tools assisted with PDF layout refactoring, transliteration helpers, and English copy proofreading.
 import { cropImage } from '../data/crops.js';
 
 const PAGE = { w: 210, h: 297, margin: 18 };
@@ -31,6 +32,7 @@ export const safe = (text) =>
     .replace(/[\u0300-\u036f]/g, '')
     .replace(/[–—−]/g, '-')
     .replace(/→/g, '->')
+    .replace(/³/g, '3')
     .replace(/≥/g, '>=')
     .replace(/≤/g, '<=')
     .replace(/Δ/g, 'delta')
@@ -332,6 +334,53 @@ export async function downloadPlan(result, form) {
     }
   }
 
+  const strategyComparison = result.strategyComparison || [];
+  if (strategyComparison.length) {
+    y = ensureSpace(doc, y + 6, 36);
+    y = paragraph(
+      doc,
+      'ROTATION STRATEGY COMPARISON (VS. EXISTING MONOCROP)',
+      margin,
+      y,
+      { size: 9, style: 'bold', color: 120 },
+    );
+    y = paragraph(
+      doc,
+      'Comparison of business-as-usual continuous monoculture against all 3 NASA-guided strategies.',
+      margin,
+      y + 1,
+      { size: 8, color: 90 },
+    );
+
+    for (const st of strategyComparison) {
+      y = ensureSpace(doc, y, 28);
+      const savedTxt = st.isBaseline
+        ? `${st.metrics?.moistureDeficit3YrMm ?? 0} mm def | ${st.metrics?.irrigationDemand3YrM3Ha ?? 0} m3/ha irrig`
+        : `${st.metrics?.waterSavedPct >= 0 ? '+' : ''}${st.metrics?.waterSavedPct ?? 0}% ETc vs base | ${st.metrics?.deltaSocGkg >= 0 ? '+' : ''}${st.metrics?.deltaSocGkg ?? 0} g/kg SOC`;
+      y = paragraph(
+        doc,
+        `[${st.badge}] ${st.title}: ${st.sequenceLabel} (${st.metrics?.etc3YrMm ?? 0} mm ETc | ${savedTxt} | Resilience ${st.metrics?.climateScore ?? 0}/100)`,
+        margin,
+        y + 2,
+        { size: 8.5, style: 'bold', color: 40 },
+      );
+      y = paragraph(
+        doc,
+        `Cover: ${st.coverLabel}. Why: ${st.why} Benefits: ${st.benefits}`,
+        margin + 2,
+        y + 0.5,
+        { size: 8, color: 60, width: CONTENT_W - 2 },
+      );
+      y = paragraph(
+        doc,
+        `Missing info: ${st.gaps} Local risks: ${st.risks}`,
+        margin + 2,
+        y + 0.5,
+        { size: 8, color: 85, width: CONTENT_W - 2 },
+      );
+    }
+  }
+
   const years = result.years || [];
   const [photos, coverPhotos] = await Promise.all([
     Promise.all(years.map((e) => loadPhoto(cropImage(e.id), CONTENT_W / 68))),
@@ -474,6 +523,7 @@ export async function downloadPlan(result, form) {
     'Esri / Impact Observatory Sentinel-2 10m Land Cover & ESA WorldCereal RDM / WorldCover: Licensed under CC BY 4.0.',
     'USGS NLCD Annual Land Cover (30 m CONUS) & USDA NRCS SSURGO / NASS CropScape CDL: U.S. Government Public Domain.',
     'OpenStreetMap (Overpass API, Basemap Tiles & Nominatim): Licensed under ODbL (OpenStreetMap contributors).',
+    'Crop Visuals (src/crops/*.webp): All 26 species visuals are SI-generated & watermarked (no NASA branding): 13 via Google Gemini ("Gemini - SI") and 13 via xAI Grok ("Grok - SI" + native GROK mark), saved as 1204x672 WebP.',
   ]) {
     dy = paragraph(doc, `- ${attr}`, margin, dy + 1.5, { size: 8.5, color: 60 });
   }
