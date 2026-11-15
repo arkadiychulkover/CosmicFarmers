@@ -659,10 +659,6 @@ function meanRotationTelemetryFactor(ids, goal, params) {
   return count > 0 ? sum / count : 1.0;
 }
 
-/**
- * Evaluate the recommended 3-year rotation under 3 GPM/POWER precipitation scenarios:
- * Dry (-25% rain or 10-yr p25, +1.5C), Observed Baseline, and Wet/Storm (+30% rain or 10-yr p75, storm risk).
- */
 export function computeScenarioComparison(years = [], inputOrParams = {}, options = {}) {
   if (!Array.isArray(years) || !years.length) {
     return {

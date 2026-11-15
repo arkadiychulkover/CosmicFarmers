@@ -67,7 +67,6 @@
   let gibsOverlaySeq = 0;
   const gibsMax = gibsMaxDate();
 
-  // Slippy canvas fallback state (Web Mercator EPSG:3857)
   const TILE_SIZE = 256;
   const MAX_LAT = 85.05112878;
   const MIN_FALLBACK_ZOOM = 2;
@@ -260,7 +259,6 @@
       for (let ty = minTileY; ty <= maxTileY; ty++) {
         const dy = Math.round(ty * TILE_SIZE - originY);
 
-        // 1. Base tile layer
         if (activeMapType === 'hybrid') {
           const bmMaxZoom = 8;
           const diff = Math.max(0, z - bmMaxZoom);
@@ -294,7 +292,6 @@
           }
         }
 
-        // 2. Optional NASA GIBS overlay with overscaling
         if (activeGibsLayer) {
           const layer = gibsLayers[activeGibsLayer];
           const diff = Math.max(0, z - layer.maxZoom);
@@ -318,7 +315,6 @@
       }
     }
 
-    // 3. Draw selected coordinate marker
     const markerScreen = getMarkerScreenPos(originX, originY, worldPx, z);
     drawMarkerPin(ctx, markerScreen.x, markerScreen.y);
   }
@@ -354,7 +350,6 @@
     ctx.arc(x, y, 4.5, 0, Math.PI * 2);
     ctx.fill();
 
-    // Crosshair arms
     ctx.strokeStyle = '#ffffff';
     ctx.lineWidth = 2;
     ctx.lineCap = 'round';
@@ -465,7 +460,6 @@
 
     fallbackZoom = nextZoom;
 
-    // Keep the geographic coordinate under the cursor anchored
     const anchorWorldX = lonToTileX(anchor.lng, nextZoom) * TILE_SIZE;
     const anchorWorldY = latToTileY(anchor.lat, nextZoom) * TILE_SIZE;
     const nextCenterX = anchorWorldX - (ox - canvasCssW / 2);
@@ -778,7 +772,6 @@
       updatePosition(pos.lat(), pos.lng());
     });
 
-    // Detect asynchronous Google Maps billing/auth errors rendered into the container
     if (typeof MutationObserver !== 'undefined') {
       gmErrObserver = new MutationObserver(() => {
         if (mapContainer?.querySelector('.gm-err-container')) {
@@ -877,7 +870,6 @@
         }
       }
 
-      // OpenStreetMap Nominatim fallback search
       const osmParsed = await fetchNominatimSuggestions(trimmed);
       suggestions = osmParsed;
       showSuggestions = osmParsed.length > 0;

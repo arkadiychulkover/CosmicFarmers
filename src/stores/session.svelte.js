@@ -78,7 +78,6 @@ function hasValidForecast(data) {
 
 function readSavedSession() {
   if (typeof localStorage === 'undefined') return null;
-  // Remove obsolete v1 N/P/K session cache if present
   try {
     if (localStorage.getItem(LEGACY_SESSION_KEY)) {
       localStorage.removeItem(LEGACY_SESSION_KEY);

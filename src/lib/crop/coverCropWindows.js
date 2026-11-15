@@ -45,10 +45,6 @@ function parseMonthToken(raw) {
   return null;
 }
 
-/**
- * Extract normalized 12-month satellite NDVI and bare-soil telemetry (`NDVI < 0.25`)
- * from `coverContext` or nested `weather` / `ndviProfile` objects when available.
- */
 function extractSatelliteNdvi(context = {}) {
   const weather = context.weather || {};
   const ndviObj =
@@ -206,11 +202,10 @@ function buildMonthlyProfile(weather = {}, params = {}, lat = 45) {
     return { temp, min, precip, waterBalance };
   }
 
-  // Synthesize plausible 12-month profile if only growing-season params were supplied
   const meanSeasonT = Number(params.T2M ?? weather.t2m ?? 16);
   const meanMinT = Number(params.T2M_MIN ?? weather.t2m_min ?? (meanSeasonT - 6));
   const spread = Math.max(4, Math.min(18, Math.abs(lat) * 0.28));
-  const peakMonth = lat >= 0 ? 6 : 0; // Jul (6) for NH, Jan (0) for SH
+  const peakMonth = lat >= 0 ? 6 : 0;
   const basePrecip = Number(params.PRECTOTCORR ?? weather.prectotcorr ?? 55);
   const etBase = Number(params.EVPTRNS ?? weather.evptrns ?? 3.0) * 30.4;
 
@@ -242,7 +237,6 @@ function getWinterFreezeMonths(profile, firstAutumnFrost, lastSpringFrost) {
   if (firstAutumnFrost && lastSpringFrost) {
     let cur = firstAutumnFrost.monthIndex;
     const end = lastSpringFrost.monthIndex;
-    // Mark winter core strictly between autumn frost month+1 and spring frost month-1
     let safety = 0;
     while (safety++ < 12) {
       const next = mod12(cur + 1);
@@ -268,9 +262,9 @@ function computeCropSchedule(cropId, profile, { lat, frostFreeDays, lastSpringFr
   const minWinterTemp = Math.min(...profile.min);
 
   if (pheno.cycleType === 'perennial') {
-    const harvestStart = isSouth ? 1 : 7; // Feb-Apr SH, Aug-Oct NH
+    const harvestStart = isSouth ? 1 : 7;
     const harvestEnd = mod12(harvestStart + 2);
-    const dormantStart = isSouth ? 5 : 11; // Jun-Aug SH, Dec-Feb NH
+    const dormantStart = isSouth ? 5 : 11;
     return {
       isPerennial: true,
       isWinterCrop: true,
@@ -293,7 +287,6 @@ function computeCropSchedule(cropId, profile, { lat, frostFreeDays, lastSpringFr
     };
   }
 
-  // Tropical / frost-free regions align sowing with start of rainy season (or cool dry irrigated season)
   if (isTropical) {
     let bestStart = isSouth ? 10 : 5;
     let bestScore = -Infinity;
@@ -332,12 +325,11 @@ function computeCropSchedule(cropId, profile, { lat, frostFreeDays, lastSpringFr
     };
   }
 
-  // Winter-capable cereals / oilseeds (wheat, rapeseed) when winters are not extreme
   if (pheno.cycleType === 'winter-capable' && minWinterTemp >= (pheno.overwinterMinTemp ?? -8)) {
-    const autumnBase = isSouth ? 3 : 8; // Apr-May SH, Sep-Oct NH
+    const autumnBase = isSouth ? 3 : 8;
     const sowStart = autumnBase;
     const sowEnd = mod12(autumnBase + 1);
-    const harvStart = mod12(sowStart + (pheno.winterHarvestOffset ?? 9)); // Jun-Jul NH / Jan-Feb SH
+    const harvStart = mod12(sowStart + (pheno.winterHarvestOffset ?? 9));
     const harvEnd = mod12(harvStart + 1);
     return {
       isPerennial: false,
@@ -360,12 +352,11 @@ function computeCropSchedule(cropId, profile, { lat, frostFreeDays, lastSpringFr
     };
   }
 
-  // Temperate spring / warm annuals
   const springSearchOrder = isSouth
-    ? [7, 8, 9, 10, 11, 0] // Aug..Jan
-    : [1, 2, 3, 4, 5, 6];  // Feb..Jul
+    ? [7, 8, 9, 10, 11, 0]
+    : [1, 2, 3, 4, 5, 6];
 
-  let sowStart = isSouth ? 9 : 3; // fallback Oct SH / Apr NH
+  let sowStart = isSouth ? 9 : 3;
   let sowStartDay = 10;
 
   for (const m of springSearchOrder) {
@@ -561,20 +552,14 @@ function computeGapCoverWindow({
     };
   }
 
-  // Gap starts the month of/after current harvest end and runs until next crop's sow start
   const gapStart = mod12(schedule.harvestWindow.endMonthIndex);
   const gapEnd = nextSchedule.sowWindow.startMonthIndex;
   let bareMonths = monthDiffForward(gapStart, gapEnd);
 
-  // If a summer crop harvests in autumn right as a winter crop's autumn sow window opens,
-  // wrap-around >= 10 means overlapping direct autumn succession (0-1 mo), not an 11-month gap.
   if (!schedule.isWinterCrop && nextSchedule.isWinterCrop && bareMonths >= 10) {
     bareMonths = 0;
   }
 
-  // Ground transition bare-ground risk with satellite NDVI (< 0.25) when available:
-  // If phenology predicts a marginal 1-month gap for non-winter succession while remote sensing
-  // observes >= 2 consecutive bare-soil months starting at gapStart, expand to capture cover risk.
   const isDirectWinterSuccession = !schedule.isWinterCrop && nextSchedule.isWinterCrop;
   if (bareMonths === 1 && !isDirectWinterSuccession && satelliteNdvi?.hasSatelliteNdvi) {
     const m0 = gapStart;
@@ -620,7 +605,6 @@ function computeGapCoverWindow({
     ? Number((gapNdviVals.reduce((s, v) => s + v, 0) / gapNdviVals.length).toFixed(3))
     : null;
 
-  // Count warm/mild frost-free months between harvest and first winter freeze
   let warmCoverMonths = 0;
   let warmCoverDays = 0;
   const coverMonths = [];
@@ -633,8 +617,6 @@ function computeGapCoverWindow({
     coverMonths.push(m);
   }
 
-  // If harvest happens right as mild season starts (or winter-kill freeze is months away),
-  // include overwinter months for winter-hardy cover crops in windowMonths.
   const minWinterTemp = Math.min(...gapMonthIndices.map((m) => profile.min[m]));
   const harvestPrecip = profile.precip[gapStart] ?? 40;
 
@@ -802,10 +784,6 @@ function buildScheduleContext(context = {}) {
   };
 }
 
-/**
- * Estimate the off-season cover crop window between `prevCropId` harvest and
- * `nextCropId` planting under a given climate/soil context.
- */
 export function estimateTransitionCoverWindow(prevCropId, nextCropId, context = {}) {
   if (!prevCropId) return null;
   const ctx = buildScheduleContext(context);
@@ -833,10 +811,6 @@ export function estimateTransitionCoverWindow(prevCropId, nextCropId, context = 
   });
 }
 
-/**
- * Compute planting/harvest windows, off-season bare/dark windows, warm frost-free
- * cover months, and concrete cover-crop recommendations for a multi-year plan.
- */
 export function computePlanCoverWindows(years = [], context = {}) {
   const ctx = buildScheduleContext(context);
   const { weather, profile, lastSpringFrost, firstAutumnFrost, frostFreeDays, freezeMonths, satelliteNdvi } = ctx;
