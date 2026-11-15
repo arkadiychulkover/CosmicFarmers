@@ -76,6 +76,8 @@
     document.fonts?.ready?.then(measure);
     const observer = new ResizeObserver(measure);
     observer.observe(wrap);
+    observer.observe(table);
+    observer.observe(row);
     observer.observe(label);
     observer.observe(cell);
     window.addEventListener('resize', measure);

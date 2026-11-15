@@ -68,18 +68,21 @@
   });
 
   function applyUsCdlPredecessor() {
-    if (!detectedUsCdl) return;
+    if (metricsLocked || !detectedUsCdl) return;
     $session.form.predecessor = detectedUsCdl.formValue;
   }
 
-  const canProceed = $derived(
+  const coordsReady = $derived(
     !$session.nasaLoading &&
     !$session.nasaError &&
-    !isNonArableBlocked &&
     Boolean($session.nasaData) &&
     Math.abs(Number($session.nasaData.lat) - Number($session.form.lat)) < 0.001 &&
     Math.abs(Number($session.nasaData.lon) - Number($session.form.lon)) < 0.001
   );
+
+  const metricsLocked = $derived(!coordsReady);
+
+  const canProceed = $derived(coordsReady && !isNonArableBlocked);
 
   const liveOod = $derived.by(() => {
     if (!$session.nasaData || $session.nasaLoading) return null;
@@ -138,6 +141,7 @@
   }
 
   function updateSoilField(key, value) {
+    if (metricsLocked) return;
     const num = Number(value);
     if (Number.isNaN(num)) return;
     preserveOffset(belowWarning ?? textureTrack, () => {
@@ -147,6 +151,7 @@
   }
 
   function setTexture(clay, sand) {
+    if (metricsLocked) return;
     const nextClay = Math.min(100, Math.max(0, Number(clay) || 0));
     const nextSand = Math.min(100 - nextClay, Math.max(0, Number(sand) || 0));
     preserveOffset(textureTrack, () => {
@@ -264,7 +269,7 @@
   }
 
   function moveTexture(event) {
-    if (!textureDrag) return;
+    if (metricsLocked || !textureDrag) return;
     const point = texturePercent(event);
     const shift = event.shiftKey;
     if (shift !== textureDrag.shift) {
@@ -333,6 +338,7 @@
   }
 
   function startTexture(which, event) {
+    if (metricsLocked) return;
     event.preventDefault();
     releasePanelScroll?.();
     releasePanelScroll = holdPanelScroll(event.currentTarget);
@@ -343,7 +349,12 @@
     window.addEventListener('pointerup', endTexture);
   }
 
+  $effect(() => {
+    if (metricsLocked && textureDrag) endTexture();
+  });
+
   function resetSoilToSatellite() {
+    if (metricsLocked) return;
     $session.form.ph = $session.autoSoil.ph;
     $session.form.soc = $session.autoSoil.soc;
     $session.form.nitrogen = $session.autoSoil.nitrogen;
@@ -428,6 +439,13 @@
       busy={$session.nasaLoading}
       onaction={retryLoad}
     />
+  {:else if $session.nasaLoading || metricsLocked}
+    <StatusBanner
+      tone="info"
+      compact
+      title="Loading Location Telemetry…"
+      message="Fetching NASA POWER, SoilGrids, and MODIS land cover. Farm and soil metrics are locked until loading finishes."
+    />
   {:else}
     {#if landCover}
       {#if landCover.isArableSuitable === false}
@@ -441,6 +459,7 @@
             <input
               type="checkbox"
               checked={isNonArableAcked}
+              disabled={metricsLocked}
               onchange={(e) => {
                 $session.nonArableAckCoord = e.currentTarget.checked ? currentCoordKey : null;
               }}
@@ -470,7 +489,7 @@
         <button
           type="button"
           class="cdl-apply"
-          disabled={detectedUsCdl.applied}
+          disabled={metricsLocked || detectedUsCdl.applied}
           onclick={applyUsCdlPredecessor}
         >
           {detectedUsCdl.applied ? 'Selected as predecessor' : 'Apply as predecessor'}
@@ -495,12 +514,13 @@
     label="Previous Season Crop (Predecessor)"
     hint="Select the crop harvested in the last cycle to calculate nutrient carryover and pest/disease break requirements."
     options={cropOptions}
+    disabled={metricsLocked}
     bind:value={$session.form.predecessor}
   />
 
-  <GoalSelector label="Primary Management Goal" options={goalOptions} bind:value={$session.form.goal} />
+  <GoalSelector label="Primary Management Goal" options={goalOptions} disabled={metricsLocked} bind:value={$session.form.goal} />
 
-  <fieldset class="irrigation-group">
+  <fieldset class="irrigation-group" disabled={metricsLocked}>
     <legend>Irrigation Regime</legend>
     <div class="irrigation-grid">
       {#each irrigationOptions as option (option.value)}
@@ -509,6 +529,7 @@
             type="radio"
             name="irrigation"
             value={option.value}
+            disabled={metricsLocked}
             bind:group={$session.form.irrigation}
           />
           <strong>{option.label}</strong>
@@ -522,7 +543,7 @@
     <div class="soil-head">
       <h3>Raw SoilGrids Profile (0–15 cm)</h3>
       {#if $session.customSoilEdited}
-        <button type="button" class="reset-soil" onclick={resetSoilToSatellite}>
+        <button type="button" class="reset-soil" disabled={metricsLocked} onclick={resetSoilToSatellite}>
           Reset to satellite
         </button>
       {/if}
@@ -532,7 +553,7 @@
     </p>
   </div>
 
-  <SelectField label="Soil Type" options={soilOptions} bind:value={$session.form.soil} />
+  <SelectField label="Soil Type" options={soilOptions} disabled={metricsLocked} bind:value={$session.form.soil} />
 
   <SliderField
     label="Soil Reaction (pH Level)"
@@ -543,6 +564,7 @@
     minLabel="Acidic"
     midLabel="Neutral"
     maxLabel="Alkaline"
+    disabled={metricsLocked}
     mark={$session.autoSoil.ph}
     bind:value={() => $session.form.ph, (v) => updateSoilField('ph', v)}
   />
@@ -553,6 +575,7 @@
     max={80}
     step={0.5}
     unit="g/kg"
+    disabled={metricsLocked}
     mark={$session.autoSoil.soc}
     bind:value={() => $session.form.soc, (v) => updateSoilField('soc', v)}
   />
@@ -563,12 +586,13 @@
     max={7.0}
     step={0.05}
     unit="g/kg"
+    disabled={metricsLocked}
     mark={$session.autoSoil.nitrogen}
     bind:value={() => $session.form.nitrogen, (v) => updateSoilField('nitrogen', v)}
   />
   </div>
 
-  <div class="texture-anchor">
+  <div class="texture-anchor" class:disabled={metricsLocked}>
     <div class="texture-slot"></div>
     <div class="texture-ghost">
     <div class="texture-block">
@@ -588,6 +612,7 @@
         <button
           type="button"
           class="split clay"
+          disabled={metricsLocked}
           style:left="{Math.min(100, Math.max(0, Number($session.form.clay) || 0))}%"
           aria-label="Clay and sand boundary"
           onpointerdown={(event) => startTexture('clay', event)}
@@ -598,6 +623,7 @@
         <button
           type="button"
           class="split sand"
+          disabled={metricsLocked}
           style:left="{Math.min(100, Math.max(0, (Number($session.form.clay) || 0) + (Number($session.form.sand) || 0)))}%"
           aria-label="Sand and silt boundary"
           onpointerdown={(event) => startTexture('sand', event)}
@@ -747,6 +773,15 @@
     border-color: var(--color-border-strong);
   }
 
+  fieldset:disabled .irr-card {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
+
+  fieldset:disabled .irr-card:hover {
+    border-color: var(--color-border-dim);
+  }
+
   .irr-card.active {
     border-color: var(--color-border-strong);
     box-shadow: inset 0 0 0 1px var(--color-border-strong);
@@ -822,6 +857,12 @@
 
   .reset-soil:hover {
     border-color: var(--color-accent);
+  }
+
+  .reset-soil:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    border-color: var(--color-border-dim);
   }
 
   .soil-warning p {
@@ -945,6 +986,11 @@
     background: var(--color-field);
   }
 
+  .texture-anchor.disabled .texture-block {
+    opacity: 0.55;
+    pointer-events: none;
+  }
+
   .split {
     position: absolute;
     z-index: 4;
@@ -958,6 +1004,10 @@
     transform: translate(-50%, -50%);
     cursor: ew-resize;
     touch-action: none;
+  }
+
+  .split:disabled {
+    cursor: not-allowed;
   }
 
   .split.sand {
@@ -1078,6 +1128,11 @@
     font-size: 11px;
     font-weight: 600;
     cursor: pointer;
+  }
+
+  .override-check:has(input:disabled) {
+    opacity: 0.55;
+    cursor: not-allowed;
   }
 
   .landcover-pill {
