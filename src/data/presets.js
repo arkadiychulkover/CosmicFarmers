@@ -20,7 +20,6 @@ export const presets = [
   { id: 'random', label: 'Random Field', values: null },
 ];
 
-// Curated inland agricultural basin bounding boxes (excludes open seas, Great Lakes, deep deserts, and ice caps)
 export const AGRICULTURAL_REGIONS = [
   { name: 'US Midwest Corn Belt', latMin: 39.2, latMax: 42.9, lonMin: -96.2, lonMax: -88.2 },
   { name: 'US Central Plains', latMin: 36.2, latMax: 41.2, lonMin: -101.0, lonMax: -95.4 },
@@ -93,11 +92,6 @@ export function resolvePreset(preset) {
   return sampleRegionCoord(region);
 }
 
-/**
- * Resolves a preset asynchronously. For the `'random'` preset, probes candidate
- * inland points against Land Cover Mask (`Sentinel-2 10m` / `USGS NLCD` / `OSM` /
- * `elevation<=0` water checks) so random clicks never land in open water or urban/wetland sites.
- */
 export async function resolvePresetAsync(preset, options = {}) {
   if (preset?.values) {
     return { ...preset.values, landCover: null };
@@ -162,7 +156,6 @@ export async function resolvePresetAsync(preset, options = {}) {
       const { lat, lon, landCover } = entry.value;
       const category = landCover?.category;
 
-      // Strictly reject water and non-arable surfaces during random search
       if (!landCover || category === 'water' || landCover.isArableSuitable === false) {
         continue;
       }
@@ -180,7 +173,6 @@ export async function resolvePresetAsync(preset, options = {}) {
       }
     }
 
-    // If a verified pasture/mixed point was already found on land after first batch, no need to stall further
     if (bestVerifiedNonCropland && batchStart >= 2) {
       return bestVerifiedNonCropland;
     }
@@ -210,6 +202,5 @@ export async function resolvePresetAsync(preset, options = {}) {
     return { lat: curated.lat, lon: curated.lon, landCover: null };
   }
 
-  // Even if live land cover timed out offline, prefer verified inland farmland centroid over unverified random coordinates
   return { lat: curated.lat, lon: curated.lon, landCover: null };
 }

@@ -97,10 +97,6 @@ export const CROP_WATER_DEMAND = {
   millet: 'low',
 };
 
-/**
- * FAO-56 Irrigation & Drainage Paper No. 56 (Tables 11, 12, 22) single crop coefficients,
- * growth stage lengths (days), effective rooting depth (m), and depletion factor (p).
- */
 export const FAO_CROP_PARAMS = {
   wheat: { kcIni: 0.40, kcMid: 1.15, kcEnd: 0.30, lIni: 25, lDev: 40, lMid: 50, lLate: 30, rootDepthM: 1.4, depletionP: 0.55 },
   barley: { kcIni: 0.30, kcMid: 1.15, kcEnd: 0.25, lIni: 20, lDev: 30, lMid: 45, lLate: 25, rootDepthM: 1.2, depletionP: 0.55 },
@@ -192,7 +188,6 @@ const ROW_EROSION_RISK_CROPS = new Set([
   'watermelon',
 ]);
 
-// Heat stress sensitivity (>=32°C days)
 const HEAT_SENSITIVE_CROPS = new Set([
   'apple',
   'barley',
@@ -216,7 +211,6 @@ const HEAT_TOLERANT_CROPS = new Set([
   'watermelon',
 ]);
 
-// Waterlogging / lodging / heavy storm (>=25mm/day) sensitivity
 const STORM_SENSITIVE_CROPS = new Set([
   'alfalfa',
   'chickpea',
@@ -265,10 +259,6 @@ export function computeWaterBalanceMm(params) {
   return null;
 }
 
-/**
- * Estimate soil Available Water Capacity (mm/m) from Sand/Clay texture (%) and SOC (g/kg)
- * using Saxton & Rawls (2006) mineral water retention + organic carbon retention enhancement.
- */
 export function computeSoilAwcMmPerM(params = {}) {
   const rawSand = Number(params?.sand ?? params?.soilMeta?.sandPct);
   const rawClay = Number(params?.clay ?? params?.soilMeta?.clayPct);
@@ -307,10 +297,6 @@ function estimateMidSeasonRa(lat = 40) {
   return Math.max(18, ra);
 }
 
-/**
- * Compute FAO-56 Penman-Monteith reference evapotranspiration ET0 (mm/day)
- * from NASA POWER climate variables (T2M, T2M_MAX, T2M_MIN, ALLSKY_SFC_SW_DWN, RH2M, WS2M, ELEVATION, EVPTRNS).
- */
 export function computeReferenceEt0MmDay(params = {}, lat = 40) {
   const rawT = Number(params?.T2M);
   const tMean = Number.isFinite(rawT) ? clamp(rawT, -15, 48) : 18;
@@ -386,9 +372,6 @@ function scsEffectiveMonthlyPrecip(monthlyPrecipMm) {
   return 125 + 0.1 * p;
 }
 
-/**
- * Compute single-season FAO-56 water balance for a given crop under field climate and soil AWC.
- */
 export function computeCropSeasonalWaterBudget(cropId, params = {}, context = {}) {
   const cropSpec = getSeasonalKc(cropId);
   const lat = Number(context.lat ?? params.lat ?? 40);
