@@ -53,14 +53,10 @@ export function topIndices(scores, k, allowed) {
   return top;
 }
 
-/**
- * Convert a single crop's unnormalized model+agronomic score into an absolute 0-99% suitability.
- * Calibrated relative to uniform chance (1 / numClasses) and scaled by OOD penalty.
- */
 export function computeSuitabilityPercent(score, numClasses = CROP_CLASSES.length || 16, oodPenalty = 1.0) {
   if (!Number.isFinite(score) || score <= 0) return 0;
   const u = 1 / Math.max(1, numClasses);
-  const halfPoint = 2.0 * u; // Uniform 1/N maps to ~33% pre-OOD; 2/N maps to 50%; 8/N maps to 80%
+  const halfPoint = 2.0 * u;
   const basePct = (score / (score + halfPoint)) * 100;
   const scaled = basePct * clamp(oodPenalty, 0.25, 1.0);
   return Math.round(clamp(scaled, 1, 99));
@@ -110,10 +106,6 @@ function extractFeatureSnapshot(input) {
   };
 }
 
-/**
- * Assess out-of-distribution (OOD) risk and prediction confidence from field/climate
- * parameters (live on Page 1 before /calculating) and optional model class probabilities.
- */
 export function assessFieldOod(paramsOrInput, probabilities = null, boundsOverride = null) {
   const boundsDoc = boundsOverride || getLoadedBounds();
   const featureBounds = boundsDoc?.features || {};
@@ -127,7 +119,7 @@ export function assessFieldOod(paramsOrInput, probabilities = null, boundsOverri
   let maxDist = 0;
 
   for (const name of FEATURE_ORDER) {
-    if (name === 'IRRIGATION') continue; // 0, 0.5, 1 are discrete management regimes
+    if (name === 'IRRIGATION') continue;
     const value = snapshot[name];
     const b = featureBounds[name];
     if (!Number.isFinite(value) || !b) continue;
@@ -179,7 +171,6 @@ export function assessFieldOod(paramsOrInput, probabilities = null, boundsOverri
     }
   }
 
-  // Physical texture sum sanity check
   if (Number.isFinite(snapshot.clay) && Number.isFinite(snapshot.sand) && Number.isFinite(snapshot.silt)) {
     const texSum = snapshot.clay + snapshot.sand + snapshot.silt;
     if (Math.abs(texSum - 100) > 8) {
@@ -188,7 +179,6 @@ export function assessFieldOod(paramsOrInput, probabilities = null, boundsOverri
     }
   }
 
-  // Optional probability confidence metrics
   let maxProb = null;
   let entropy = null;
   let uncertainDistribution = false;

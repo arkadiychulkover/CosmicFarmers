@@ -69,12 +69,9 @@ export function getSeasonYear(latitude = 0) {
   const isSouthern = Number(latitude) < 0;
 
   if (isSouthern) {
-    // Southern Hemisphere season spans May 1 (year) .. Apr 30 (year + 1).
-    // Before May 10 of the current calendar year, the season started last year hasn't finished.
     return (now.getMonth() < 4 || (now.getMonth() === 4 && now.getDate() <= 10)) ? year - 2 : year - 1;
   }
 
-  // Northern Hemisphere: latest completed calendar year; allow early-Jan POWER lag.
   return (now.getMonth() === 0 && now.getDate() <= 10) ? year - 2 : year - 1;
 }
 
@@ -121,8 +118,6 @@ export async function getWeather(longitude, latitude, { signal } = {}) {
   const isSouthern = numLat < 0;
   const seasonYear = getSeasonYear(numLat);
 
-  // Southern Hemisphere (lat < 0) spans May 1 (seasonYear) -> Apr 30 (seasonYear + 1)
-  // matching ml/export_onnx.py so the Sep-Apr growing season is chronologically contiguous.
   const startStr = isSouthern ? `${seasonYear}0501` : `${seasonYear}0101`;
   const endStr = isSouthern ? `${seasonYear + 1}0430` : `${seasonYear}1231`;
 
@@ -207,7 +202,6 @@ function computeMonthlySum(paramObj, keys, ex) {
     }
     if (!count) return 0;
     const expectedDays = DAYS_IN_MONTH_12[m] || 30;
-    // Scale only if a month has partial missing fill values while keeping complete months exact
     const scaled = count < expectedDays ? (sum / count) * expectedDays : sum;
     return Math.round(scaled);
   });
@@ -222,7 +216,6 @@ function collectHistoricalTotals(monthly, seasonYear, keys, ex, isSouthern = fal
     let ySum = 0;
     let validMonths = 0;
     for (const m of keys) {
-      // For SH cross-year (May Y .. Apr Y+1), Jan..Apr belong to calendar year (y + 1).
       const targetYear = isSouthern && Number(m) <= 4 ? y + 1 : y;
       const days = DAYS_IN_MONTH_12[m];
       const val = mp[`${targetYear}${m}`];
@@ -330,7 +323,6 @@ function computeFrostAndStressMetrics(dp, isSouthern, ex) {
 
     if (hasTs && ts < 0) frozenSurfaceDays++;
 
-    // SMAP-proxy Freeze/Thaw transition detection from surface skin temp (TS) and diurnal T2M crossing 0C
     const tsTransition =
       hasTs && prevTs !== null && ((prevTs < 0 && ts >= 0) || (prevTs >= 0 && ts < 0));
     const diurnalTransition = hasTMin && hasTMax && tMin <= 0 && tMax > 0;
@@ -372,7 +364,6 @@ function computeFrostAndStressMetrics(dp, isSouthern, ex) {
     const d = days[i];
     if (!d.isFrost) continue;
     if (!isSouthern) {
-      // NH chronological Jan..Dec: Jan..Jul 15 = winter/spring; Jul 16..Dec = autumn/early winter
       const isSpringHalf = d.month < 7 || (d.month === 7 && d.day <= 15);
       if (isSpringHalf) {
         lastSpringFrost = d.isoDate;
@@ -382,7 +373,6 @@ function computeFrostAndStressMetrics(dp, isSouthern, ex) {
         firstAutumnIdx = i;
       }
     } else {
-      // SH chronological May Y .. Apr (Y+1): May..Dec + Jan 1..15 = winter/spring; Jan 16..Apr = late summer/autumn
       const isSpringHalf = d.month >= 5 || (d.month === 1 && d.day <= 15);
       if (isSpringHalf) {
         lastSpringFrost = d.isoDate;
@@ -442,7 +432,6 @@ export function parseWeatherResponse(weatherData, options = {}) {
   const seasonKeySet = new Set(seasonCfg.monthKeys);
   const ndviProfile = options?.ndviProfile ?? weatherData?.ndviProfile ?? null;
 
-  // Full 12-month calendar arrays (Jan..Dec)
   const monthlyPrecip12 = computeMonthlySum(dp.PRECTOTCORR, MONTH_KEYS_12, ex);
   const monthlyEt12 = computeMonthlySum(dp.EVPTRNS, MONTH_KEYS_12, ex);
   const monthlyWaterBalance12 = monthlyPrecip12.map((p, i) => p - monthlyEt12[i]);
@@ -455,7 +444,6 @@ export function parseWeatherResponse(weatherData, options = {}) {
   const etTotal12 = monthlyEt12.reduce((a, b) => a + b, 0);
   const waterBalanceTotal12 = totalPrecip12 - etTotal12;
 
-  // Growing-season arrays (Mar-Oct for North, Sep-Apr for South)
   const monthlyPrecip = computeMonthlySum(dp.PRECTOTCORR, seasonCfg.monthKeys, ex);
   const monthlyEtSeason = computeMonthlySum(dp.EVPTRNS, seasonCfg.monthKeys, ex);
   const monthlyTemp = computeMonthlyMean(dp.T2M, seasonCfg.monthKeys, ex, 1);
@@ -502,7 +490,6 @@ export function parseWeatherResponse(weatherData, options = {}) {
     ? Math.round((totalPrecip12 / historicalAverage12 - 1) * 100)
     : 0;
 
-  // Growing-season daily slices for ML feature consistency (sorted chronologically)
   const t2mSeasonArr = sortedValidSeasonValues(dp.T2M, seasonKeySet, ex);
   const t2mMaxSeasonArr = sortedValidSeasonValues(dp.T2M_MAX, seasonKeySet, ex);
   const t2mMinSeasonArr = sortedValidSeasonValues(dp.T2M_MIN, seasonKeySet, ex);
@@ -673,13 +660,6 @@ export function parseWeatherResponse(weatherData, options = {}) {
   return applyNdviToWeather(weatherBase, ndviProfile);
 }
 
-/**
- * Integrates a satellite or fallback NDVI profile into a parsed weather object,
- * updating `riskCalendarMonths[i].bareSoil` using real NDVI (< 0.25) when available.
- * @param {object} weather
- * @param {object | null | undefined} ndviProfile
- * @returns {object}
- */
 export function applyNdviToWeather(weather, ndviProfile) {
   if (!weather || !ndviProfile || !Array.isArray(ndviProfile.monthlyNdvi12)) {
     return weather;

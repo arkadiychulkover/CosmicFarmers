@@ -162,8 +162,10 @@
   let camera: THREE.PerspectiveCamera;
   let globeGroup: THREE.Group;
   let sphereGeo: THREE.SphereGeometry;
+  let coreMat: THREE.MeshBasicMaterial;
   let backMat: THREE.MeshBasicMaterial;
   let frontMat: THREE.MeshBasicMaterial;
+  let coreMesh: THREE.Mesh;
   let backMesh: THREE.Mesh;
   let frontMesh: THREE.Mesh;
   let animFrameId: number;
@@ -255,7 +257,25 @@
       const py = (90 - pt[1]) * SCALE_Y;
 
       if (Math.abs(pt[0] - prevPt[0]) > 180) {
-        target.moveTo(px, py);
+        if (prevPt[0] > 0 && pt[0] <= 0) {
+          const lonDiff = pt[0] + 360 - prevPt[0];
+          const t = lonDiff > 1e-6 ? (180 - prevPt[0]) / lonDiff : 0;
+          const edgeLat = prevPt[1] + t * (pt[1] - prevPt[1]);
+          const edgeY = (90 - edgeLat) * SCALE_Y;
+          if (lonDiff > 1e-6) target.lineTo(TEXTURE_WIDTH, edgeY);
+          target.moveTo(0, edgeY);
+          if (lonDiff > 1e-6) target.lineTo(px, py);
+        } else if (prevPt[0] < 0 && pt[0] >= 0) {
+          const lonDiff = prevPt[0] - (pt[0] - 360);
+          const t = lonDiff > 1e-6 ? (prevPt[0] + 180) / lonDiff : 0;
+          const edgeLat = prevPt[1] + t * (pt[1] - prevPt[1]);
+          const edgeY = (90 - edgeLat) * SCALE_Y;
+          if (lonDiff > 1e-6) target.lineTo(0, edgeY);
+          target.moveTo(TEXTURE_WIDTH, edgeY);
+          if (lonDiff > 1e-6) target.lineTo(px, py);
+        } else {
+          target.moveTo(px, py);
+        }
       } else {
         target.lineTo(px, py);
       }
@@ -268,15 +288,59 @@
     }
   }
 
-  function fillPolygonRings(ctx: CanvasRenderingContext2D, rings: number[][][]) {
-    ctx.beginPath();
-    for (let r = 0; r < rings.length; r++) {
-      const ring = rings[r];
-      if (!ring || ring.length < 2) continue;
-      traceLineString(ctx, ring);
-      ctx.closePath();
+  function unwrapPolygonRing(ring: number[][]) {
+    const pts: Array<[number, number]> = [];
+    let curLon = ring[0][0];
+    let minLon = curLon;
+    let maxLon = curLon;
+    pts.push([curLon, ring[0][1]]);
+
+    for (let i = 1; i < ring.length; i++) {
+      let d = ring[i][0] - ring[i - 1][0];
+      if (d > 180) d -= 360;
+      else if (d < -180) d += 360;
+      curLon += d;
+      if (curLon < minLon) minLon = curLon;
+      if (curLon > maxLon) maxLon = curLon;
+      pts.push([curLon, ring[i][1]]);
     }
-    ctx.fill();
+
+    const netLon = curLon - ring[0][0];
+    return { pts, minLon, maxLon, netLon };
+  }
+
+  function tracePolygonRings(target: Path2D, rings: number[][][]) {
+    if (!rings || rings.length === 0) return;
+    const unwrappedRings = rings
+      .filter((r) => r && r.length >= 3)
+      .map((r) => unwrapPolygonRing(r));
+    if (unwrappedRings.length === 0) return;
+
+    const ext = unwrappedRings[0];
+    if (Math.abs(ext.netLon) > 180) {
+      const pts = ext.pts;
+      target.moveTo((pts[0][0] + 180) * SCALE_X, (90 - pts[0][1]) * SCALE_Y);
+      for (let i = 1; i < pts.length; i++) {
+        target.lineTo((pts[i][0] + 180) * SCALE_X, (90 - pts[i][1]) * SCALE_Y);
+      }
+      const poleY = pts[0][1] < 0 ? TEXTURE_HEIGHT : 0;
+      target.lineTo((pts[pts.length - 1][0] + 180) * SCALE_X, poleY);
+      target.lineTo((pts[0][0] + 180) * SCALE_X, poleY);
+      target.closePath();
+      return;
+    }
+
+    for (const shiftLon of [-360, 0, 360]) {
+      if (ext.maxLon + shiftLon <= -180 || ext.minLon + shiftLon >= 180) continue;
+      for (let r = 0; r < unwrappedRings.length; r++) {
+        const pts = unwrappedRings[r].pts;
+        target.moveTo((pts[0][0] + shiftLon + 180) * SCALE_X, (90 - pts[0][1]) * SCALE_Y);
+        for (let i = 1; i < pts.length; i++) {
+          target.lineTo((pts[i][0] + shiftLon + 180) * SCALE_X, (90 - pts[i][1]) * SCALE_Y);
+        }
+        target.closePath();
+      }
+    }
   }
 
   function loadTileImage(url: string): Promise<HTMLImageElement | null> {
@@ -311,9 +375,7 @@
         if (resolved?.resolvedDate) {
           time = resolved.resolvedDate;
         }
-      } catch {
-        // Fall back to requested time if date probing fails
-      }
+      } catch {}
     }
 
     const cacheKey = `${config.id}:${config.tileMatrixSet}:${config.zoomLevel}:${time}`;
@@ -441,27 +503,21 @@
 
     if (!isSatellite && LAND_FEATURE && LAND_FEATURE.features && LAND_FEATURE.features[0]) {
       const geom = LAND_FEATURE.features[0].geometry;
-
-      ctx.fillStyle = isDefault ? 'rgba(11, 17, 27, 0.82)' : 'rgba(11, 17, 27, 0.88)';
+      const landPath = new Path2D();
       if (geom.type === 'Polygon') {
-        fillPolygonRings(ctx, geom.coordinates);
+        tracePolygonRings(landPath, geom.coordinates);
       } else if (geom.type === 'MultiPolygon') {
         for (let i = 0; i < geom.coordinates.length; i++) {
-          fillPolygonRings(ctx, geom.coordinates[i]);
+          tracePolygonRings(landPath, geom.coordinates[i]);
         }
       }
 
+      ctx.fillStyle = isDefault ? 'rgba(11, 17, 27, 0.82)' : 'rgba(11, 17, 27, 0.88)';
+      ctx.fill(landPath, 'evenodd');
+
       if (isDefault) {
         ctx.save();
-        ctx.beginPath();
-        if (geom.type === 'Polygon') {
-          fillPolygonRings(ctx, geom.coordinates);
-        } else if (geom.type === 'MultiPolygon') {
-          for (let i = 0; i < geom.coordinates.length; i++) {
-            fillPolygonRings(ctx, geom.coordinates[i]);
-          }
-        }
-        ctx.clip();
+        ctx.clip(landPath, 'evenodd');
 
         ctx.shadowColor = gradFrom || '#00f0ff';
         ctx.shadowBlur = 18;
@@ -759,6 +815,17 @@
 
     sphereGeo = new THREE.SphereGeometry(1, 64, 64);
 
+    coreMat = new THREE.MeshBasicMaterial({
+      color: 0x0b1524,
+      side: THREE.BackSide,
+      transparent: true,
+      opacity: 1.0,
+      depthWrite: false
+    });
+    coreMesh = new THREE.Mesh(sphereGeo, coreMat);
+    coreMesh.renderOrder = 0;
+    globeGroup.add(coreMesh);
+
     backMat = new THREE.MeshBasicMaterial({
       map: initialTexture,
       side: THREE.BackSide,
@@ -934,6 +1001,7 @@
     }
     if (animFrameId) cancelAnimationFrame(animFrameId);
     if (sphereGeo) sphereGeo.dispose();
+    if (coreMat) coreMat.dispose();
     if (backMat) backMat.dispose();
     if (frontMat) frontMat.dispose();
     for (const tex of styleTextureCache.values()) {

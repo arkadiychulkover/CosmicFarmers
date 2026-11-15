@@ -265,7 +265,6 @@ export async function fetchSoilGrids(lat, lon, { signal, parsed = null, usSsurgo
 
   if (signal?.aborted) return null;
 
-  // Inside CONUS, fall back to lab-measured USDA NRCS SSURGO soil horizons before climate proxy
   if (isWithinUsConusBounds(numLat, numLon)) {
     const ssurgo = usSsurgo || await queryUsdaSsurgo(numLat, numLon, { signal }).catch(() => null);
     const ssurgoRaw = ssurgoToSoilGridsFallback(ssurgo);

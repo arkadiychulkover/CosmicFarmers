@@ -175,11 +175,6 @@ function clamp(v, min, max) {
   return Math.min(max, Math.max(min, v));
 }
 
-/**
- * Compute updated soil nitrogen & SOC parameters after harvesting `prevCrop`
- * plus an optional inter-year cover crop (`coverWindow`), so Year 2 and Year 3
- * ONNX re-inference reflects biological N fixation, nitrate catch, and humus turnover.
- */
 export function applySoilCarryover(params, prevCrop, coverWindow = null) {
   if (!params || !prevCrop) {
     return {
