@@ -274,7 +274,7 @@
             <div class="track"><span style:width="{Math.min(root, 100)}%"></span></div>
           </div>
           <div class="inset">
-            <p class="good">{goalTitle}</p>
+            <p class="goal">{goalTitle}</p>
             <p>
               {#if cards.moisture.data.rootZone < 0.35}
                 If GWETROOT indicates a moisture deficit, prioritize moisture retention in recommendations.
@@ -292,11 +292,11 @@
         <div class="metric">
           <h3>Evapotranspiration & Surface Temp</h3>
           <div class="inset">
-            <span>Evapotranspiration</span>
+            <span class="label">Evapotranspiration</span>
             <strong class="good">{cards.ecostress.data.evapotranspiration} mm/day</strong>
           </div>
           <div class="inset">
-            <span>Land surface temperature</span>
+            <span class="label">Land surface temperature</span>
             <strong class="warm">{cards.ecostress.data.surfaceTemp} °C</strong>
           </div>
           <p class="fine">Daily water loss and observed land surface temperature — not air temperature.</p>
@@ -320,7 +320,7 @@
             </div>
           </div>
           <div class="inset">
-            <p class="warn">{risk.title}</p>
+            <p class="warn" class:risk-high={cards.terrain.data.slope > 8}>{risk.title}</p>
             <p>{risk.text}</p>
             <p class="fine">Slope &gt;5%: warning · &gt;8%: high risk</p>
           </div>
@@ -537,6 +537,10 @@
     background: var(--color-panel);
   }
 
+  .inset span.label {
+    color: #fff;
+  }
+
   .inset p {
     margin: 0;
     color: var(--color-card-dim);
@@ -545,6 +549,18 @@
 
   .good {
     color: var(--color-accent);
+  }
+
+  .inset p.goal {
+    color: #b2ff9e;
+    font-family: var(--font-display);
+    font-size: 16px;
+    font-weight: 600;
+  }
+
+  .inset p.risk-high {
+    color: #f3e474;
+    font-weight: 700;
   }
 
   .warm {
