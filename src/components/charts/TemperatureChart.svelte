@@ -99,7 +99,9 @@
     }
     return safeMean.map((_, index) => ({ index, label: months[index] ?? '' }));
   });
-  const squares = $derived(Array.from({ length: Math.min(Math.max(0, Math.round(heatDays) || 0), 12) }, (_, index) => index));
+  const heatCount = $derived(Math.max(0, Math.round(heatDays) || 0));
+  const squares = $derived(Array.from({ length: Math.min(heatCount, 12) }, (_, index) => index));
+  const seasonDays = $derived(safeMean.length);
 
   function axisLabel(value) {
     const rounded = Math.round(value * 10) / 10;
@@ -131,7 +133,7 @@
     <span class="label month" style:left="{((meanPoints[start.index]?.x ?? 0) / width) * 100}%" style:top="{(axisY / height) * 100}%">{start.label}</span>
   {/each}
   <span class="label note">
-    {squares.length} / ≈210 days &gt;32°C
+    {heatCount} / {seasonDays} days &gt;32°C
     <span class="heats" aria-hidden="true">
       {#each squares as square (square)}
         <i></i>
@@ -155,7 +157,7 @@
 
   .label {
     position: absolute;
-    font-size: 9px;
+    font-size: 11px;
     font-weight: 700;
     line-height: 1;
     pointer-events: none;
@@ -163,14 +165,14 @@
 
   .axis {
     left: 0;
-    color: #cbc9c7;
+    color: var(--color-chart-dim);
     font-size: 12px;
     white-space: nowrap;
     transform: translateY(-50%);
   }
 
   .month {
-    color: #cbc9c7;
+    color: var(--color-chart-dim);
     transform: translate(-50%, 6px);
   }
 
@@ -191,7 +193,7 @@
     width: 7px;
     height: 10px;
     border-radius: 1px;
-    background: #f3e474;
+    background: var(--color-heat-fill);
   }
 
   .note.end {
@@ -205,14 +207,14 @@
   }
 
   .heat-line {
-    stroke: #DB9A5C;
+    stroke: var(--color-heat);
     stroke-width: 0.5;
     stroke-dasharray: 3 3;
     fill: none;
   }
 
   .heat {
-    color: #DB9A5C;
+    color: var(--color-heat);
   }
 
   .sizer {
@@ -223,16 +225,16 @@
     position: absolute;
     top: 0;
     right: 0;
-    color: #DB9A5C;
+    color: var(--color-heat);
   }
 
   .blue {
-    fill: #7dd3fc;
+    fill: var(--color-water);
     opacity: 0.25;
   }
 
   .orange {
-    fill: #ffb26b;
+    fill: var(--color-water-soft);
     opacity: 0.25;
   }
 
@@ -245,11 +247,11 @@
   }
 
   .min {
-    stroke: #7dd3fc;
+    stroke: var(--color-water);
   }
 
   .max {
-    stroke: #ffb26b;
+    stroke: var(--color-water-soft);
   }
 
 </style>

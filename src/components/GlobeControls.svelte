@@ -1,9 +1,14 @@
 <script>
+  import GibsLegend from './GibsLegend.svelte';
+  import { gibsLegends, gibsMaxDate } from '../data/gibsLegends.js';
+
   const styleOptions = [
     { id: 'default', label: 'Default' },
     { id: 'satellite', label: 'Base Satellite Imagery' },
     { id: 'soil', label: 'Soil Moisture Overlay' },
     { id: 'solar', label: 'Solar Radiation Intensity' },
+    { id: 'ndvi', label: 'Vegetation (NDVI)' },
+    { id: 'lst', label: 'Land Surface Temp' },
   ];
 
   const MIN_ZOOM = 50;
@@ -12,11 +17,16 @@
 
   let {
     displayStyle = $bindable('default'),
+    gibsDate = $bindable(''),
     zoom = $bindable(100),
     isFullscreen = false,
     onreset,
     ontogglefullscreen,
   } = $props();
+
+  const legendLayer = $derived(displayStyle !== 'default' && gibsLegends[displayStyle] ? displayStyle : null);
+  const timed = $derived(Boolean(legendLayer && gibsLegends[legendLayer].timed));
+  const maxDate = gibsMaxDate();
 
   function zoomOut() {
     zoom = Math.max(MIN_ZOOM, Math.round((zoom - ZOOM_STEP) / 5) * 5);
@@ -41,6 +51,19 @@
       </button>
     {/each}
   </div>
+
+  {#if legendLayer}
+    <div class="layer-info">
+      <GibsLegend layer={legendLayer} />
+      {#if timed}
+        <label class="date-field">
+          <span>Date</span>
+          <input type="date" max={maxDate} bind:value={gibsDate} />
+          <button type="button" class="date-reset" disabled={!gibsDate} onclick={() => (gibsDate = '')}>Latest</button>
+        </label>
+      {/if}
+    </div>
+  {/if}
 
   <div class="bottom-bar">
     <button type="button" class="reset-btn" onclick={() => onreset?.()}>
@@ -150,6 +173,49 @@
   .fullscreen-btn:focus-visible {
     outline: 2px solid var(--color-accent);
     outline-offset: 2px;
+  }
+
+  .layer-info {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+  }
+
+  .date-field {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 10px;
+    border-radius: 8px;
+    background: color-mix(in srgb, var(--color-card) 42%, transparent);
+    color: var(--color-text);
+    font-size: 12px;
+  }
+
+  .date-field input {
+    padding: 2px 6px;
+    border: 1px solid var(--color-border-dim);
+    border-radius: 4px;
+    background: var(--color-field);
+    color: var(--color-text);
+    font-size: 12px;
+  }
+
+  .date-reset {
+    padding: 2px 8px;
+    border: 1px solid var(--color-border-dim);
+    border-radius: 999px;
+    background: transparent;
+    color: var(--color-text);
+    font-size: 12px;
+    cursor: pointer;
+  }
+
+  .date-reset:disabled {
+    opacity: 0.45;
+    cursor: default;
   }
 
   .bottom-bar {

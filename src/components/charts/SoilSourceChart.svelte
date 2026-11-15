@@ -89,7 +89,7 @@
 <svg viewBox="0 0 {width} {height}" role="img" aria-label="Full-width vertical soil parameters & provenance histogram">
   <defs>
     <linearGradient id="sg-bar-grad" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%" stop-color="#b2ff9e" />
+      <stop offset="0%" style="stop-color: var(--color-accent)" />
       <stop offset="100%" stop-color="#5cd68d" />
     </linearGradient>
     <linearGradient id="ptf-bar-grad" x1="0" y1="0" x2="0" y2="1">
@@ -100,7 +100,7 @@
 
   <!-- Provenance group header pills -->
   <rect x={padL + 4} y="2" width={slotW * 6 - 10} height="15" rx="4" class="group-pill" />
-  <circle cx={padL + 14} cy="9.5" r="3" fill="#b2ff9e" />
+  <circle cx={padL + 14} cy="9.5" r="3" style="fill: var(--color-accent)" />
   <text x={padL + 22} y="12.5" class="group-text">
     {nitrogenPhSource} · 0–15 cm Raster Layers (N, pH, SOC, Texture)
   </text>
@@ -150,13 +150,13 @@
   }
 
   .group-pill {
-    fill: #293751;
+    fill: var(--color-panel);
     opacity: 0.85;
   }
 
   .group-text {
     fill: var(--color-card-text);
-    font-size: 8px;
+    font-size: 9px;
     font-weight: 600;
   }
 
@@ -173,7 +173,7 @@
   }
 
   .slot-bg {
-    fill: #293751;
+    fill: var(--color-panel);
     opacity: 0.55;
   }
 
@@ -192,6 +192,6 @@
   .sub,
   .axis {
     fill: var(--color-card-dim);
-    font-size: 7.5px;
+    font-size: 9px;
   }
 </style>

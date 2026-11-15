@@ -5,10 +5,29 @@ const CONTENT_W = PAGE.w - PAGE.margin * 2;
 const CAPTIONS = ['Recommended next crop', 'Follow-up crop', 'Cycle completion'];
 
 
+const CYRILLIC = {
+  а: 'a', б: 'b', в: 'v', г: 'g', ґ: 'g', д: 'd', е: 'e', є: 'ye', ё: 'yo', ж: 'zh', з: 'z', и: 'i', і: 'i', ї: 'yi', й: 'y',
+  к: 'k', л: 'l', м: 'm', н: 'n', о: 'o', п: 'p', р: 'r', с: 's', т: 't', у: 'u', ф: 'f', х: 'kh', ц: 'ts', ч: 'ch',
+  ш: 'sh', щ: 'shch', ъ: '', ы: 'y', ь: '', э: 'e', ю: 'yu', я: 'ya',
+};
+
+const transliterate = (text) =>
+  text.replace(/[\u0400-\u04FF]/g, (ch) => {
+    const lower = ch.toLowerCase();
+    const mapped = CYRILLIC[lower];
+    if (mapped === undefined) return '';
+    return ch === lower ? mapped : mapped.charAt(0).toUpperCase() + mapped.slice(1);
+  });
+
 const safe = (text) =>
-  String(text)
+  transliterate(String(text ?? ''))
     .replace(/[–—]/g, '-')
     .replace(/→/g, '->')
+    .replace(/ß/g, 'ss')
+    .replace(/[łŁ]/g, (c) => (c === 'ł' ? 'l' : 'L'))
+    .replace(/[øØ]/g, (c) => (c === 'ø' ? 'o' : 'O'))
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
     .replace(/[^\x20-\x7E°±×]/g, '');
 
 
@@ -65,6 +84,7 @@ export async function downloadPlan(result, form) {
     `Primary management goal: ${goalTitle}`,
     `Soil: pH ${form.ph}; N ${form.n}, P ${form.p}, K ${form.k} mg/kg`,
     `Previous season: ${result.previousName}`,
+    `Water supply: ${{ rainfed: 'Rainfed', supplemental: 'Supplemental irrigation', irrigated: 'Fully irrigated' }[form.irrigation] ?? 'Rainfed'}`,
   ]) {
     y = paragraph(doc, line, margin, y + 2, { size: 10 });
   }

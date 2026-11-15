@@ -58,8 +58,8 @@
 <svg viewBox="0 0 {width} {height}" role="img" aria-label="Monthly precipitation">
   <defs>
     <linearGradient id="precip-area" gradientUnits="userSpaceOnUse" x1="0" y1={top} x2="0" y2={axisY}>
-      <stop offset="0%" stop-color="#7DD3FC" stop-opacity="0.9" />
-      <stop offset="100%" stop-color="#7DD3FC" stop-opacity="0.05" />
+      <stop offset="0%" style="stop-color: var(--color-water)" stop-opacity="0.9" />
+      <stop offset="100%" style="stop-color: var(--color-water)" stop-opacity="0.05" />
     </linearGradient>
   </defs>
   <text x="0" y={top} dominant-baseline="central" class="axis">{Math.round(max)}</text>
@@ -94,7 +94,7 @@
 
   .line {
     fill: none;
-    stroke: #7dd3fc;
+    stroke: var(--color-water);
     stroke-width: 1.8;
     stroke-linejoin: round;
     stroke-linecap: round;
@@ -118,11 +118,11 @@
   }
 
   .fill {
-    fill: #7dd3fc;
+    fill: var(--color-water);
   }
 
   .hundred {
-    stroke: #fff;
+    stroke: var(--color-chart-strong);
     stroke-width: 1;
     stroke-dasharray: 1.4 1;
     stroke-opacity: 0.75;
@@ -140,18 +140,18 @@
 
   .value,
   .season {
-    fill: #7dd3fc;
+    fill: var(--color-water);
   }
 
   .month {
-    fill: #cbc9c7;
+    fill: var(--color-chart-dim);
   }
 
   .baseline-label {
-    fill: #fff;
+    fill: var(--color-chart-strong);
   }
 
   .axis {
-    fill: #cbc9c7;
+    fill: var(--color-chart-dim);
   }
 </style>
