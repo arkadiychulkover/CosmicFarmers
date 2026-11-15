@@ -2,6 +2,8 @@
   let {
     months = [],
     year = '',
+    ndviPeriod = '',
+    ndviDates = [],
     freezeThawDays = null,
     ndviSource = null,
     ndviFallback = false,
@@ -24,6 +26,11 @@
     const n = Number(val);
     return Math.max(0.15, Math.min(1, n));
   }
+
+  function formatSampleDate(iso) {
+    const s = String(iso || '');
+    return /^\d{4}-\d{2}-\d{2}$/.test(s) ? s : '';
+  }
 </script>
 
 <div class="calendar-box" aria-label="12-month agro-climatic risk and MODIS NDVI calendar {year}">
@@ -38,28 +45,29 @@
     <div class="row" role="row">
       <span class="rowlabel" role="rowheader">Frost days (Tmin ≤ 0°C)</span>
       {#each months as m (m.label)}
-        <span class="cell frost" role="cell" style:--lv={level(m.frostDays, maxFrost)} title="{m.label}: {m.frostDays} frost days">{m.frostDays || '·'}</span>
+        <span class="cell frost" role="cell" style:--lv={level(m.frostDays, maxFrost)} title="{m.label}{year ? ` (${year})` : ''}: {m.frostDays} frost days">{m.frostDays || '·'}</span>
       {/each}
     </div>
 
     <div class="row" role="row">
       <span class="rowlabel" role="rowheader">Heavy-rain days (≥ 20 mm)</span>
       {#each months as m (m.label)}
-        <span class="cell rain" role="cell" style:--lv={level(m.heavyRainDays, maxRain)} title="{m.label}: {m.heavyRainDays} heavy-rain days">{m.heavyRainDays || '·'}</span>
+        <span class="cell rain" role="cell" style:--lv={level(m.heavyRainDays, maxRain)} title="{m.label}{year ? ` (${year})` : ''}: {m.heavyRainDays} heavy-rain days">{m.heavyRainDays || '·'}</span>
       {/each}
     </div>
 
     {#if hasNdvi}
       <div class="row" role="row">
         <span class="rowlabel" role="rowheader">Satellite MODIS NDVI</span>
-        {#each months as m (m.label)}
+        {#each months as m, idx (m.label)}
           {@const val = m.ndvi !== null && m.ndvi !== undefined && Number.isFinite(Number(m.ndvi)) ? Number(m.ndvi) : null}
+          {@const sampleIso = formatSampleDate(ndviDates?.[idx])}
           <span
             class="cell ndvi"
             class:bare-ndvi={val !== null && val < 0.25}
             role="cell"
             style:--lv={ndviTone(val)}
-            title="{m.label}: MODIS NDVI {val !== null ? val.toFixed(2) : 'unavailable'}"
+            title="{m.label}{sampleIso ? ` (${sampleIso})` : ndviPeriod ? ` (${ndviPeriod})` : ''}: MODIS NDVI {val !== null ? val.toFixed(2) : 'unavailable'}"
           >{val !== null ? val.toFixed(2) : '—'}</span>
         {/each}
       </div>
@@ -68,7 +76,7 @@
     <div class="row" role="row">
       <span class="rowlabel" role="rowheader">Bare-soil window{hasNdvi ? ' (NDVI < 0.25)' : ''}</span>
       {#each months as m (m.label)}
-        <span class="cell bare" class:on={m.bareSoil} role="cell" title="{m.label}: {m.bareSoil ? 'bare soil / off-season gap — cover crop recommended' : 'active canopy or vegetation cover'}">{m.bareSoil ? 'Bare' : 'Cover'}</span>
+        <span class="cell bare" class:on={m.bareSoil} role="cell" title="{m.label}{ndviPeriod ? ` (${ndviPeriod})` : year ? ` (${year})` : ''}: {m.bareSoil ? 'bare soil / off-season gap — cover crop recommended' : 'active canopy or vegetation cover'}">{m.bareSoil ? 'Bare' : 'Cover'}</span>
       {/each}
     </div>
 
@@ -80,14 +88,24 @@
           class:deficit={m.balance < 0}
           role="cell"
           style:--lv={Math.max(0.15, Math.abs(m.balance) / maxBalance)}
-          title="{m.label}: rain {m.precip} mm, ET {m.et} mm"
+          title="{m.label}{year ? ` (${year})` : ''}: rain {m.precip} mm, ET {m.et} mm"
         >{m.balance}</span>
       {/each}
     </div>
   </div>
 
-  {#if freezeThawDays !== null || ndviSource}
+  {#if year || ndviPeriod || freezeThawDays !== null || ndviSource}
     <div class="cal-meta">
+      {#if year}
+        <span class="meta-chip" title="NASA POWER meteorological data window">
+          POWER Climate: <b>{year}</b>
+        </span>
+      {/if}
+      {#if ndviPeriod}
+        <span class="meta-chip" class:warn-chip={ndviFallback} title="MODIS NDVI observation window">
+          {ndviFallback ? 'NDVI Proxy Window' : 'MODIS NDVI'}: <b>{ndviPeriod}</b>
+        </span>
+      {/if}
       {#if freezeThawDays !== null}
         <span class="meta-chip" class:warn-chip={Number(freezeThawDays) >= 20}>
           Freeze–Thaw Transitions (0°C): <b>{freezeThawDays}d</b>
@@ -193,8 +211,8 @@
 
   .meta-chip.warn-chip {
     border-color: var(--color-status-warn-border);
-    background: var(--color-status-warn-bg);
-    color: var(--color-text);
+    background: color-mix(in srgb, var(--color-tone-warn) 16%, var(--color-panel));
+    color: var(--color-card-text);
   }
 
   .bal {

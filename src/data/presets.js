@@ -10,7 +10,7 @@ export const presets = [
   {
     id: 'poltava',
     label: 'Poltava Steppe, Ukraine',
-    values: { lat: 49.5883, lon: 34.5514 },
+    values: { lat: 49.575, lon: 34.37 },
   },
   {
     id: 'andalusia',
@@ -42,7 +42,7 @@ export const VERIFIED_AGRICULTURAL_POINTS = [
   { lat: 40.062, lon: -88.352, region: 'Illinois Corn-Soy Belt' },
   { lat: 38.785, lon: -97.68, region: 'US Central Plains' },
   { lat: 52.085, lon: -106.512, region: 'Canadian Prairies' },
-  { lat: 49.645, lon: 34.421, region: 'Central Ukraine Steppe' },
+  { lat: 49.76, lon: 34.52, region: 'Central Ukraine Steppe' },
   { lat: 52.055, lon: 11.482, region: 'Central European Plain' },
   { lat: 41.542, lon: -4.855, region: 'Iberian Agricultural Plains' },
   { lat: 45.052, lon: 9.693, region: 'Po Valley, Italy' },

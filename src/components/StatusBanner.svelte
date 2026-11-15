@@ -7,6 +7,7 @@
     actionLabel = '',
     onaction = null,
     busy = false,
+    loading = false,
     compact = false,
   } = $props();
 
@@ -19,8 +20,10 @@
 <div
   class="banner {validTone}"
   class:compact
+  class:loading
   role={validTone === 'error' ? 'alert' : 'status'}
   aria-live={validTone === 'error' ? 'assertive' : 'polite'}
+  aria-busy={loading || busy ? 'true' : undefined}
 >
   <div class="content">
     <div class="head">
@@ -53,10 +56,18 @@
       {busy ? 'Retrying…' : actionLabel}
     </button>
   {/if}
+
+  {#if loading}
+    <span class="loading-track" aria-hidden="true">
+      <span class="loading-line"></span>
+    </span>
+  {/if}
 </div>
 
 <style>
   .banner {
+    position: relative;
+    overflow: hidden;
     display: flex;
     align-items: flex-start;
     justify-content: space-between;
@@ -71,6 +82,14 @@
   .banner.compact {
     padding: 8px 11px;
     gap: 8px;
+  }
+
+  .banner.loading {
+    padding-bottom: 12px;
+  }
+
+  .banner.compact.loading {
+    padding-bottom: 10px;
   }
 
   .banner.info {
@@ -182,5 +201,54 @@
   .action:disabled {
     opacity: 0.55;
     cursor: not-allowed;
+  }
+
+  .loading-track {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 3px;
+    overflow: hidden;
+    background: color-mix(in srgb, var(--banner-accent) 18%, transparent);
+    pointer-events: none;
+  }
+
+  .loading-line {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: 42%;
+    border-radius: 999px;
+    background: linear-gradient(
+      90deg,
+      transparent 0%,
+      var(--banner-accent) 20%,
+      var(--banner-accent) 80%,
+      transparent 100%
+    );
+    animation: banner-loading-slide 1.4s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+    will-change: transform;
+  }
+
+  @keyframes banner-loading-slide {
+    0% {
+      transform: translateX(-110%);
+    }
+    100% {
+      transform: translateX(260%);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .loading-line {
+      width: 100%;
+      transform: none;
+      border-radius: 0;
+      background: var(--banner-accent);
+      opacity: 0.7;
+      animation: none;
+    }
   }
 </style>

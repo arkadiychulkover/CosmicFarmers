@@ -81,11 +81,12 @@
   );
 
   const metricsLocked = $derived(!coordsReady);
+  const oodLoading = $derived($session.nasaLoading || metricsLocked);
 
   const canProceed = $derived(coordsReady && !isNonArableBlocked);
 
   const liveOod = $derived.by(() => {
-    if (!$session.nasaData || $session.nasaLoading) return null;
+    if (!$session.nasaData || oodLoading) return null;
     return assessFieldOod({
       ...$session.form,
       nasaClimate: $session.nasaData,
@@ -93,10 +94,19 @@
   });
 
   const oodBanner = $derived.by(() => {
-    if (!liveOod) return null;
+    if (oodLoading || !liveOod) {
+      return {
+        tone: 'info',
+        loading: true,
+        title: 'Out-of-Distribution Field Profile Validation Pending…',
+        message: 'Location telemetry and Field Profile validation for this location have not finished loading yet.',
+        items: [],
+      };
+    }
     if (liveOod.status === 'ood') {
       return {
         tone: 'error',
+        loading: false,
         title: `Out-of-Distribution Field Profile (${liveOod.confidenceScore}/100)`,
         message: 'Field soil or climate conditions lie outside the model training range; predictions will be penalized for lower reliability.',
         items: liveOod.reasons.slice(0, 4),
@@ -105,6 +115,7 @@
     if (liveOod.status === 'low') {
       return {
         tone: 'warn',
+        loading: false,
         title: `Low Model Coverage (${liveOod.confidenceScore}/100)`,
         message: 'One or more field parameters approach or exceed training distribution bounds:',
         items: liveOod.reasons.slice(0, 4),
@@ -113,6 +124,7 @@
     if (liveOod.status === 'medium') {
       return {
         tone: 'warn',
+        loading: false,
         title: `Moderate Field Coverage (${liveOod.confidenceScore}/100)`,
         message: 'Some parameters fall in the outer tails of the training dataset:',
         items: liveOod.reasons.slice(0, 3),
@@ -120,6 +132,7 @@
     }
     return {
       tone: 'good',
+      loading: false,
       title: `Field Profile Validated (${liveOod.confidenceScore}/100)`,
       message: 'Soil and climate inputs sit well inside the global training distribution.',
       items: [],
@@ -370,6 +383,7 @@
   function retryLoad() {
     loadCoordsIntoSession($session.form.lat, $session.form.lon, {
       presetId: $session.activePresetId,
+      locationName: $session.locationName ?? undefined,
     });
   }
 
@@ -388,7 +402,10 @@
   async function handleMapConfirm(event) {
     const detail = event?.detail || event || {};
     isMapOpen = false;
-    await loadCoordsIntoSession(detail.lat, detail.lng);
+    const address = typeof detail.address === 'string' ? detail.address.trim() : '';
+    await loadCoordsIntoSession(detail.lat, detail.lng, {
+      locationName: address || undefined,
+    });
   }
 </script>
 
@@ -439,12 +456,12 @@
       busy={$session.nasaLoading}
       onaction={retryLoad}
     />
-  {:else if $session.nasaLoading || metricsLocked}
+  {:else if oodLoading}
     <StatusBanner
       tone="info"
-      compact
-      title="Loading Location Telemetry…"
-      message="Fetching NASA POWER, SoilGrids, and MODIS land cover. Farm and soil metrics are locked until loading finishes."
+      loading={true}
+      title="Loading Location Telemetry & Field Profile Validation…"
+      message="Fetching NASA POWER climate, SoilGrids soil profile, MODIS NDVI, and land-cover data. Out-of-Distribution Field Profile validation for this location has not finished loading yet; farm and soil metrics stay locked until telemetry finishes."
     />
   {:else}
     {#if landCover}
@@ -501,6 +518,7 @@
       <div class="ood-slot">
         <StatusBanner
           tone={oodBanner.tone}
+          loading={Boolean(oodBanner.loading)}
           title={oodBanner.title}
           message={oodBanner.message}
           items={oodBanner.items}
