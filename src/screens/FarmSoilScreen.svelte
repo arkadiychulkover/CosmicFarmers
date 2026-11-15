@@ -7,9 +7,11 @@
   import SliderField from '../components/SliderField.svelte';
   import ActionButton from '../components/ActionButton.svelte';
   import GoogleMapModal from '../components/GoogleMapModal.svelte';
+  import StatusBanner from '../components/StatusBanner.svelte';
   import { presets } from '../data/presets.js';
-  import { cropOptions, soilOptions, goalOptions, irrigationOptions } from '../data/options.js';
-  import { session, applyPreset, loadCoordsIntoSession, markCustomSoilEdited } from '../stores/session.svelte.js';
+  import { cropOptions, soilOptions, irrigationOptions, goalOptions } from '../data/options.js';
+  import { assessFieldOod } from '../lib/crop/index.js';
+  import { session, applyPreset, loadCoordsIntoSession } from '../stores/session.svelte.js';
 
   let isMapOpen = $state(false);
 
@@ -23,17 +25,106 @@
 
   const canProceed = $derived(
     !$session.nasaLoading &&
+    !$session.nasaError &&
     Boolean($session.nasaData) &&
     Math.abs(Number($session.nasaData.lat) - Number($session.form.lat)) < 0.001 &&
     Math.abs(Number($session.nasaData.lon) - Number($session.form.lon)) < 0.001
   );
 
-  function coordinatesEdited() {
-    loadCoordsIntoSession($session.form.lat, $session.form.lon);
+  const liveOod = $derived.by(() => {
+    if (!$session.nasaData || $session.nasaLoading) return null;
+    return assessFieldOod({
+      ...$session.form,
+      nasaClimate: $session.nasaData,
+    });
+  });
+
+  const oodBanner = $derived.by(() => {
+    if (!liveOod) return null;
+    if (liveOod.status === 'ood') {
+      return {
+        tone: 'error',
+        title: `Out-of-Distribution Field Profile (${liveOod.confidenceScore}/100)`,
+        message: 'Field soil or climate conditions lie outside the model training range; predictions will be penalized for lower reliability.',
+        items: liveOod.reasons.slice(0, 4),
+      };
+    }
+    if (liveOod.status === 'low') {
+      return {
+        tone: 'warn',
+        title: `Low Model Coverage (${liveOod.confidenceScore}/100)`,
+        message: 'One or more field parameters approach or exceed training distribution bounds:',
+        items: liveOod.reasons.slice(0, 4),
+      };
+    }
+    if (liveOod.status === 'medium') {
+      return {
+        tone: 'warn',
+        title: `Moderate Field Coverage (${liveOod.confidenceScore}/100)`,
+        message: 'Some parameters fall in the outer tails of the training dataset:',
+        items: liveOod.reasons.slice(0, 3),
+      };
+    }
+    return {
+      tone: 'good',
+      title: `Field Profile Validated (${liveOod.confidenceScore}/100)`,
+      message: 'Soil and climate inputs sit well inside the global training distribution.',
+      items: [],
+    };
+  });
+
+  function updateSoilField(key, value) {
+    const num = Number(value);
+    if (Number.isNaN(num)) return;
+    $session.form[key] = num;
+    $session.customSoilEdited = true;
   }
 
-  function onSoilChange() {
-    markCustomSoilEdited();
+  function updateClay(value) {
+    const clay = Math.min(100, Math.max(0, Number(value) || 0));
+    let sand = Number($session.form.sand) || 0;
+    if (clay + sand > 100) {
+      sand = Math.max(0, Number((100 - clay).toFixed(1)));
+      $session.form.sand = sand;
+    }
+    $session.form.clay = Number(clay.toFixed(1));
+    $session.form.silt = Math.max(0, Number((100 - clay - sand).toFixed(1)));
+    $session.customSoilEdited = true;
+  }
+
+  function updateSand(value) {
+    const sand = Math.min(100, Math.max(0, Number(value) || 0));
+    let clay = Number($session.form.clay) || 0;
+    if (clay + sand > 100) {
+      clay = Math.max(0, Number((100 - sand).toFixed(1)));
+      $session.form.clay = clay;
+    }
+    $session.form.sand = Number(sand.toFixed(1));
+    $session.form.silt = Math.max(0, Number((100 - clay - sand).toFixed(1)));
+    $session.customSoilEdited = true;
+  }
+
+  function resetSoilToSatellite() {
+    $session.form.ph = $session.autoSoil.ph;
+    $session.form.soc = $session.autoSoil.soc;
+    $session.form.nitrogen = $session.autoSoil.nitrogen;
+    $session.form.clay = $session.autoSoil.clay;
+    $session.form.sand = $session.autoSoil.sand;
+    $session.form.silt = $session.autoSoil.silt;
+    if ($session.nasaData?.soil) {
+      $session.form.soil = $session.nasaData.soil;
+    }
+    $session.customSoilEdited = false;
+  }
+
+  function retryLoad() {
+    loadCoordsIntoSession($session.form.lat, $session.form.lon, {
+      presetId: $session.activePresetId,
+    });
+  }
+
+  function coordinatesEdited() {
+    loadCoordsIntoSession($session.form.lat, $session.form.lon);
   }
 
   function openMap() {
@@ -88,6 +179,24 @@
     </button>
   </div>
 
+  {#if $session.nasaError}
+    <StatusBanner
+      tone="error"
+      title="Satellite Data Unavailable"
+      message={$session.nasaError}
+      actionLabel="Retry"
+      busy={$session.nasaLoading}
+      onaction={retryLoad}
+    />
+  {:else if oodBanner}
+    <StatusBanner
+      tone={oodBanner.tone}
+      title={oodBanner.title}
+      message={oodBanner.message}
+      items={oodBanner.items}
+    />
+  {/if}
+
   <SelectField
     label="Previous Season Crop (Predecessor)"
     hint="Select the crop harvested in the last cycle to calculate nutrient carryover and pest/disease break requirements."
@@ -97,42 +206,109 @@
 
   <GoalSelector label="Primary Management Goal" options={goalOptions} bind:value={$session.form.goal} />
 
-  <GoalSelector label="Water Supply (Irrigation)" name="irrigation" options={irrigationOptions} bind:value={$session.form.irrigation} />
+  <fieldset class="irrigation-group">
+    <legend>Irrigation Regime</legend>
+    <div class="irrigation-grid">
+      {#each irrigationOptions as option (option.value)}
+        <label class="irr-card" class:active={option.value === $session.form.irrigation}>
+          <input
+            type="radio"
+            name="irrigation"
+            value={option.value}
+            bind:group={$session.form.irrigation}
+          />
+          <strong>{option.label}</strong>
+          <span>{option.description}</span>
+        </label>
+      {/each}
+    </div>
+  </fieldset>
 
   <div class="soil-warning">
-    <h3>Soil Metrics</h3>
-    <p>Satellite data may be inaccurate, make your own measurements and tune it for more accurate results.</p>
+    <div class="soil-head">
+      <h3>Raw SoilGrids Profile (0–15 cm)</h3>
+      {#if $session.customSoilEdited}
+        <button type="button" class="reset-soil" onclick={resetSoilToSatellite}>
+          Reset to satellite
+        </button>
+      {/if}
+    </div>
+    <p>
+      Direct physical/chemical SoilGrids layers. Tune any measurement below to calibrate your local field profile.
+    </p>
   </div>
+
+  <SelectField label="Soil Type" options={soilOptions} bind:value={$session.form.soil} />
 
   <SliderField
     label="Soil Reaction (pH Level)"
-    min={4.5}
-    max={8.5}
+    min={4.0}
+    max={9.0}
     step={0.1}
     showRange
     minLabel="Acidic"
     midLabel="Neutral"
     maxLabel="Alkaline"
     mark={$session.autoSoil.ph}
-    onchange={onSoilChange}
-    bind:value={$session.form.ph}
+    bind:value={() => $session.form.ph, (v) => updateSoilField('ph', v)}
   />
 
-  <SelectField label="Soil Type" options={soilOptions} onchange={onSoilChange} bind:value={$session.form.soil} />
+  <SliderField
+    label="Organic Carbon (SOC)"
+    min={1}
+    max={80}
+    step={0.5}
+    unit="g/kg"
+    mark={$session.autoSoil.soc}
+    bind:value={() => $session.form.soc, (v) => updateSoilField('soc', v)}
+  />
 
-  <SliderField label="Available Nitrogen (N)" max={200} unit="mg/kg" mark={$session.autoSoil.n} onchange={onSoilChange} bind:value={$session.form.n} />
-  <SliderField label="Available Phosphorus (P)" max={150} unit="mg/kg" mark={$session.autoSoil.p} onchange={onSoilChange} bind:value={$session.form.p} />
-  <SliderField label="Exchangeable Potassium (K)" max={300} unit="mg/kg" mark={$session.autoSoil.k} onchange={onSoilChange} bind:value={$session.form.k} />
+  <SliderField
+    label="Total Nitrogen (N)"
+    min={0.1}
+    max={7.0}
+    step={0.05}
+    unit="g/kg"
+    mark={$session.autoSoil.nitrogen}
+    bind:value={() => $session.form.nitrogen, (v) => updateSoilField('nitrogen', v)}
+  />
 
-  {#if $session.nasaError}
-    <div class="error" role="alert">
-      <p>Could not load NASA data for this location.</p>
-      <span>{$session.nasaError}</span>
-      <button type="button" onclick={coordinatesEdited}>Try again</button>
+  <SliderField
+    label="Clay Content"
+    min={0}
+    max={100}
+    step={0.5}
+    unit="%"
+    mark={$session.autoSoil.clay}
+    bind:value={() => $session.form.clay, updateClay}
+  />
+
+  <SliderField
+    label="Sand Content"
+    min={0}
+    max={100}
+    step={0.5}
+    unit="%"
+    mark={$session.autoSoil.sand}
+    bind:value={() => $session.form.sand, updateSand}
+  />
+
+  <div class="silt-readout" aria-live="polite">
+    <div class="silt-row">
+      <span class="silt-label">Silt (auto-balanced: 100% − Clay − Sand)</span>
+      <strong class="silt-val">{Number($session.form.silt ?? 0).toFixed(1)}%</strong>
     </div>
-  {:else if !canProceed && !$session.nasaLoading}
-    <p class="hint">Waiting for climate data for the chosen coordinates…</p>
-  {/if}
+    <div class="silt-bar">
+      <span class="seg clay" style:width="{Math.min(100, Math.max(0, Number($session.form.clay) || 0))}%"></span>
+      <span class="seg sand" style:width="{Math.min(100, Math.max(0, Number($session.form.sand) || 0))}%"></span>
+      <span class="seg silt" style:width="{Math.min(100, Math.max(0, Number($session.form.silt) || 0))}%"></span>
+    </div>
+    <div class="silt-legend">
+      <span>Clay {Number($session.form.clay ?? 0).toFixed(1)}%</span>
+      <span>Sand {Number($session.form.sand ?? 0).toFixed(1)}%</span>
+      <span>Silt {Number($session.form.silt ?? 0).toFixed(1)}% (Satellite: {Number($session.autoSoil.silt ?? 0).toFixed(1)}%)</span>
+    </div>
+  </div>
 
   <div class="actions">
     <ActionButton
@@ -205,10 +381,84 @@
     height: 17px;
   }
 
+  .irrigation-group {
+    display: grid;
+    gap: 8px;
+    margin: 0;
+    padding: 0;
+    border: none;
+  }
+
+  .irrigation-group legend {
+    margin-bottom: 10px;
+    padding: 0;
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--color-text);
+  }
+
+  .irrigation-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .irr-card {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 8px 10px;
+    border: 1px solid var(--color-border-dim);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: border-color 0.15s, background 0.15s;
+  }
+
+  .irr-card:hover {
+    border-color: var(--color-border-strong);
+  }
+
+  .irr-card.active {
+    border-color: var(--color-border-strong);
+    box-shadow: inset 0 0 0 1px var(--color-border-strong);
+    background: color-mix(in srgb, var(--color-option-active) 35%, transparent);
+  }
+
+  .irr-card:has(input:focus-visible) {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+  }
+
+  .irr-card input {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .irr-card strong {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--color-text);
+  }
+
+  .irr-card span {
+    font-size: 8.5px;
+    line-height: 1.3;
+    color: var(--color-text-dim);
+  }
+
   .soil-warning {
     display: grid;
     gap: 4px;
     text-align: center;
+  }
+
+  .soil-head {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
   }
 
   .soil-warning h3 {
@@ -221,57 +471,93 @@
     text-transform: uppercase;
   }
 
+  .reset-soil {
+    padding: 2px 8px;
+    border: 1px solid var(--color-border-dim);
+    border-radius: 999px;
+    background: transparent;
+    color: var(--color-accent);
+    font-size: 9px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  .reset-soil:hover {
+    border-color: var(--color-accent);
+  }
+
   .soil-warning p {
     margin: 0;
     color: var(--color-text-dim);
-    font-size: 12px;
-    font-weight: 700;
-    line-height: 1.35;
+    font-size: 9px;
+    line-height: 1.3;
   }
 
-  .error {
+  .silt-readout {
     display: grid;
-    gap: 4px;
-    justify-items: center;
-    padding: 10px 16px;
-    border: 1px solid var(--color-danger);
+    gap: 6px;
+    padding: 10px 12px;
+    border: 1px solid var(--color-border-dim);
     border-radius: 6px;
-    text-align: center;
+    background: color-mix(in srgb, var(--color-panel) 55%, transparent);
   }
 
-  .error p,
-  .hint {
-    margin: 0;
-    font-size: 14px;
-    font-weight: 600;
-    color: var(--color-text);
+  .silt-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 8px;
   }
 
-  .hint {
-    text-align: center;
-    color: var(--color-text-dim);
-    font-weight: 400;
-  }
-
-  .error span {
-    font-size: 12px;
+  .silt-label {
+    font-size: 11px;
     color: var(--color-text-dim);
   }
 
-  .error button {
-    margin-top: 4px;
-    padding: 4px 14px;
-    border: 1px solid var(--color-border-strong);
-    border-radius: 999px;
-    background: transparent;
-    color: var(--color-text);
-    font-size: 12px;
-    cursor: pointer;
+  .silt-val {
+    font-family: var(--font-display);
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--color-accent);
+  }
+
+  .silt-bar {
+    display: flex;
+    height: 6px;
+    border-radius: 3px;
+    overflow: hidden;
+    background: var(--color-field);
+  }
+
+  .seg.clay {
+    background: var(--color-chart-orange);
+  }
+
+  .seg.sand {
+    background: var(--color-tone-warn);
+  }
+
+  .seg.silt {
+    background: var(--color-chart-green);
+  }
+
+  .silt-legend {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    font-size: 8.5px;
+    color: var(--color-text-dim);
   }
 
   .actions {
     width: 50%;
     min-width: 220px;
     margin: 6px auto 0;
+  }
+
+  @media (max-width: 600px) {
+    .irrigation-grid {
+      grid-template-columns: 1fr;
+    }
   }
 </style>

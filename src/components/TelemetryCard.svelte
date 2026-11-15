@@ -86,8 +86,8 @@
   .source {
     margin: 0;
     color: var(--color-card-dim);
-    font-size: 11px;
-    font-weight: 700;
+    font-size: 9px;
+    font-weight: 600;
     letter-spacing: 0.02em;
     text-transform: uppercase;
   }
@@ -112,7 +112,8 @@
     gap: 2px;
     padding: 8px 16px;
     border-radius: 4px;
-    background: #f1edea;
+    border: 1px solid var(--color-status-error-border);
+    background: var(--color-field);
     color: var(--color-danger);
     text-align: center;
   }

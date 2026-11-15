@@ -1,257 +1,127 @@
 <script>
-  let { values = [], minValues = [], maxValues = [], dates = [], months = [], heatDays = 0 } = $props();
+  let {
+    values = [],
+    months = [],
+    heatDays = 0,
+    frostDays = null,
+    totalDays = 365,
+    threshold = 32,
+  } = $props();
 
-  const width = 250;
-  const height = 86;
-  const padR = 8;
-  const labelGap = 10;
-  let chartWidth = $state(0);
-  let maxLabelWidth = $state(0);
-  const padL = $derived(
-    chartWidth > 0 ? ((maxLabelWidth + labelGap) / chartWidth) * width : 36,
-  );
-  const top = 8;
-  const axisY = 72;
+  const width = 260;
+  const height = 114;
+  const padL = 28;
+  const padR = 10;
+  const top = 16;
+  const axisY = 74;
 
-  const plotted = $derived.by(() => {
-    const mean = Array.isArray(values) && values.length ? values : [0];
-    const min = Array.isArray(minValues) && minValues.length === mean.length ? minValues : mean;
-    const max = Array.isArray(maxValues) && maxValues.length === mean.length ? maxValues : mean;
-    const dated = Array.isArray(dates) && dates.length === mean.length ? dates : [];
-    const october = dated.length
-      ? dated.findIndex((date) => String(date).slice(4, 6) === '10')
-      : (Array.isArray(months) ? months.findIndex((month) => String(month).startsWith('Oct')) : -1);
-    if (october < 0) return { mean, min, max, dates: dated };
-    const end = october + 1;
-    return {
-      mean: mean.slice(0, end),
-      min: min.slice(0, end),
-      max: max.slice(0, end),
-      dates: dated.slice(0, end),
-    };
-  });
-  const safeMean = $derived(plotted.mean);
-  const safeMin = $derived(plotted.min);
-  const safeMax = $derived(plotted.max);
-  const safeDates = $derived(plotted.dates);
-  const low = $derived(Math.min(...safeMin));
-  const high = $derived(Math.max(...safeMax));
-  const heatLimit = 32;
-  const showHeat = $derived(high > heatLimit);
+  const safeValues = $derived(Array.isArray(values) && values.length ? values : [0]);
+  const safeMonths = $derived(Array.isArray(months) && months.length ? months : []);
+  const minTemp = $derived(Math.min(0, Math.floor(Math.min(...safeValues) / 5) * 5));
+  const maxTemp = $derived(Math.max(36, Math.ceil(Math.max(...safeValues) / 5) * 5));
 
   function yFor(temp) {
-    const span = Math.max(0.1, high - low);
-    return axisY - ((temp - low) / span) * (axisY - top);
+    const span = Math.max(1, maxTemp - minTemp);
+    return axisY - ((temp - minTemp) / span) * (axisY - top);
   }
 
-  function toPoints(series) {
-    return series.map((value, index) => ({
-      x: padL + (index / Math.max(1, series.length - 1)) * (width - padL - padR),
+  const zeroY = $derived(yFor(0));
+  const points = $derived(
+    safeValues.map((value, index) => ({
+      x: padL + (index / Math.max(1, safeValues.length - 1)) * (width - padL - padR),
       y: yFor(value),
       value,
-    }));
-  }
-
-  function smoothPath(pts, extend = 6, flatten = 0.35) {
-    if (!pts.length) return '';
-    if (pts.length === 1) return `M ${pts[0].x} ${pts[0].y}`;
-    let d = `M ${pts[0].x} ${pts[0].y}`;
-    for (let i = 0; i < pts.length - 1; i += 1) {
-      const p0 = pts[Math.max(0, i - 1)];
-      const p1 = pts[i];
-      const p2 = pts[i + 1];
-      const p3 = pts[Math.min(pts.length - 1, i + 2)];
-      const c1x = p1.x + (p2.x - p0.x) / extend;
-      const c1y = p1.y + ((p2.y - p0.y) / extend) * flatten;
-      const c2x = p2.x - (p3.x - p1.x) / extend;
-      const c2y = p2.y - ((p3.y - p1.y) / extend) * flatten;
-      d += ` C ${c1x} ${c1y}, ${c2x} ${c2y}, ${p2.x} ${p2.y}`;
-    }
-    return d;
-  }
-
-  function band(upper, lower) {
-    if (!upper.length || !lower.length) return '';
-    const back = smoothPath([...lower].reverse()).replace(/^M/, 'L');
-    return `${smoothPath(upper)} L ${lower[lower.length - 1].x} ${lower[lower.length - 1].y} ${back} Z`;
-  }
-
-  const meanPoints = $derived(toPoints(safeMean));
-  const minPoints = $derived(toPoints(safeMin));
-  const maxPoints = $derived(toPoints(safeMax));
-  const blueBand = $derived(band(meanPoints, minPoints));
-  const orangeBand = $derived(band(maxPoints, meanPoints));
-  const minLine = $derived(smoothPath(minPoints));
-  const maxLine = $derived(smoothPath(maxPoints));
-  const monthName = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-  const monthStarts = $derived.by(() => {
-    if (safeDates.length === safeMean.length) {
-      const starts = [];
-      let previous = '';
-      safeDates.forEach((date, index) => {
-        const month = String(date).slice(4, 6);
-        if (month !== previous) {
-          starts.push({ index, label: monthName[Number(month)] || '' });
-          previous = month;
-        }
-      });
-      return starts;
-    }
-    return safeMean.map((_, index) => ({ index, label: months[index] ?? '' }));
-  });
-  const heatCount = $derived(Math.max(0, Math.round(heatDays) || 0));
-  const squares = $derived(Array.from({ length: Math.min(heatCount, 12) }, (_, index) => index));
-  const seasonDays = $derived(safeMean.length);
-
-  function axisLabel(value) {
-    const rounded = Math.round(value * 10) / 10;
-    return Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(1);
-  }
+    })),
+  );
+  const line = $derived(points.map((point) => `${point.x},${point.y}`).join(' '));
+  const area = $derived(`${padL},${zeroY} ${line} ${width - padR},${zeroY}`);
+  const marks = $derived(
+    safeMonths.length >= 12
+      ? [0, 3, 6, 9, 11]
+      : [0, Math.floor((safeMonths.length - 1) / 2), safeMonths.length - 1],
+  );
+  const heatCount = $derived(Math.max(0, Math.round(Number(heatDays) || 0)));
+  const maxSquares = 16;
+  const squares = $derived(Array.from({ length: Math.min(heatCount, maxSquares) }, (_, index) => index));
+  const frostCount = $derived(
+    frostDays === null || frostDays === undefined ? null : Math.max(0, Math.round(Number(frostDays) || 0)),
+  );
 </script>
 
-<div class="chart" bind:clientWidth={chartWidth}>
-  <svg viewBox="0 0 {width} {height}" role="img" aria-label="Seasonal minimum and maximum temperature">
-    <line x1={padL} y1={top} x2={width - padR} y2={top} class="guide" />
-    <line x1={padL} y1={axisY} x2={width - padR} y2={axisY} class="guide" />
-    <path d={blueBand} class="blue" />
-    <path d={orangeBand} class="orange" />
-    <path d={minLine} class="min" />
-    <path d={maxLine} class="max" />
-    {#if showHeat}
-      <line x1={padL} y1={yFor(heatLimit)} x2={width - padR} y2={yFor(heatLimit)} class="heat-line" />
-    {/if}
-  </svg>
-  <span class="label axis" bind:clientWidth={maxLabelWidth} style:top="{(top / height) * 100}%">MAX: {axisLabel(high)}°C</span>
-  {#if showHeat}
-    <span class="label axis heat" style:top="{(yFor(heatLimit) / height) * 100}%">
-      <span class="sizer" aria-hidden="true">MAX: {axisLabel(high)}°C</span>
-      <span class="mark">32°C</span>
-    </span>
+<svg viewBox="0 0 {width} {height}" role="img" aria-label="12-month temperature and heat stress days">
+  <polygon points={area} class="area" />
+  {#if minTemp < 0}
+    <line x1={padL} y1={zeroY} x2={width - padR} y2={zeroY} class="zero-line" />
+    <text x="0" y={zeroY + 3} class="tick">0°C</text>
   {/if}
-  <span class="label axis" style:top="{(axisY / height) * 100}%">MIN: {axisLabel(low)}°C</span>
-  {#each monthStarts as start (start.index)}
-    <span class="label month" style:left="{((meanPoints[start.index]?.x ?? 0) / width) * 100}%" style:top="{(axisY / height) * 100}%">{start.label}</span>
+  <line x1={padL} y1={yFor(threshold)} x2={width - padR} y2={yFor(threshold)} class="threshold" />
+  <text x="0" y={yFor(threshold) + 3} class="tick">{threshold}°C</text>
+  <polyline points={line} class="line" />
+  {#each points as point, index (safeMonths[index] ?? index)}
+    {#if marks.includes(index)}
+      <text x={point.x} y={axisY + 11} text-anchor="middle" class="month">{safeMonths[index] ?? ''}</text>
+    {/if}
   {/each}
-  <span class="label note">
-    {heatCount} / {seasonDays} days &gt;32°C
-    <span class="heats" aria-hidden="true">
-      {#each squares as square (square)}
-        <i></i>
-      {/each}
-    </span>
-  </span>
-  <span class="label note end">Count only · not dates</span>
-</div>
+  <text x="0" y="96" class="note">
+    {heatCount} / {totalDays} days &gt;{threshold}°C{frostCount !== null ? ` · ${frostCount} frost days` : ''}
+  </text>
+  <text x={width} y="96" text-anchor="end" class="note dim">12-mo count</text>
+  {#each squares as square (square)}
+    <rect x={2 + square * 8} y="101" width="6" height="7" rx="1" class="heat" />
+  {/each}
+  {#if heatCount > maxSquares}
+    <text x={2 + maxSquares * 8 + 2} y="107.5" class="overflow">+{heatCount - maxSquares}</text>
+  {/if}
+</svg>
 
 <style>
-  .chart {
-    position: relative;
-  }
-
   svg {
     display: block;
     width: 100%;
     height: auto;
-    aspect-ratio: 250 / 86;
   }
 
-  .label {
-    position: absolute;
-    font-size: 11px;
-    font-weight: 700;
-    line-height: 1;
-    pointer-events: none;
+  .area {
+    fill: var(--color-chart-orange);
+    opacity: 0.24;
   }
 
-  .axis {
-    left: 0;
-    color: var(--color-chart-dim);
-    font-size: 12px;
-    white-space: nowrap;
-    transform: translateY(-50%);
-  }
-
-  .month {
-    color: var(--color-chart-dim);
-    transform: translate(-50%, 6px);
-  }
-
-  .note {
-    top: 95%;
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    color: var(--color-card-text);
-  }
-
-  .heats {
-    display: inline-flex;
-    gap: 2px;
-  }
-
-  .heats i {
-    width: 7px;
-    height: 10px;
-    border-radius: 1px;
-    background: var(--color-heat-fill);
-  }
-
-  .note.end {
-    right: 0;
-  }
-
-  .guide {
-    stroke: var(--color-panel);
-    stroke-width: 0.5;
+  .line {
     fill: none;
+    stroke: var(--color-chart-orange);
+    stroke-width: 1.8;
   }
 
-  .heat-line {
-    stroke: var(--color-heat);
-    stroke-width: 0.5;
+  .zero-line {
+    stroke: var(--color-card-dim);
+    stroke-width: 0.8;
+    opacity: 0.65;
+  }
+
+  .threshold {
+    stroke: var(--color-tone-warn);
+    stroke-width: 1;
     stroke-dasharray: 3 3;
-    fill: none;
+  }
+
+  .tick,
+  .month,
+  .note,
+  .overflow {
+    fill: var(--color-card-text);
+    font-size: 8px;
+  }
+
+  .note.dim {
+    fill: var(--color-card-dim);
   }
 
   .heat {
-    color: var(--color-heat);
+    fill: var(--color-tone-warn);
   }
 
-  .sizer {
-    visibility: hidden;
+  .overflow {
+    fill: var(--color-tone-warn);
+    font-weight: 700;
   }
-
-  .mark {
-    position: absolute;
-    top: 0;
-    right: 0;
-    color: var(--color-heat);
-  }
-
-  .blue {
-    fill: var(--color-water);
-    opacity: 0.25;
-  }
-
-  .orange {
-    fill: var(--color-water-soft);
-    opacity: 0.25;
-  }
-
-  .min,
-  .max {
-    fill: none;
-    stroke-width: 0.9;
-    stroke-linejoin: round;
-    stroke-linecap: round;
-  }
-
-  .min {
-    stroke: var(--color-water);
-  }
-
-  .max {
-    stroke: var(--color-water-soft);
-  }
-
 </style>
