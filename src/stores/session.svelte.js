@@ -1,13 +1,15 @@
 import { writable, get } from 'svelte/store';
-import { resolvePresetAsync } from '../data/presets.js';
+import { presets, resolvePresetAsync } from '../data/presets.js';
 import { fetchLandCoverMask } from '../lib/weather/landCoverMask.js';
 import { fetchNasaDataForCoords, deriveSoilAndNutrients } from '../utils/nasaApi.js';
 
 const LEGACY_SESSION_KEY = 'field-shift-session';
-const SESSION_KEY = 'field-shift-session-v2';
+export const SESSION_KEY = 'field-shift-session-v2';
+const PRESET_COORD_TOLERANCE = 0.01;
 
 const defaults = {
-  activePresetId: null,
+  activePresetId: 'iowa',
+  locationName: 'Iowa Corn Belt, USA',
   coordsEditable: false,
   customSoilEdited: false,
   nonArableAckCoord: null,
@@ -68,6 +70,126 @@ function stripLegacyNpk(obj) {
   return copy;
 }
 
+function coordsMatch(latA, lonA, latB, lonB, tolerance = PRESET_COORD_TOLERANCE) {
+  const aLat = Number(latA);
+  const aLon = Number(lonA);
+  const bLat = Number(latB);
+  const bLon = Number(lonB);
+  if (!Number.isFinite(aLat) || !Number.isFinite(aLon) || !Number.isFinite(bLat) || !Number.isFinite(bLon)) {
+    return false;
+  }
+  return Math.abs(aLat - bLat) < tolerance && Math.abs(aLon - bLon) < tolerance;
+}
+
+function coordsMatchPreset(preset, lat, lon) {
+  return Boolean(preset?.values && coordsMatch(preset.values.lat, preset.values.lon, lat, lon));
+}
+
+function findPresetByCoords(lat, lon) {
+  return presets.find((p) => coordsMatchPreset(p, lat, lon)) ?? null;
+}
+
+function normalizeLocationLabel(label) {
+  if (typeof label !== 'string') return null;
+  const trimmed = label.trim();
+  return trimmed || null;
+}
+
+function isKnownPresetLabel(label) {
+  const clean = normalizeLocationLabel(label);
+  if (!clean) return false;
+  return presets.some((p) => p.label === clean);
+}
+
+function normalizeClimate(raw, fallback = defaults.climate) {
+  if (typeof raw === 'number' && Number.isFinite(raw)) {
+    return { ...fallback, precipitation: raw };
+  }
+  const obj = raw && typeof raw === 'object' ? raw : {};
+  const finiteOr = (val, def) => {
+    const n = Number(val);
+    return Number.isFinite(n) ? n : def;
+  };
+  return {
+    temperature: finiteOr(obj.temperature, fallback.temperature),
+    precipitation: finiteOr(obj.precipitation, fallback.precipitation),
+    solar: finiteOr(obj.solar, fallback.solar),
+  };
+}
+
+function normalizeFieldIdentity({ activePresetId = null, locationName = null, form = {} } = {}) {
+  const lat = Number(form?.lat);
+  const lon = Number(form?.lon);
+  const cleanName = normalizeLocationLabel(locationName);
+  const presetById = presets.find((p) => p.id === activePresetId) ?? null;
+
+  if (presetById?.values) {
+    if (coordsMatchPreset(presetById, lat, lon)) {
+      const nextName =
+        !cleanName || isKnownPresetLabel(cleanName) ? presetById.label : cleanName;
+      return { activePresetId: presetById.id, locationName: nextName };
+    }
+    const matched = findPresetByCoords(lat, lon);
+    if (matched && (!cleanName || isKnownPresetLabel(cleanName))) {
+      return { activePresetId: matched.id, locationName: matched.label };
+    }
+    return {
+      activePresetId: null,
+      locationName: isKnownPresetLabel(cleanName) ? null : cleanName,
+    };
+  }
+
+  if (activePresetId === 'random') {
+    const staleFixedLabel = presets.some(
+      (p) => p.values && p.label === cleanName && !coordsMatchPreset(p, lat, lon),
+    );
+    return {
+      activePresetId: 'random',
+      locationName: staleFixedLabel || !cleanName ? 'Random Field' : cleanName,
+    };
+  }
+
+  const staleLabel = presets.some(
+    (p) => p.label === cleanName && (!p.values || !coordsMatchPreset(p, lat, lon)),
+  );
+  const safeName = staleLabel ? null : cleanName;
+
+  if (!safeName) {
+    const matched = findPresetByCoords(lat, lon);
+    if (matched) {
+      return { activePresetId: matched.id, locationName: matched.label };
+    }
+  }
+
+  return {
+    activePresetId: null,
+    locationName: safeName,
+  };
+}
+
+export function resolveFieldPlace(state) {
+  const lat = state?.form?.lat;
+  const lon = state?.form?.lon;
+  const presetById = presets.find(
+    (p) => p.id === state?.activePresetId && coordsMatchPreset(p, lat, lon),
+  );
+  if (presetById) return presetById.label;
+
+  const cleanName = normalizeLocationLabel(state?.locationName);
+  const stalePresetLabel = presets.some(
+    (p) => p.label === cleanName && (!p.values || !coordsMatchPreset(p, lat, lon)),
+  );
+  if (cleanName && !stalePresetLabel) {
+    return cleanName;
+  }
+
+  const matched = findPresetByCoords(lat, lon);
+  if (matched) return matched.label;
+
+  if (state?.activePresetId === 'random') return 'Random Field';
+  return 'Custom Field';
+}
+
 function hasValidForecast(data) {
   return Boolean(
     data?.result?.version >= 3 &&
@@ -76,7 +198,11 @@ function hasValidForecast(data) {
   );
 }
 
-function readSavedSession() {
+function isValidSavedSession(data) {
+  return Boolean(data && typeof data === 'object' && data.form && typeof data.form === 'object');
+}
+
+export function readSavedSession() {
   if (typeof localStorage === 'undefined') return null;
   try {
     if (localStorage.getItem(LEGACY_SESSION_KEY)) {
@@ -84,15 +210,14 @@ function readSavedSession() {
     }
   } catch {}
   const saved = safeParse(localStorage.getItem(SESSION_KEY));
-  return hasValidForecast(saved) ? saved : null;
+  if (!isValidSavedSession(saved)) return null;
+  return hasValidForecast(saved) ? saved : { ...saved, result: null };
 }
 
-function load() {
+function load(saved = readSavedSession()) {
   const fresh = structuredClone(defaults);
-  const saved = readSavedSession();
   if (!saved) return fresh;
 
-  const savedClimate = saved.climate && typeof saved.climate === 'object' ? saved.climate : {};
   const rawAuto = saved.autoSoil && typeof saved.autoSoil === 'object'
     ? saved.autoSoil
     : saved.nasaData;
@@ -102,24 +227,41 @@ function load() {
   const cleanForm = stripLegacyNpk(saved.form);
   const cleanAuto = stripLegacyNpk(rawAuto);
 
+  const mergedForm = { ...fresh.form, ...cleanForm };
+  const parsedLat = Number(mergedForm.lat);
+  const parsedLon = Number(mergedForm.lon);
+  mergedForm.lat = Number.isFinite(parsedLat) ? parsedLat : fresh.form.lat;
+  mergedForm.lon = Number.isFinite(parsedLon) ? parsedLon : fresh.form.lon;
+
+  if (!['rainfed', 'supplemental', 'irrigated'].includes(mergedForm.irrigation)) {
+    mergedForm.irrigation = 'rainfed';
+  }
+
+  const identity = normalizeFieldIdentity({
+    activePresetId: saved.activePresetId ?? null,
+    locationName: saved.locationName ?? null,
+    form: mergedForm,
+  });
+
   const merged = {
     ...fresh,
     ...saved,
-    form: { ...fresh.form, ...cleanForm },
+    activePresetId: identity.activePresetId,
+    locationName: identity.locationName,
+    form: mergedForm,
     autoSoil: { ...fresh.autoSoil, ...cleanAuto },
-    climate: { ...fresh.climate, ...savedClimate },
+    climate: normalizeClimate(saved.climate, fresh.climate),
+    result: hasValidForecast(saved) ? saved.result : null,
     nasaLoading: false,
     nasaError: null,
     collapsed: isResultsRoute,
   };
 
-  if (!['rainfed', 'supplemental', 'irrigated'].includes(merged.form.irrigation)) {
-    merged.form.irrigation = 'rainfed';
-  }
-  if (typeof saved.climate === 'number') {
-    merged.climate.precipitation = saved.climate;
-  }
   if (merged.theme !== 'light') merged.theme = 'dark';
+
+  if (merged.nasaData && !coordsMatch(merged.nasaData.lat, merged.nasaData.lon, mergedForm.lat, mergedForm.lon, 0.001)) {
+    merged.nasaData = null;
+  }
 
   if (merged.nasaData && !merged.nasaData.soilMeta) {
     const upgraded = deriveSoilAndNutrients(
@@ -136,24 +278,77 @@ function load() {
   return merged;
 }
 
-export const savedSession = writable(readSavedSession());
-export const session = writable(load());
+function buildPersistPayload(snapshot) {
+  const cleanForm = stripLegacyNpk(snapshot.form);
+  const identity = normalizeFieldIdentity({
+    activePresetId: snapshot.activePresetId ?? null,
+    locationName: snapshot.locationName ?? null,
+    form: cleanForm,
+  });
+  const matchingNasa =
+    snapshot.nasaData &&
+    coordsMatch(snapshot.nasaData.lat, snapshot.nasaData.lon, cleanForm?.lat, cleanForm?.lon, 0.001)
+      ? snapshot.nasaData
+      : null;
 
-export function saveCompletedSession(snapshot = get(session)) {
-  if (typeof localStorage === 'undefined' || !hasValidForecast(snapshot)) return;
-  const payload = {
+  return {
     ...snapshot,
-    form: stripLegacyNpk(snapshot.form),
+    activePresetId: identity.activePresetId,
+    locationName: identity.locationName,
+    form: cleanForm,
     autoSoil: stripLegacyNpk(snapshot.autoSoil),
+    climate: normalizeClimate(snapshot.climate),
+    result: hasValidForecast(snapshot) ? snapshot.result : null,
+    nasaData: matchingNasa,
     nasaLoading: false,
     nasaError: null,
     savedAt: new Date().toISOString(),
   };
+}
+
+function buildPersistKey(current) {
+  const payload = buildPersistPayload(current);
+  return JSON.stringify({
+    activePresetId: payload.activePresetId,
+    locationName: payload.locationName,
+    customSoilEdited: Boolean(payload.customSoilEdited),
+    nonArableAckCoord: payload.nonArableAckCoord ?? null,
+    form: payload.form,
+    autoSoil: payload.autoSoil,
+    climate: payload.climate,
+    theme: payload.theme,
+    result: payload.result,
+    nasaCoord: payload.nasaData ? `${payload.nasaData.lat},${payload.nasaData.lon}` : null,
+  });
+}
+
+const initialSaved = readSavedSession();
+const initialSession = load(initialSaved);
+
+export const savedSession = writable(initialSaved);
+export const session = writable(initialSession);
+
+export function saveCompletedSession(snapshot = get(session)) {
+  if (typeof localStorage === 'undefined' || !isValidSavedSession(snapshot)) return null;
+  const payload = buildPersistPayload(snapshot);
   try {
     localStorage.setItem(SESSION_KEY, JSON.stringify(payload));
     savedSession.set(payload);
+    return payload;
   } catch (err) {
+    if (payload.nasaData) {
+      const compactPayload = { ...payload, nasaData: null };
+      try {
+        localStorage.setItem(SESSION_KEY, JSON.stringify(compactPayload));
+        savedSession.set(compactPayload);
+        return compactPayload;
+      } catch (retryErr) {
+        console.warn('Failed to save session state:', retryErr);
+        return null;
+      }
+    }
     console.warn('Failed to save session state:', err);
+    return null;
   }
 }
 
@@ -166,15 +361,26 @@ export function clearSavedSession() {
   } catch {}
 }
 
-let lastSavedKey = null;
+let lastSavedKey = buildPersistKey(initialSession);
+let skipInitialSubscribe = !initialSaved;
+
+export function resetSession() {
+  clearSavedSession();
+  const fresh = structuredClone(defaults);
+  lastSavedKey = buildPersistKey(fresh);
+  skipInitialSubscribe = false;
+  session.set(fresh);
+  return fresh;
+}
+
 session.subscribe((current) => {
-  if (!hasValidForecast(current)) return;
-  const key = JSON.stringify({
-    form: current.form,
-    climate: current.climate,
-    theme: current.theme,
-    result: current.result,
-  });
+  if (!isValidSavedSession(current)) return;
+  const key = buildPersistKey(current);
+  if (skipInitialSubscribe) {
+    skipInitialSubscribe = false;
+    lastSavedKey = key;
+    return;
+  }
   if (key === lastSavedKey) return;
   lastSavedKey = key;
   saveCompletedSession(current);
@@ -183,7 +389,60 @@ session.subscribe((current) => {
 let coordRequestSeq = 0;
 let activeCoordController = null;
 
-function beginCoordRequest({ presetId = null, lat = null, lon = null } = {}) {
+function resolveTargetIdentity(numLat, numLon, { presetId = null, locationName = undefined } = {}, current = get(session)) {
+  const hasCoords = Number.isFinite(numLat) && Number.isFinite(numLon);
+  const sameCoords = hasCoords && coordsMatch(current?.form?.lat, current?.form?.lon, numLat, numLon, 0.0001);
+  const explicitName = locationName !== undefined ? normalizeLocationLabel(locationName) : undefined;
+
+  if (presetId === 'random') {
+    const resolvedName =
+      explicitName !== undefined
+        ? (explicitName || 'Random Field')
+        : (sameCoords && current?.activePresetId === 'random' && current?.locationName
+            ? current.locationName
+            : 'Random Field');
+    return { presetId: 'random', locationName: resolvedName };
+  }
+
+  const candidate = presetId ? presets.find((p) => p.id === presetId) : null;
+  if (candidate?.values && (!hasCoords || coordsMatchPreset(candidate, numLat, numLon))) {
+    if (
+      sameCoords &&
+      !current?.activePresetId &&
+      current?.locationName &&
+      explicitName === undefined &&
+      !isKnownPresetLabel(current.locationName)
+    ) {
+      return { presetId: null, locationName: current.locationName };
+    }
+    return {
+      presetId: candidate.id,
+      locationName: explicitName !== undefined ? (explicitName || candidate.label) : candidate.label,
+    };
+  }
+
+  if (explicitName !== undefined) {
+    return { presetId: null, locationName: explicitName };
+  }
+
+  if (sameCoords) {
+    const sameIdentity = normalizeFieldIdentity({
+      activePresetId: current?.activePresetId ?? null,
+      locationName: current?.locationName ?? null,
+      form: { lat: numLat, lon: numLon },
+    });
+    return { presetId: sameIdentity.activePresetId, locationName: sameIdentity.locationName };
+  }
+
+  const matched = hasCoords ? findPresetByCoords(numLat, numLon) : null;
+  if (matched) {
+    return { presetId: matched.id, locationName: matched.label };
+  }
+
+  return { presetId: null, locationName: null };
+}
+
+function beginCoordRequest({ presetId = null, locationName = undefined, lat = null, lon = null } = {}) {
   if (activeCoordController) {
     activeCoordController.abort();
   }
@@ -191,23 +450,30 @@ function beginCoordRequest({ presetId = null, lat = null, lon = null } = {}) {
   activeCoordController = controller;
   const seq = ++coordRequestSeq;
 
-  session.update((s) => ({
-    ...s,
-    activePresetId: presetId,
-    coordsEditable: false,
-    customSoilEdited: false,
-    nonArableAckCoord: null,
-    nasaData: null,
-    nasaLoading: true,
-    nasaError: null,
-    form: lat !== null && lon !== null
-      ? {
-          ...s.form,
-          lat,
-          lon,
-        }
-      : s.form,
-  }));
+  session.update((s) => {
+    const nextLat = lat !== null && lat !== undefined ? Number(lat) : Number(s.form.lat);
+    const nextLon = lon !== null && lon !== undefined ? Number(lon) : Number(s.form.lon);
+    const target = resolveTargetIdentity(nextLat, nextLon, { presetId, locationName }, s);
+
+    return {
+      ...s,
+      activePresetId: target.presetId,
+      locationName: target.locationName,
+      coordsEditable: false,
+      customSoilEdited: false,
+      nonArableAckCoord: null,
+      nasaData: null,
+      nasaLoading: true,
+      nasaError: null,
+      form: lat !== null && lon !== null
+        ? {
+            ...s.form,
+            lat,
+            lon,
+          }
+        : s.form,
+    };
+  });
 
   return { seq, controller };
 }
@@ -249,30 +515,42 @@ export function applyNasaPayloadToForm(payload) {
 export async function loadCoordsIntoSession(
   lat,
   lon,
-  { presetId = null, precomputedLandCover = null, requestToken = null } = {},
+  { presetId = null, locationName = undefined, precomputedLandCover = null, requestToken = null } = {},
 ) {
   const numLat = Number(Number(lat).toFixed(4));
   const numLon = Number(Number(lon).toFixed(4));
   if (Number.isNaN(numLat) || Number.isNaN(numLon)) return;
 
-  const { seq, controller } = requestToken || beginCoordRequest({ presetId, lat: numLat, lon: numLon });
+  const { seq, controller } = requestToken || beginCoordRequest({
+    presetId,
+    locationName,
+    lat: numLat,
+    lon: numLon,
+  });
+
   if (requestToken) {
     if (seq !== coordRequestSeq || controller.signal.aborted) return;
-    session.update((s) => ({
-      ...s,
-      form: {
-        ...s.form,
-        lat: numLat,
-        lon: numLon,
-      },
-    }));
+    session.update((s) => {
+      const target = resolveTargetIdentity(numLat, numLon, { presetId, locationName }, s);
+      return {
+        ...s,
+        activePresetId: target.presetId,
+        locationName: target.locationName,
+        form: {
+          ...s.form,
+          lat: numLat,
+          lon: numLon,
+        },
+      };
+    });
   }
 
-  const isCachedPreset = Boolean(presetId && presetId !== 'random');
+  const effectivePresetId = get(session)?.activePresetId ?? null;
+  const isCachedPreset = Boolean(effectivePresetId && effectivePresetId !== 'random');
 
   try {
     const payload = await fetchNasaDataForCoords(numLat, numLon, {
-      presetId,
+      presetId: effectivePresetId,
       precomputedLandCover,
       bypassCache: !isCachedPreset,
       signal: controller.signal,
@@ -303,12 +581,18 @@ export async function loadCoordsIntoSession(
 export async function applyPreset(preset) {
   if (!preset) return;
   if (preset.values) {
-    await loadCoordsIntoSession(preset.values.lat, preset.values.lon, { presetId: preset.id });
+    await loadCoordsIntoSession(preset.values.lat, preset.values.lon, {
+      presetId: preset.id,
+      locationName: preset.label,
+    });
     return;
   }
 
   const currentForm = get(session)?.form;
-  const token = beginCoordRequest({ presetId: preset.id });
+  const token = beginCoordRequest({
+    presetId: preset.id,
+    locationName: preset.label || 'Random Field',
+  });
   try {
     const resolved = await resolvePresetAsync(preset, {
       checkLandCover: fetchLandCoverMask,
@@ -318,6 +602,7 @@ export async function applyPreset(preset) {
     if (token.seq !== coordRequestSeq || token.controller.signal.aborted) return;
     await loadCoordsIntoSession(resolved.lat, resolved.lon, {
       presetId: preset.id,
+      locationName: resolved.region || preset.label || 'Random Field',
       precomputedLandCover: resolved.landCover ?? null,
       requestToken: token,
     });

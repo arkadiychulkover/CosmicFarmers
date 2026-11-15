@@ -8,6 +8,9 @@
     note = '',
     source = '',
     resolution = '',
+    year = '',
+    period = '',
+    yearTitle = 'Data year / temporal coverage',
     state = 'ready',
     error = '',
     wide = false,
@@ -16,13 +19,25 @@
     minHeight = 0,
     children,
   } = $props();
+
+  const periodLabel = $derived.by(() => {
+    const y = year !== null && year !== undefined ? String(year).trim() : '';
+    const p = period !== null && period !== undefined ? String(period).trim() : '';
+    if (y && p) return `${y} · ${p}`;
+    return y || p;
+  });
 </script>
 
 <article class="card" class:wide class:pending={state !== 'ready'} style:min-height={minHeight ? `${minHeight}px` : undefined}>
-  {#if source || resolution}
+  {#if source || resolution || periodLabel}
     <div class="meta-row">
       {#if source}<p class="source">{source}</p>{:else}<span></span>{/if}
-      {#if resolution}<span class="res-badge" title="Spatial resolution">{resolution}</span>{/if}
+      {#if periodLabel || resolution}
+        <div class="meta-badges">
+          {#if periodLabel}<span class="year-badge" title={yearTitle}>{periodLabel}</span>{/if}
+          {#if resolution}<span class="res-badge" title="Spatial resolution">{resolution}</span>{/if}
+        </div>
+      {/if}
     </div>
   {/if}
 
@@ -108,7 +123,7 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    gap: 8px;
+    gap: 6px 8px;
     flex-wrap: wrap;
   }
 
@@ -119,6 +134,32 @@
     font-weight: 600;
     letter-spacing: 0.02em;
     text-transform: uppercase;
+  }
+
+  :global(:root[data-theme='light']) .source {
+    color: var(--color-card-dim);
+  }
+
+  .meta-badges {
+    display: inline-flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px;
+    margin-left: auto;
+  }
+
+  .year-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 7px;
+    border-radius: 999px;
+    border: 1px solid color-mix(in srgb, var(--color-accent) 48%, transparent);
+    background: var(--color-panel);
+    color: var(--color-accent);
+    font-size: 8px;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    white-space: nowrap;
   }
 
   .res-badge {
