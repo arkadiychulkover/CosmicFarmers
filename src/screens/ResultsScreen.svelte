@@ -6,10 +6,9 @@
   import StatusBanner from "../components/StatusBanner.svelte";
   import YearSlide from "../components/YearSlide.svelte";
   import DataSourcesModal from "../components/DataSourcesModal.svelte";
-  import { presets } from "../data/presets.js";
   import { cropImage } from "../data/crops.js";
   import { downloadPlan } from "../utils/downloadPlan.js";
-  import { session } from "../stores/session.svelte.js";
+  import { resolveFieldPlace, session } from "../stores/session.svelte.js";
 
   const LABELS = [
     "Recommended Next Crop",
@@ -36,6 +35,108 @@
   const scenarioComparison = $derived(result?.scenarioComparison ?? null);
   const scenarios = $derived(scenarioComparison?.scenarios ?? result?.scenarios ?? []);
   const strategyComparison = $derived(result?.strategyComparison ?? []);
+
+  const MONTHS_SHORT = [
+    "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+    "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+  ];
+
+  const CALENDAR_LEGEND = [
+    { status: "sow", label: "SOW" },
+    { status: "cash-crop", label: "GROW" },
+    { status: "harvest", label: "HARVEST" },
+    { status: "cover-crop", label: "COVER" },
+    { status: "bare", label: "BARE" },
+    { status: "frost", label: "FROST" },
+  ];
+
+  const ndviProfile = $derived(
+    result?.ndviProfile ??
+    result?.coverSummary?.ndviProfile ??
+    $session.nasaData?.ndviProfile ??
+    $session.nasaData?.weather?.ndviProfile ??
+    null,
+  );
+
+  const rawSeasonYear = $derived(
+    result?.seasonYear ??
+    $session.nasaData?.seasonYear ??
+    $session.nasaData?.daily_t2m_year ??
+    $session.nasaData?.weather?.seasonYear ??
+    null,
+  );
+
+  const isSouthern = $derived(
+    Boolean(
+      $session.nasaData?.isSouthernHemisphere ??
+      $session.nasaData?.weather?.isSouthernHemisphere ??
+      (Number($session.form?.lat ?? 0) < 0),
+    ),
+  );
+
+  const powerYearLabel = $derived.by(() => {
+    const dr = $session.nasaData?.weather?.dateRange;
+    if (dr?.start && dr?.end) {
+      const s = String(dr.start).slice(0, 4);
+      const e = String(dr.end).slice(0, 4);
+      if (/^\d{4}$/.test(s) && /^\d{4}$/.test(e)) {
+        return s === e ? s : `${s}–${e}`;
+      }
+    }
+    const y = Number(rawSeasonYear);
+    if (!Number.isFinite(y) || y <= 0) return null;
+    return isSouthern ? `${y}–${y + 1}` : String(y);
+  });
+
+  const climatologySpan = $derived.by(() => {
+    const y = Number(rawSeasonYear);
+    if (!Number.isFinite(y) || y <= 0) return null;
+    const endY = isSouthern ? y + 1 : y;
+    return `${y - 9}–${endY}`;
+  });
+
+  const ndviPeriodLabel = $derived.by(() => {
+    const dates = Array.isArray(ndviProfile?.sampledDates)
+      ? ndviProfile.sampledDates.filter((d) => /^\d{4}-\d{2}/.test(String(d))).sort()
+      : [];
+    if (!dates.length) return null;
+    const first = String(dates[0]);
+    const last = String(dates[dates.length - 1]);
+    const y1 = first.slice(0, 4);
+    const y2 = last.slice(0, 4);
+    const m1 = MONTHS_SHORT[Number(first.slice(5, 7)) - 1];
+    const m2 = MONTHS_SHORT[Number(last.slice(5, 7)) - 1];
+    if (m1 && m2) return y1 === y2 ? `${m1}–${m2} ${y1}` : `${m1} ${y1}–${m2} ${y2}`;
+    return y1 === y2 ? y1 : `${y1}–${y2}`;
+  });
+
+  const landCoverYearNote = $derived.by(() => {
+    if (!landCover) return null;
+    const src = String(landCover.source || "");
+    const parts = [];
+    if (landCover.year && !src.includes(String(landCover.year))) {
+      parts.push(String(landCover.year));
+    }
+    if (landCover.usCdlCrop?.year && !src.includes(String(landCover.usCdlCrop.year))) {
+      parts.push(`CDL ${landCover.usCdlCrop.year}`);
+    }
+    return parts.length ? parts.join(" · ") : null;
+  });
+
+  const soilSourceLabel = $derived($session.nasaData?.soilSource ?? null);
+
+  const scenarioMetaText = $derived.by(() => {
+    const src = scenarioComparison?.varianceSource;
+    if (!src && !powerYearLabel) return null;
+    const parts = [];
+    if (src) {
+      parts.push(climatologySpan && src.includes("10-yr") ? `${src} (${climatologySpan})` : src);
+    }
+    if (powerYearLabel) {
+      parts.push(`Baseline ${powerYearLabel}`);
+    }
+    return parts.join(" · ");
+  });
 
   function switchStrategy(goalKey) {
     if (!goalKey || goalKey === "baseline" || goalKey === result?.goal) return;
@@ -165,10 +266,7 @@
     };
   });
 
-  const preset = $derived(
-    presets?.find((p) => p.id === $session.activePresetId && p.values),
-  );
-  const place = $derived(preset ? preset.label : "Custom field");
+  const place = $derived(resolveFieldPlace($session));
 
   const coords = $derived.by(() => {
     const lat = Number($session.form?.lat ?? 0);
@@ -298,8 +396,24 @@
       </div>
       <p>
         {result.irrigationLabel || "Rainfed"} regime · {result.soilProfile?.soilLabel || "Loam"} (pH {result.soilProfile?.ph ?? $session.form.ph})
-        {#if precipSummary} · 8-mo season {precipSummary.seasonPrecip8Mm} mm ({precipSummary.monthlyMeanSeasonMm} mm/mo) · 12-mo {precipSummary.annualPrecip12Mm} mm{/if}
+        {#if precipSummary} · 8-mo season {precipSummary.seasonPrecip8Mm} mm ({precipSummary.monthlyMeanSeasonMm} mm/mo) · 12-mo {precipSummary.annualPrecip12Mm} mm{#if powerYearLabel} ({powerYearLabel}){/if}{/if}
       </p>
+      {#if powerYearLabel || climatologySpan || ndviPeriodLabel || soilSourceLabel}
+        <div class="provenance-years" aria-label="Reference data years">
+          {#if powerYearLabel}
+            <span class="year-chip">NASA POWER <b>{powerYearLabel}</b></span>
+          {/if}
+          {#if climatologySpan}
+            <span class="year-chip">10-yr Climatology <b>{climatologySpan}</b></span>
+          {/if}
+          {#if ndviPeriodLabel}
+            <span class="year-chip">MODIS NDVI <b>{ndviPeriodLabel}</b></span>
+          {/if}
+          {#if soilSourceLabel}
+            <span class="year-chip">Soil: <b>{soilSourceLabel}</b></span>
+          {/if}
+        </div>
+      {/if}
     </header>
 
     {#if landCover}
@@ -308,12 +422,12 @@
           compact
           tone="warn"
           title="Non-Arable Land Cover Override: {landCover.label}"
-          message="{landCover.warning} ({landCover.source}, {landCover.resolution})"
+          message="{landCover.warning} ({landCover.source}, {landCover.resolution}{landCoverYearNote ? `, ${landCoverYearNote}` : ''})"
         />
       {:else}
         <div class="lc-summary-pill">
           <span class="lc-tag">{landCover.category}</span>
-          <span>{landCover.label} · {landCover.source} ({landCover.resolution})</span>
+          <span>{landCover.label} · {landCover.source} ({landCover.resolution}){#if landCoverYearNote} · {landCoverYearNote}{/if}</span>
         </div>
       {/if}
     {/if}
@@ -361,8 +475,8 @@
       <section class="scenario-panel" aria-label="Multi-scenario precipitation comparison">
         <div class="scenario-head">
           <h3>Multi-Scenario Precipitation Stress Test</h3>
-          {#if scenarioComparison?.varianceSource}
-            <span class="scenario-meta">{scenarioComparison.varianceSource}</span>
+          {#if scenarioMetaText}
+            <span class="scenario-meta">{scenarioMetaText}</span>
           {/if}
         </div>
         <div class="scenario-table-scroll">
@@ -487,20 +601,32 @@
     {#if coverSummary}
       <section class="cover-panel" aria-label="Off-season bare soil and cover-crop summary">
         <div class="cover-head">
-          <h3>Multi-Year Calendar & Cover Windows</h3>
+          <h3>Multi-Year Calendar &amp; Cover Windows</h3>
           <span class="cover-meta">
-            {coverSummary.bareWindowsCount} bare/dark {coverSummary.bareWindowsCount === 1 ? "window" : "windows"} · {coverSummary.warmCoverMonths} warm cover mo · {coverSummary.frostFreeDays}d frost-free
-            {#if coverSummary.bareSoilSource} · {coverSummary.bareSoilSource}{#if coverSummary.meanNdvi !== null && coverSummary.meanNdvi !== undefined} (mean NDVI {Number(coverSummary.meanNdvi).toFixed(2)}){/if}{/if}
+            {#if powerYearLabel}Climate {powerYearLabel} · {/if}{coverSummary.bareWindowsCount} bare/dark {coverSummary.bareWindowsCount === 1 ? "window" : "windows"} · {coverSummary.warmCoverMonths} warm cover mo · {coverSummary.frostFreeDays}d frost-free{#if coverSummary.bareSoilSource} · {coverSummary.bareSoilSource}{#if ndviPeriodLabel || (ndviProfile?.ndviFallback && powerYearLabel) || (coverSummary.meanNdvi !== null && coverSummary.meanNdvi !== undefined)} ({[
+              ndviPeriodLabel || (ndviProfile?.ndviFallback ? powerYearLabel : null),
+              coverSummary.meanNdvi !== null && coverSummary.meanNdvi !== undefined
+                ? `mean NDVI ${Number(coverSummary.meanNdvi).toFixed(2)}`
+                : null,
+            ].filter(Boolean).join(", ")}){/if}{/if}
           </span>
         </div>
 
         {#if coverSummary.calendar12?.length === 12}
-          <div class="cal-strip" role="list" aria-label="Year 1 12-month crop and cover calendar">
+          <div class="cal-strip" role="list" aria-label="Year 1 12-month crop and cover calendar{powerYearLabel ? ` (${powerYearLabel} climate)` : ''}">
             {#each coverSummary.calendar12 as m (m.monthIndex)}
               <div class="cal-cell {m.status}" role="listitem" title="{m.month}: {m.label} ({m.temp}°C, P−ET {m.waterBalance} mm{m.ndvi !== null && m.ndvi !== undefined ? `, NDVI ${Number(m.ndvi).toFixed(2)}` : ''})">
                 <span class="cal-mon">{m.month}</span>
                 <span class="cal-st">{m.status === 'cash-crop' ? 'grow' : m.status === 'cover-crop' ? 'cover' : m.status}</span>
               </div>
+            {/each}
+          </div>
+          <div class="cal-legend" aria-label="Calendar status legend">
+            {#each CALENDAR_LEGEND as item (item.status)}
+              <span class="cal-legend-pill {item.status}">
+                <span class="cal-legend-dot" aria-hidden="true"></span>
+                {item.label}
+              </span>
             {/each}
           </div>
         {/if}
@@ -583,6 +709,8 @@
         <p>
           Previous: {result.previousName || "None"} · {result.irrigationLabel || "Rainfed"}
           {#if coverSummary} · {coverSummary.bareWindowsCount} bare-soil {coverSummary.bareWindowsCount === 1 ? "gap" : "gaps"} ({coverSummary.warmCoverMonths} warm cover mo){/if}
+          {#if powerYearLabel} · NASA POWER {powerYearLabel}{climatologySpan ? ` (${climatologySpan} climatology)` : ""}{/if}
+          {#if ndviPeriodLabel} · MODIS NDVI {ndviPeriodLabel}{/if}
         </p>
       </div>
 
@@ -638,7 +766,14 @@
               <small>{st.smallLabel}</small>
               <b>{st.titleLabel}</b>
             </p>
-            <div class="card"><YearSlide item={st.item} /></div>
+            <div class="card">
+              <YearSlide
+                item={st.item}
+                climateYear={powerYearLabel}
+                climatologySpan={climatologySpan}
+                ndviPeriod={ndviPeriodLabel}
+              />
+            </div>
           </div>
 
           <aside class="note">
@@ -780,6 +915,31 @@
     font-size: 9px;
     line-height: 1.4;
     color: var(--color-text-dim);
+  }
+
+  .provenance-years {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-top: 2px;
+  }
+
+  .year-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    padding: 2px 7px;
+    border-radius: 999px;
+    border: 1px solid color-mix(in srgb, var(--color-border-dim) 65%, transparent);
+    background: var(--color-panel);
+    color: var(--color-text-dim);
+    font-size: 7.5px;
+    line-height: 1.25;
+  }
+
+  .year-chip b {
+    font-weight: 700;
+    color: var(--color-text);
   }
 
   .indicators {
@@ -966,12 +1126,62 @@
   }
 
   .cover-panel {
+    --cal-sow-bg: color-mix(in srgb, var(--color-info) 16%, var(--color-field));
+    --cal-sow-border: rgba(124, 196, 255, 0.58);
+    --cal-sow-text: var(--color-info);
+
+    --cal-grow-bg: color-mix(in srgb, var(--color-tone-good) 15%, var(--color-field));
+    --cal-grow-border: rgba(178, 255, 158, 0.55);
+    --cal-grow-text: var(--color-tone-good);
+
+    --cal-harvest-bg: color-mix(in srgb, var(--color-tone-warn) 18%, var(--color-field));
+    --cal-harvest-border: rgba(243, 228, 116, 0.72);
+    --cal-harvest-text: var(--color-tone-warn);
+
+    --cal-cover-bg: color-mix(in srgb, var(--color-chart-orange) 18%, var(--color-field));
+    --cal-cover-border: rgba(255, 178, 107, 0.72);
+    --cal-cover-text: var(--color-chart-orange);
+
+    --cal-bare-bg: color-mix(in srgb, #94a3b8 10%, var(--color-field));
+    --cal-bare-border: rgba(203, 201, 199, 0.52);
+    --cal-bare-text: #cbd5e1;
+
+    --cal-frost-bg: color-mix(in srgb, var(--color-danger) 16%, var(--color-field));
+    --cal-frost-border: rgba(255, 123, 123, 0.62);
+    --cal-frost-text: #ff9b9b;
+
     display: grid;
     gap: 8px;
     padding: 10px 12px;
     border: 1px solid var(--color-border-dim);
     border-radius: 10px;
     background: var(--color-panel);
+  }
+
+  :global(:root[data-theme='light']) .cover-panel {
+    --cal-sow-bg: #cbdffd;
+    --cal-sow-border: #3b82f6;
+    --cal-sow-text: var(--color-info);
+
+    --cal-grow-bg: #c7f2d6;
+    --cal-grow-border: #16a34a;
+    --cal-grow-text: var(--color-tone-good);
+
+    --cal-harvest-bg: #fded8f;
+    --cal-harvest-border: #ca8a04;
+    --cal-harvest-text: #713f12;
+
+    --cal-cover-bg: #fed3ad;
+    --cal-cover-border: #ea580c;
+    --cal-cover-text: #9a3412;
+
+    --cal-bare-bg: #dbe1e9;
+    --cal-bare-border: #64748b;
+    --cal-bare-text: #334155;
+
+    --cal-frost-bg: #fdd3d3;
+    --cal-frost-border: #dc2626;
+    --cal-frost-text: #991b1b;
   }
 
   .cover-head {
@@ -1009,26 +1219,35 @@
     background: var(--color-field);
   }
 
-  .cal-cell.sow,
-  .cal-cell.harvest {
-    border-color: var(--color-status-info-border);
-    background: var(--color-status-info-bg);
+  .cal-cell.sow {
+    border-color: var(--cal-sow-border);
+    background: var(--cal-sow-bg);
   }
 
-  .cal-cell.cash-crop,
+  .cal-cell.harvest {
+    border-color: var(--cal-harvest-border);
+    background: var(--cal-harvest-bg);
+  }
+
+  .cal-cell.cash-crop {
+    border-color: var(--cal-grow-border);
+    background: var(--cal-grow-bg);
+  }
+
   .cal-cell.cover-crop {
-    border-color: var(--color-status-good-border);
-    background: var(--color-status-good-bg);
+    border-color: var(--cal-cover-border);
+    background: var(--cal-cover-bg);
   }
 
   .cal-cell.bare {
-    border-color: var(--color-status-warn-border);
-    background: var(--color-status-warn-bg);
+    border-color: var(--cal-bare-border);
+    border-style: dashed;
+    background: var(--cal-bare-bg);
   }
 
   .cal-cell.frost {
-    border-color: var(--color-status-error-border);
-    background: var(--color-status-error-bg);
+    border-color: var(--cal-frost-border);
+    background: var(--cal-frost-bg);
   }
 
   .cal-mon {
@@ -1039,9 +1258,89 @@
 
   .cal-st {
     font-size: 6.8px;
+    font-weight: 700;
     text-transform: uppercase;
+    letter-spacing: 0.02em;
     color: var(--color-text-dim);
   }
+
+  .cal-cell.sow .cal-st { color: var(--cal-sow-text); }
+  .cal-cell.cash-crop .cal-st { color: var(--cal-grow-text); }
+  .cal-cell.harvest .cal-st { color: var(--cal-harvest-text); }
+  .cal-cell.cover-crop .cal-st { color: var(--cal-cover-text); }
+  .cal-cell.bare .cal-st { color: var(--cal-bare-text); }
+  .cal-cell.frost .cal-st { color: var(--cal-frost-text); }
+
+  .cal-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 6px;
+    align-items: center;
+  }
+
+  .cal-legend-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 1.5px 6px;
+    border-radius: 999px;
+    border: 1px solid var(--color-border-dim);
+    font-size: 7.5px;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    line-height: 1.3;
+  }
+
+  .cal-legend-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .cal-legend-pill.sow {
+    border-color: var(--cal-sow-border);
+    background: var(--cal-sow-bg);
+    color: var(--cal-sow-text);
+  }
+  .cal-legend-pill.sow .cal-legend-dot { background: var(--cal-sow-text); }
+
+  .cal-legend-pill.cash-crop {
+    border-color: var(--cal-grow-border);
+    background: var(--cal-grow-bg);
+    color: var(--cal-grow-text);
+  }
+  .cal-legend-pill.cash-crop .cal-legend-dot { background: var(--cal-grow-text); }
+
+  .cal-legend-pill.harvest {
+    border-color: var(--cal-harvest-border);
+    background: var(--cal-harvest-bg);
+    color: var(--cal-harvest-text);
+  }
+  .cal-legend-pill.harvest .cal-legend-dot { background: var(--cal-harvest-text); }
+
+  .cal-legend-pill.cover-crop {
+    border-color: var(--cal-cover-border);
+    background: var(--cal-cover-bg);
+    color: var(--cal-cover-text);
+  }
+  .cal-legend-pill.cover-crop .cal-legend-dot { background: var(--cal-cover-text); }
+
+  .cal-legend-pill.bare {
+    border-color: var(--cal-bare-border);
+    border-style: dashed;
+    background: var(--cal-bare-bg);
+    color: var(--cal-bare-text);
+  }
+  .cal-legend-pill.bare .cal-legend-dot { background: var(--cal-bare-text); }
+
+  .cal-legend-pill.frost {
+    border-color: var(--cal-frost-border);
+    background: var(--cal-frost-bg);
+    color: var(--cal-frost-text);
+  }
+  .cal-legend-pill.frost .cal-legend-dot { background: var(--cal-frost-text); }
 
   .year-summary-list {
     display: grid;
@@ -1075,8 +1374,8 @@
   }
 
   .stage-mini.cover {
-    border-color: var(--color-status-good-border);
-    background: var(--color-status-good-bg);
+    border-color: var(--cal-cover-border);
+    background: var(--cal-cover-bg);
   }
 
   .stage-thumb {
@@ -1111,7 +1410,7 @@
   }
 
   .stage-kicker.cover {
-    color: var(--color-tone-good);
+    color: var(--cal-cover-text);
   }
 
   .stage-score {
@@ -1123,7 +1422,7 @@
   .stage-badge {
     font-size: 7.5px;
     font-weight: 700;
-    color: var(--color-tone-good);
+    color: var(--cal-cover-text);
   }
 
   .stage-meta strong {
@@ -1360,10 +1659,16 @@
   }
 
   .node.cover {
-    border-color: var(--color-status-good-border);
-    background: var(--color-status-good-bg);
-    color: var(--color-tone-good);
+    border-color: rgba(255, 178, 107, 0.72);
+    background: color-mix(in srgb, var(--color-chart-orange) 18%, var(--color-field));
+    color: var(--color-chart-orange);
     font-size: 9px;
+  }
+
+  :global(:root[data-theme='light']) .node.cover {
+    border-color: #ea580c;
+    background: #fed3ad;
+    color: #9a3412;
   }
 
   .left .main {
@@ -1556,7 +1861,7 @@
   }
 
   .dots button.cover {
-    border-color: var(--color-tone-good);
+    border-color: var(--color-chart-orange);
   }
 
   .dots button.active {
@@ -1565,7 +1870,15 @@
   }
 
   .dots button.cover.active {
-    background: var(--color-tone-good);
+    background: var(--color-chart-orange);
+  }
+
+  :global(:root[data-theme='light']) .dots button.cover {
+    border-color: #c2410c;
+  }
+
+  :global(:root[data-theme='light']) .dots button.cover.active {
+    background: #c2410c;
   }
 
   .dots button:focus-visible {

@@ -93,5 +93,26 @@ describe('Random Field Preset — Land Cover & Water Avoidance', () => {
     expect(Number.isFinite(coords.lat)).toBe(true);
     expect(Number.isFinite(coords.lon)).toBe(true);
   });
+
+  it('places the Poltava Steppe preset and Central Ukraine fallback in arable countryside outside Poltava city', async () => {
+    const poltava = presets.find((p) => p.id === 'poltava');
+    expect(poltava?.values).toBeDefined();
+    expect(poltava.values).not.toEqual({ lat: 49.5883, lon: 34.5514 });
+
+    const ukraineBox = AGRICULTURAL_REGIONS.find((r) => /Ukraine/i.test(r.name));
+    expect(ukraineBox).toBeDefined();
+    expect(poltava.values.lat).toBeGreaterThanOrEqual(ukraineBox.latMin);
+    expect(poltava.values.lat).toBeLessThanOrEqual(ukraineBox.latMax);
+    expect(poltava.values.lon).toBeGreaterThanOrEqual(ukraineBox.lonMin);
+    expect(poltava.values.lon).toBeLessThanOrEqual(ukraineBox.lonMax);
+
+    const ukraineCurated = VERIFIED_AGRICULTURAL_POINTS.find((p) => /Ukraine/i.test(p.region));
+    expect(ukraineCurated).toBeDefined();
+    expect(Math.abs(ukraineCurated.lat - poltava.values.lat) > 0.01 || Math.abs(ukraineCurated.lon - poltava.values.lon) > 0.01).toBe(true);
+
+    const resolved = await resolvePresetAsync(poltava, { checkLandCover: vi.fn() });
+    expect(resolved.lat).toBe(poltava.values.lat);
+    expect(resolved.lon).toBe(poltava.values.lon);
+  });
 });
 
