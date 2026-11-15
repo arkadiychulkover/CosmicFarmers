@@ -3,8 +3,8 @@ export const presets = [
     id: 'iowa',
     label: 'Iowa Corn Belt, USA',
     values: {
-      lat: 42.0308,
-      lon: -93.6319,
+      lat: 41.9698,
+      lon: -93.6419,
     },
   },
   {
@@ -15,7 +15,7 @@ export const presets = [
   {
     id: 'andalusia',
     label: 'Andalusia, Spain',
-    values: { lat: 37.3891, lon: -5.9845 },
+    values: { lat: 37.3364, lon: -6.0118 },
   },
   { id: 'random', label: 'Random Field', values: null },
 ];

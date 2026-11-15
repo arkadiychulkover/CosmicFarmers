@@ -114,5 +114,15 @@ describe('Random Field Preset — Land Cover & Water Avoidance', () => {
     expect(resolved.lat).toBe(poltava.values.lat);
     expect(resolved.lon).toBe(poltava.values.lon);
   });
+
+  it('uses verified arable cropland coordinates for Iowa and Andalusia presets', () => {
+    const iowa = presets.find((p) => p.id === 'iowa');
+    const andalusia = presets.find((p) => p.id === 'andalusia');
+
+    expect(iowa?.values).toEqual({ lat: 41.9698, lon: -93.6419 });
+    expect(iowa?.values).not.toEqual({ lat: 42.0308, lon: -93.6319 });
+    expect(andalusia?.values).toEqual({ lat: 37.3364, lon: -6.0118 });
+    expect(andalusia?.values).not.toEqual({ lat: 37.3891, lon: -5.9845 });
+  });
 });
 

@@ -26,8 +26,8 @@ const defaults = {
   nasaError: null,
   savedAt: null,
   form: {
-    lat: 42.0308,
-    lon: -93.6319,
+    lat: 41.9698,
+    lon: -93.6419,
     predecessor: 'corn',
     goal: 'regeneration',
     irrigation: 'rainfed',
