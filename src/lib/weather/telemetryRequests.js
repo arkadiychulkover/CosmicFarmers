@@ -1,32 +1,20 @@
 import { get } from 'svelte/store';
 import { session } from '../../stores/session.svelte.js';
 import {
-  MONTHS,
-  MONTH_KEYS,
-  DAYS_IN_MONTH,
+  MONTHS_12,
   getSeasonYear,
-  averageWithException,
-  gddCalcWithException,
-  fetchSrtmTerrain,
+  getSeasonConfig,
+  getWeather,
+  parseWeatherResponse,
 } from './SoilData.js';
 import { fetchSoilGrids } from '../../utils/nasaApi.js';
 
-const FILL = -999;
-const cardMemory = new Map();
+const inflightWeather = new Map();
+const parsedWeatherCache = new Map();
+const inflightSoil = new Map();
 
-function pointKey(lat, lon) {
+function coordKey(lat, lon) {
   return `${Number(lat).toFixed(4)},${Number(lon).toFixed(4)}`;
-}
-
-const CARD_MEMORY_VERSION = '2';
-
-export function peekTelemetryCard(id, lat, lon) {
-  return cardMemory.get(`${CARD_MEMORY_VERSION}:${id}:${pointKey(lat, lon)}`) ?? null;
-}
-
-export function rememberTelemetryCard(id, lat, lon, data) {
-  cardMemory.set(`${CARD_MEMORY_VERSION}:${id}:${pointKey(lat, lon)}`, data);
-  return data;
 }
 
 function samePoint(lat, lon, otherLat, otherLon) {
@@ -37,252 +25,63 @@ function samePoint(lat, lon, otherLat, otherLon) {
 function cachedPayload(lat, lon) {
   const nasa = get(session).nasaData;
   if (!nasa?.weather || !samePoint(lat, lon, nasa.lat, nasa.lon)) return null;
+  if (!Array.isArray(nasa.weather.months12) || nasa.weather.months12.length !== 12) return null;
   return nasa;
 }
 
-function seasonBounds(lat) {
-  const seasonYear = getSeasonYear();
-  const numLat = Number(lat);
-  const start = numLat >= 0 ? `${seasonYear}0301` : `${seasonYear - 1}0901`;
-  const end = numLat >= 0 ? `${seasonYear}1031` : `${seasonYear}0430`;
-  return { seasonYear, start, end };
-}
-
-async function fetchDaily(lat, lon, parameters, signal) {
-  const { seasonYear, start, end } = seasonBounds(lat);
-  const url = 'https://power.larc.nasa.gov/api/temporal/daily/point?' + new URLSearchParams({
-    parameters,
-    community: 'AG',
-    longitude: String(lon),
-    latitude: String(lat),
-    start,
-    end,
-    format: 'JSON',
-  });
-  const res = await fetch(url, { signal });
-  if (!res.ok) throw new Error(`NASA POWER ${res.status}`);
-  const json = await res.json();
-  const fill = json?.header?.fill_value ?? FILL;
-  const block = json?.properties?.parameter;
-  if (!block) throw new Error('NASA POWER returned no parameters');
-  return { block, fill, seasonYear };
-}
-
-async function fetchMonthlyPrecip(lat, lon, seasonYear, signal) {
-  const url = 'https://power.larc.nasa.gov/api/temporal/monthly/point?' + new URLSearchParams({
-    parameters: 'PRECTOTCORR',
-    community: 'AG',
-    longitude: String(lon),
-    latitude: String(lat),
-    start: String(seasonYear - 9),
-    end: String(seasonYear),
-    format: 'JSON',
-  });
-  const res = await fetch(url, { signal });
-  if (!res.ok) throw new Error(`NASA POWER monthly ${res.status}`);
-  return res.json();
-}
-
-function series(block, name, fill) {
-  const values = block?.[name];
-  if (!values || typeof values !== 'object') throw new Error(`${name} is missing`);
-  return values;
-}
-
-function readPoint(values, date, fill, fallback) {
-  const value = values?.[date];
-  return value !== fill && Number.isFinite(value) ? Number(Number(value).toFixed(1)) : fallback;
-}
-
-function dailyTriple(meanValues, maxValues, minValues, fill) {
-  const dates = Object.keys(meanValues)
-    .filter((date) => meanValues[date] !== fill && Number.isFinite(meanValues[date]))
-    .sort();
-  const daily = dates.map((date) => readPoint(meanValues, date, fill, 0));
-  return {
-    dates,
-    daily,
-    dailyMax: dates.map((date, index) => readPoint(maxValues, date, fill, daily[index])),
-    dailyMin: dates.map((date, index) => readPoint(minValues, date, fill, daily[index])),
-  };
-}
-
-function monthMeans(values, fill, digits = 1) {
-  return MONTH_KEYS.map((month) => {
-    let sum = 0;
-    let count = 0;
-    for (const [date, val] of Object.entries(values)) {
-      if (date.slice(4, 6) !== month || val === fill || !Number.isFinite(val)) continue;
-      sum += val;
-      count += 1;
-    }
-    return count ? Number((sum / count).toFixed(digits)) : 0;
+function awaitWithSignal(promise, signal) {
+  if (!signal) return promise;
+  if (signal.aborted) return Promise.reject(new DOMException('Aborted', 'AbortError'));
+  return new Promise((resolve, reject) => {
+    const onAbort = () => reject(new DOMException('Aborted', 'AbortError'));
+    signal.addEventListener('abort', onAbort, { once: true });
+    promise.then(
+      (value) => {
+        signal.removeEventListener('abort', onAbort);
+        resolve(value);
+      },
+      (err) => {
+        signal.removeEventListener('abort', onAbort);
+        reject(err);
+      },
+    );
   });
 }
 
-function monthSums(values, fill) {
-  return MONTH_KEYS.map((month) => {
-    let sum = 0;
-    for (const [date, val] of Object.entries(values)) {
-      if (date.slice(4, 6) === month && val !== fill && Number.isFinite(val)) sum += val;
-    }
-    return Math.round(sum);
-  });
-}
+async function getWeatherShared(lat, lon, signal) {
+  const cached = cachedPayload(lat, lon)?.weather;
+  if (cached) return cached;
 
-function historicalAverage(monthly, seasonYear, fill) {
-  const mp = monthly?.properties?.parameter?.PRECTOTCORR;
-  if (!mp) return null;
-  let total = 0;
-  let years = 0;
-  for (let year = seasonYear - 9; year <= seasonYear; year += 1) {
-    let sum = 0;
-    let hasData = false;
-    for (const [month, days] of Object.entries(DAYS_IN_MONTH)) {
-      const val = mp[`${year}${month}`];
-      if (val !== undefined && val !== fill && Number.isFinite(val)) {
-        sum += val * days;
-        hasData = true;
-      }
-    }
-    if (hasData) {
-      total += sum;
-      years += 1;
-    }
-  }
-  return years ? Math.round(total / years) : null;
-}
-
-export async function loadPrecipitation(lat, lon, signal) {
-  const cached = cachedPayload(lat, lon)?.weather?.precipitation;
-  if (cached?.monthly?.length) {
-    return { months: MONTHS, ...cached };
+  const key = coordKey(lat, lon);
+  const currentSeasonYear = getSeasonYear();
+  const memCached = parsedWeatherCache.get(key);
+  if (memCached && memCached.seasonYear === currentSeasonYear) {
+    return memCached;
   }
 
-  const { block, fill, seasonYear } = await fetchDaily(lat, lon, 'PRECTOTCORR', signal);
-  const monthlyValues = monthSums(series(block, 'PRECTOTCORR', fill), fill);
-  const total = monthlyValues.reduce((sum, value) => sum + value, 0);
-  let baseline = null;
-  try {
-    const monthly = await fetchMonthlyPrecip(lat, lon, seasonYear, signal);
-    baseline = historicalAverage(monthly, seasonYear, fill);
-  } catch {
-    baseline = null;
-  }
-  const historical = baseline ?? 0;
-  const anomalyPct = historical > 0 ? Math.round((total / historical - 1) * 100) : 0;
-  return { months: MONTHS, total, monthly: monthlyValues, historicalAverage: historical, anomalyPct };
-}
-
-export async function loadTemperature(lat, lon, signal) {
-  const cached = cachedPayload(lat, lon)?.weather?.temperature;
-  if (
-    cached?.daily?.length
-    && cached?.dailyMax?.length
-    && cached?.dailyMin?.length
-    && Number.isFinite(Number(cached.seasonMax))
-    && Number.isFinite(Number(cached.seasonMin))
-  ) {
-    return { months: MONTHS, ...cached };
+  let pending = inflightWeather.get(key);
+  if (!pending) {
+    pending = getWeather(Number(lon), Number(lat))
+      .then((raw) => {
+        const parsed = parseWeatherResponse(raw);
+        parsedWeatherCache.set(key, parsed);
+        return parsed;
+      })
+      .finally(() => {
+        inflightWeather.delete(key);
+      });
+    inflightWeather.set(key, pending);
   }
 
-  const { block, fill } = await fetchDaily(lat, lon, 'T2M,T2M_MAX,T2M_MIN', signal);
-  const t2m = series(block, 'T2M', fill);
-  const t2mMax = series(block, 'T2M_MAX', fill);
-  const t2mMin = series(block, 'T2M_MIN', fill);
-  let heatDays = 0;
-  for (const val of Object.values(t2mMax)) {
-    if (val !== fill && Number.isFinite(val) && val >= 32) heatDays += 1;
-  }
-  const samples = dailyTriple(t2m, t2mMax, t2mMin, fill);
-  const seasonMax = samples.dailyMax.reduce((best, value) => Math.max(best, value), -Infinity);
-  const seasonMin = samples.dailyMin.reduce((best, value) => Math.min(best, value), Infinity);
-  return {
-    months: MONTHS,
-    mean: Number(averageWithException(Object.values(t2m), fill).toFixed(1)),
-    seasonMax: Number.isFinite(seasonMax) ? seasonMax : 0,
-    seasonMin: Number.isFinite(seasonMin) ? seasonMin : 0,
-    monthly: monthMeans(t2m, fill),
-    monthlyMax: monthMeans(t2mMax, fill),
-    monthlyMin: monthMeans(t2mMin, fill),
-    ...samples,
-    heatDays,
-  };
+  return awaitWithSignal(pending, signal);
 }
-
-export async function loadSolar(lat, lon, signal) {
-  const cached = cachedPayload(lat, lon)?.weather?.solar;
-  if (cached && Number.isFinite(Number(cached.value))) return cached;
-
-  const { block, fill } = await fetchDaily(lat, lon, 'ALLSKY_SFC_SW_DWN', signal);
-  const values = series(block, 'ALLSKY_SFC_SW_DWN', fill);
-  return { value: Number(averageWithException(Object.values(values), fill).toFixed(1)) };
-}
-
-export async function loadGdd(lat, lon, signal) {
-  const cached = cachedPayload(lat, lon)?.weather?.gdd;
-  if (cached && Number.isFinite(Number(cached.value))) return cached;
-
-  const { block, fill } = await fetchDaily(lat, lon, 'T2M', signal);
-  const values = series(block, 'T2M', fill);
-  return { value: Math.round(gddCalcWithException(Object.values(values), fill)) };
-}
-
-export async function loadMoisture(lat, lon, signal) {
-  const cached = cachedPayload(lat, lon)?.weather?.soilMoisture;
-  if (cached && Number.isFinite(Number(cached.surface)) && Number.isFinite(Number(cached.rootZone))) {
-    return cached;
-  }
-
-  const { block, fill } = await fetchDaily(lat, lon, 'GWETTOP,GWETROOT', signal);
-  const surface = averageWithException(Object.values(series(block, 'GWETTOP', fill)), fill);
-  const rootZone = averageWithException(Object.values(series(block, 'GWETROOT', fill)), fill);
-  return {
-    surface: Number(surface.toFixed(3)),
-    rootZone: Number(rootZone.toFixed(3)),
-  };
-}
-
-export async function loadEcostress(lat, lon, signal) {
-  const cached = cachedPayload(lat, lon)?.weather?.ecostress;
-  if (
-    cached
-    && Number.isFinite(Number(cached.evapotranspiration))
-    && Number.isFinite(Number(cached.surfaceTemp))
-  ) {
-    return cached;
-  }
-
-  const { block, fill } = await fetchDaily(lat, lon, 'EVPTRNS,TS', signal);
-  const evptrns = averageWithException(Object.values(series(block, 'EVPTRNS', fill)), fill);
-  const ts = averageWithException(Object.values(series(block, 'TS', fill)), fill);
-  return {
-    evapotranspiration: Number(evptrns.toFixed(2)),
-    surfaceTemp: Number(ts.toFixed(1)),
-  };
-}
-
-export async function loadTerrain(lat, lon, signal) {
-  const cached = cachedPayload(lat, lon)?.weather?.terrain;
-  if (cached && Number.isFinite(Number(cached.elevation)) && Number.isFinite(Number(cached.slope))) {
-    return cached;
-  }
-
-  const terrain = await fetchSrtmTerrain(lat, lon, { signal, strict: true });
-  if (!Number.isFinite(terrain?.elevation) || !Number.isFinite(terrain?.slope)) {
-    throw new Error('SRTM elevation unavailable');
-  }
-  return terrain;
-}
-
-const inflightSoil = new Map();
 
 function fetchSoilGridsShared(lat, lon, signal) {
-  const key = `${Number(lat).toFixed(4)},${Number(lon).toFixed(4)}`;
+  const key = coordKey(lat, lon);
   let pending = inflightSoil.get(key);
   if (!pending) {
-    const parsedWeather = cachedPayload(lat, lon)?.weather ?? null;
-    pending = fetchSoilGrids(lat, lon, { signal, parsed: parsedWeather })
+    const parsedWeather = cachedPayload(lat, lon)?.weather ?? parsedWeatherCache.get(key) ?? null;
+    pending = fetchSoilGrids(lat, lon, { parsed: parsedWeather })
       .then((soil) => {
         if (soil?.soilMeta) {
           session.update((s) => {
@@ -291,13 +90,12 @@ function fetchSoilGridsShared(lat, lon, signal) {
               ? {
                   ...s.nasaData,
                   ph: soil.ph,
+                  soc: soil.soc,
+                  nitrogen: soil.nitrogen,
+                  clay: soil.clay,
+                  sand: soil.sand,
+                  silt: soil.silt,
                   soil: soil.soil,
-                  n: soil.n,
-                  p: soil.p,
-                  k: soil.k,
-                  N: soil.n,
-                  P: soil.p,
-                  K: soil.k,
                   soilSource: soil.soilSource,
                   soilMeta: soil.soilMeta,
                 }
@@ -307,10 +105,12 @@ function fetchSoilGridsShared(lat, lon, signal) {
               : {
                   ...s.form,
                   ph: soil.ph,
+                  soc: soil.soc,
+                  nitrogen: soil.nitrogen,
+                  clay: soil.clay,
+                  sand: soil.sand,
+                  silt: soil.silt,
                   soil: soil.soil,
-                  n: soil.n,
-                  p: soil.p,
-                  k: soil.k,
                 };
             return {
               ...s,
@@ -318,9 +118,11 @@ function fetchSoilGridsShared(lat, lon, signal) {
               form: nextForm,
               autoSoil: {
                 ph: soil.ph,
-                n: soil.n,
-                p: soil.p,
-                k: soil.k,
+                soc: soil.soc,
+                nitrogen: soil.nitrogen,
+                clay: soil.clay,
+                sand: soil.sand,
+                silt: soil.silt,
               },
             };
           });
@@ -332,55 +134,130 @@ function fetchSoilGridsShared(lat, lon, signal) {
       });
     inflightSoil.set(key, pending);
   }
-  return pending;
+  return awaitWithSignal(pending, signal);
+}
+
+export async function loadPrecipitation(lat, lon, signal) {
+  const w = await getWeatherShared(lat, lon, signal);
+  const seasonCfg = getSeasonConfig(lat);
+  return {
+    months: w.months || seasonCfg.months,
+    months12: w.months12 || MONTHS_12,
+    total: w.precipitation?.total ?? 0,
+    monthly: w.precipitation?.monthly || [],
+    historicalAverage: w.precipitation?.historicalAverage ?? 0,
+    anomalyPct: w.precipitation?.anomalyPct ?? 0,
+    total12: w.precipitation?.total12 ?? 0,
+    monthly12: w.precipitation?.monthly12 || w.monthlyPrecip12 || [],
+    historicalAverage12: w.precipitation?.historicalAverage12 ?? 0,
+    anomalyPct12: w.precipitation?.anomalyPct12 ?? 0,
+    etTotal12: w.precipitation?.etTotal12 ?? 0,
+    monthlyEt12: w.precipitation?.monthlyEt12 || w.monthlyEt12 || [],
+    waterBalanceTotal12: w.precipitation?.waterBalanceTotal12 ?? 0,
+    monthlyWaterBalance12: w.precipitation?.monthlyWaterBalance12 || w.monthlyWaterBalance12 || [],
+    seasonWaterBalance: w.precipitation?.seasonWaterBalance ?? 0,
+    stormDays: w.stress?.stormDays ?? w.stormDays ?? 0,
+    seasonLabel: w.seasonLabel || seasonCfg.label,
+    isSouthernHemisphere: Boolean(w.isSouthernHemisphere ?? seasonCfg.isSouthern),
+  };
+}
+
+export async function loadTemperature(lat, lon, signal) {
+  const w = await getWeatherShared(lat, lon, signal);
+  const seasonCfg = getSeasonConfig(lat);
+  return {
+    months: w.months || seasonCfg.months,
+    months12: w.months12 || MONTHS_12,
+    mean: w.temperature?.mean ?? Number(Number(w.t2m ?? 0).toFixed(1)),
+    mean12: w.temperature?.mean12 ?? Number(Number(w.t2m ?? 0).toFixed(1)),
+    monthly: w.temperature?.monthly || [],
+    monthly12: w.temperature?.monthly12 || w.monthlyTemp12 || [],
+    heatDays: w.temperature?.heatDays ?? w.stress?.heatDays ?? 0,
+    frostDays: w.stress?.frostDays ?? w.frostDays ?? 0,
+    lastSpringFrost: w.stress?.lastSpringFrost ?? w.lastSpringFrost ?? null,
+    firstAutumnFrost: w.stress?.firstAutumnFrost ?? w.firstAutumnFrost ?? null,
+    frostFreeDays: w.stress?.frostFreeDays ?? w.frostFreeDays ?? 365,
+    seasonLabel: w.seasonLabel || seasonCfg.label,
+    isSouthernHemisphere: Boolean(w.isSouthernHemisphere ?? seasonCfg.isSouthern),
+  };
+}
+
+export async function loadSolar(lat, lon, signal) {
+  const w = await getWeatherShared(lat, lon, signal);
+  return {
+    value: w.solar?.value ?? Number(Number(w.allsky ?? 0).toFixed(1)),
+  };
+}
+
+export async function loadGdd(lat, lon, signal) {
+  const w = await getWeatherShared(lat, lon, signal);
+  return {
+    value: w.gdd?.value ?? 0,
+  };
+}
+
+export async function loadMoisture(lat, lon, signal) {
+  const w = await getWeatherShared(lat, lon, signal);
+  return {
+    surface: w.soilMoisture?.surface ?? w.gwettop ?? 0.55,
+    rootZone: w.soilMoisture?.rootZone ?? w.gwetroot ?? 0.58,
+    monthlyMoisture12: w.monthlyMoisture12 || [],
+    months12: w.months12 || MONTHS_12,
+  };
+}
+
+export async function loadEcostress(lat, lon, signal) {
+  const w = await getWeatherShared(lat, lon, signal);
+  return {
+    evapotranspiration: w.ecostress?.evapotranspiration ?? w.evptrns ?? 3.2,
+    surfaceTemp: w.ecostress?.surfaceTemp ?? w.ts ?? 16.0,
+    monthlyEt12: w.monthlyEt12 || w.precipitation?.monthlyEt12 || [],
+    monthlyWaterBalance12: w.monthlyWaterBalance12 || w.precipitation?.monthlyWaterBalance12 || [],
+    months12: w.months12 || MONTHS_12,
+  };
+}
+
+export async function loadTerrain(lat, lon, signal) {
+  const w = await getWeatherShared(lat, lon, signal);
+  const terrain = w.terrain || {
+    elevation: w.elevation,
+    slope: w.slope,
+    terrainFallback: Boolean(w.terrainFallback),
+  };
+  if (!Number.isFinite(terrain?.elevation) || !Number.isFinite(terrain?.slope)) {
+    throw new Error('SRTM elevation unavailable');
+  }
+  return {
+    elevation: Number(terrain.elevation),
+    slope: Number(terrain.slope),
+    terrainFallback: Boolean(terrain.terrainFallback),
+  };
 }
 
 export async function loadTempRange(lat, lon, signal) {
-  const cached = cachedPayload(lat, lon)?.weather?.temperature;
-  if (
-    cached?.monthlyMax?.length &&
-    cached?.monthlyMin?.length &&
-    Number.isFinite(Number(cached.maxMean)) &&
-    Number.isFinite(Number(cached.minMean))
-  ) {
-    return {
-      months: MONTHS,
-      maxMean: Number(cached.maxMean),
-      minMean: Number(cached.minMean),
-      monthlyMax: cached.monthlyMax,
-      monthlyMin: cached.monthlyMin,
-    };
-  }
-
-  const { block, fill } = await fetchDaily(lat, lon, 'T2M_MAX,T2M_MIN', signal);
-  const t2mMax = series(block, 'T2M_MAX', fill);
-  const t2mMin = series(block, 'T2M_MIN', fill);
+  const w = await getWeatherShared(lat, lon, signal);
+  const seasonCfg = getSeasonConfig(lat);
   return {
-    months: MONTHS,
-    maxMean: Number(averageWithException(Object.values(t2mMax), fill).toFixed(1)),
-    minMean: Number(averageWithException(Object.values(t2mMin), fill).toFixed(1)),
-    monthlyMax: monthMeans(t2mMax, fill),
-    monthlyMin: monthMeans(t2mMin, fill),
+    months: w.months || seasonCfg.months,
+    months12: w.months12 || MONTHS_12,
+    maxMean: Number(w.temperature?.maxMean ?? w.t2m_max ?? 0),
+    minMean: Number(w.temperature?.minMean ?? w.t2m_min ?? 0),
+    monthlyMax: w.temperature?.monthlyMax || [],
+    monthlyMin: w.temperature?.monthlyMin || [],
+    monthlyMax12: w.temperature?.monthlyMax12 || w.monthlyMax12 || [],
+    monthlyMin12: w.temperature?.monthlyMin12 || w.monthlyMin12 || [],
+    frostDays: w.stress?.frostDays ?? w.frostDays ?? 0,
+    lastSpringFrost: w.stress?.lastSpringFrost ?? w.lastSpringFrost ?? null,
+    firstAutumnFrost: w.stress?.firstAutumnFrost ?? w.firstAutumnFrost ?? null,
+    frostFreeDays: w.stress?.frostFreeDays ?? w.frostFreeDays ?? 365,
   };
 }
 
 export async function loadAtmosphere(lat, lon, signal) {
-  const cached = cachedPayload(lat, lon);
-  const cachedRh = cached?.RH2M ?? cached?.weather?.atmosphere?.rh2m ?? cached?.weather?.rh2m;
-  const cachedWs = cached?.WS2M ?? cached?.weather?.atmosphere?.ws2m ?? cached?.weather?.ws2m;
-  if (Number.isFinite(Number(cachedRh)) && Number.isFinite(Number(cachedWs))) {
-    return {
-      rh2m: Number(Number(cachedRh).toFixed(1)),
-      ws2m: Number(Number(cachedWs).toFixed(2)),
-    };
-  }
-
-  const { block, fill } = await fetchDaily(lat, lon, 'RH2M,WS2M', signal);
-  const rh = averageWithException(Object.values(series(block, 'RH2M', fill)), fill);
-  const ws = averageWithException(Object.values(series(block, 'WS2M', fill)), fill);
+  const w = await getWeatherShared(lat, lon, signal);
   return {
-    rh2m: Number(rh.toFixed(1)),
-    ws2m: Number(ws.toFixed(2)),
+    rh2m: Number(Number(w.atmosphere?.rh2m ?? w.rh2m ?? 60).toFixed(1)),
+    ws2m: Number(Number(w.atmosphere?.ws2m ?? w.ws2m ?? 3).toFixed(2)),
   };
 }
 
@@ -396,6 +273,9 @@ export async function loadSoilTexture(lat, lon, signal) {
       clayPct: cached.soilMeta.clayPct,
       sandPct: cached.soilMeta.sandPct,
       siltPct: cached.soilMeta.siltPct,
+      clay: cached.clay ?? cached.soilMeta.clayPct,
+      sand: cached.sand ?? cached.soilMeta.sandPct,
+      silt: cached.silt ?? cached.soilMeta.siltPct,
       soil: cached.soil,
       soilSource: cached.soilSource || 'ISRIC SoilGrids v2.0',
     };
@@ -407,6 +287,9 @@ export async function loadSoilTexture(lat, lon, signal) {
     clayPct: soil.soilMeta.clayPct,
     sandPct: soil.soilMeta.sandPct,
     siltPct: soil.soilMeta.siltPct,
+    clay: soil.clay ?? soil.soilMeta.clayPct,
+    sand: soil.sand ?? soil.soilMeta.sandPct,
+    silt: soil.silt ?? soil.soilMeta.siltPct,
     soil: soil.soil,
     soilSource: soil.soilSource || 'ISRIC SoilGrids v2.0',
   };
@@ -414,9 +297,17 @@ export async function loadSoilTexture(lat, lon, signal) {
 
 export async function loadSoilSoc(lat, lon, signal) {
   const cached = cachedPayload(lat, lon);
-  if (cached?.soilMeta && Number.isFinite(Number(cached.soilMeta.socGkg))) {
+  if (
+    cached?.soilMeta &&
+    Number.isFinite(Number(cached.soilMeta.socGkg)) &&
+    Number.isFinite(Number(cached.soilMeta.totalNGkg))
+  ) {
     return {
       socGkg: cached.soilMeta.socGkg,
+      soc: cached.soc ?? cached.soilMeta.socGkg,
+      totalNGkg: cached.soilMeta.totalNGkg,
+      nitrogen: cached.nitrogen ?? cached.soilMeta.totalNGkg,
+      ph: cached.ph,
       soilSource: cached.soilSource || 'ISRIC SoilGrids v2.0',
     };
   }
@@ -427,6 +318,10 @@ export async function loadSoilSoc(lat, lon, signal) {
   }
   return {
     socGkg: soil.soilMeta.socGkg,
+    soc: soil.soc ?? soil.soilMeta.socGkg,
+    totalNGkg: soil.soilMeta.totalNGkg,
+    nitrogen: soil.nitrogen ?? soil.soilMeta.totalNGkg,
+    ph: soil.ph,
     soilSource: soil.soilSource || 'ISRIC SoilGrids v2.0',
   };
 }
@@ -434,18 +329,22 @@ export async function loadSoilSoc(lat, lon, signal) {
 export async function loadSoilSource(lat, lon, signal) {
   const cached = cachedPayload(lat, lon);
   if (cached?.soilMeta && cached?.soilSource) {
-    const isSg = String(cached.soilSource).startsWith('ISRIC');
     return {
+      soilSource: cached.soilSource,
       nitrogenPh: cached.soilSource,
-      phosphorusPotassium: isSg ? `${cached.soilSource} · Pedotransfer` : cached.soilSource,
+      socTexture: cached.soilSource,
+      depths: '0–5 cm & 5–15 cm',
+      layers: ['phh2o', 'soc', 'nitrogen', 'clay', 'sand', 'silt'],
     };
   }
 
   const soil = await fetchSoilGridsShared(lat, lon, signal);
   const src = soil?.soilSource || 'NASA POWER Agro-Climatic Model';
-  const isSg = String(src).startsWith('ISRIC');
   return {
+    soilSource: src,
     nitrogenPh: src,
-    phosphorusPotassium: isSg ? `${src} · Pedotransfer` : src,
+    socTexture: src,
+    depths: '0–5 cm & 5–15 cm',
+    layers: ['phh2o', 'soc', 'nitrogen', 'clay', 'sand', 'silt'],
   };
 }

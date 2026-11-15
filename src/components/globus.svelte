@@ -92,6 +92,7 @@
     lst: 'lst'
   };
 
+  let gibsTime = 'default';
   const gibsLayerCache = new Map<string, Promise<HTMLCanvasElement | null>>();
 
   const LAND_FEATURE = topojson.feature(
@@ -125,6 +126,7 @@
   export let lng: number | null = null;
 
   export let displayStyle: GlobeDisplayStyle | string = 'default';
+  export let gibsDate: string = '';
   export let preloadOverlays: boolean = true;
   export let zoom: number = 100;
   export let onzoomchange: ((zoom: number) => void) | undefined = undefined;
@@ -176,6 +178,7 @@
   }
 
   $: activeStyle = normalizeDisplayStyle(displayStyle);
+  $: gibsTime = /^\d{4}-\d{2}-\d{2}$/.test(String(gibsDate ?? '')) ? String(gibsDate) : 'default';
   $: clampedZoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, Number(zoom) || 100));
 
   $: activeLat = latitude ?? lat;
@@ -200,7 +203,7 @@
     }
   }
 
-  $: styleSignature = `${activeStyle}|${riversVisible}|${strokeGradientFrom}|${strokeGradientTo}`;
+  $: styleSignature = `${activeStyle}|${riversVisible}|${strokeGradientFrom}|${strokeGradientTo}|${gibsTime}`;
   $: if (threeReady && styleSignature !== lastAppliedSig) {
     lastAppliedSig = styleSignature;
     applyDisplayStyle(activeStyle, riversVisible, strokeGradientFrom, strokeGradientTo);
@@ -276,7 +279,8 @@
     const config = GIBS_OVERLAYS[styleKey];
     if (!config) return Promise.resolve(null);
 
-    const cacheKey = `${config.id}:${config.tileMatrixSet}:${config.zoomLevel}`;
+    const time = config.isBaseImagery ? 'default' : gibsTime;
+    const cacheKey = `${config.id}:${config.tileMatrixSet}:${config.zoomLevel}:${time}`;
     const existing = gibsLayerCache.get(cacheKey);
     if (existing) return existing;
 
@@ -288,7 +292,7 @@
       const tasks: Array<{ row: number; col: number; promise: Promise<HTMLImageElement | null> }> = [];
       for (let row = 0; row < rows; row++) {
         for (let col = 0; col < cols; col++) {
-          const url = `https://gibs.earthdata.nasa.gov/wmts/epsg4326/best/${config.id}/default/default/${config.tileMatrixSet}/${config.zoomLevel}/${row}/${col}.${config.ext}`;
+          const url = `https://gibs.earthdata.nasa.gov/wmts/epsg4326/best/${config.id}/default/${time}/${config.tileMatrixSet}/${config.zoomLevel}/${row}/${col}.${config.ext}`;
           tasks.push({ row, col, promise: loadTileImage(url) });
         }
       }
@@ -587,7 +591,8 @@
     gradFrom: string,
     gradTo: string
   ): string {
-    return `${style}|${showRivers}|${gradFrom}|${gradTo}`;
+    const time = style === 'default' || style === 'satellite' ? 'default' : gibsTime;
+    return `${style}|${showRivers}|${gradFrom}|${gradTo}|${time}`;
   }
 
   function applyTextureToGlobe(texture: THREE.CanvasTexture, style: GlobeDisplayStyle) {
@@ -1033,6 +1038,12 @@
     justify-content: center;
     filter: drop-shadow(0 0 6px rgba(255, 255, 255, 0.8));
     animation: reticleFadeIn 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  @media (max-width: 860px) {
+    .reticle-hud {
+      display: none !important;
+    }
   }
 
   .reticle-svg {

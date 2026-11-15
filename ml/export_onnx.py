@@ -1,10 +1,8 @@
 import io
-import os
 import re
 import json
 import math
 import time
-import struct
 import threading
 import urllib3
 import requests
@@ -19,6 +17,7 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import classification_report, accuracy_score, top_k_accuracy_score
 from skl2onnx import convert_sklearn
 from skl2onnx.common.data_types import FloatTensorType
+import onnxruntime as ort
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
@@ -30,6 +29,12 @@ BASE_DIR = Path(__file__).resolve().parent
 PROJECT_ROOT = BASE_DIR.parent
 
 _thread_local = threading.local()
+_cache_lock = threading.Lock()
+_soil_cache = {}
+_srtm_cache = {}
+_nasa_cache = {}
+_nasa_sem = threading.Semaphore(3)
+
 
 def get_http_session():
     if not hasattr(_thread_local, "session"):
@@ -45,18 +50,21 @@ def get_http_session():
 SEASON_MONTHS = 8.0
 
 FEATURE_NAMES = [
-
-    "N", "P", "K", "ph",
-
+    "ph", "soc", "nitrogen", "clay", "sand", "silt",
     "T2M", "T2M_MAX", "T2M_MIN",
     "RH2M", "PRECTOTCORR",
     "ALLSKY_SFC_SW_DWN", "GDD", "WS2M",
-
     "GWETTOP", "GWETROOT", "TS", "EVPTRNS",
-
-    "ELEVATION", "SLOPE"
+    "ELEVATION", "SLOPE", "IRRIGATION"
 ]
 
+TARGET_CLASSES = {
+    "wheat", "barley", "rapeseed", "potato", "lentil", "chickpea",
+    "kidneybeans", "apple", "soybean", "maize", "sunflower", "grapes",
+    "orange", "cotton", "rice", "watermelon"
+}
+
+WATER_LOVING_CROPS = {"rice", "cotton", "maize", "orange", "apple", "watermelon", "grapes"}
 
 CDL_TO_CROP = {
     1: "maize",
@@ -65,10 +73,12 @@ CDL_TO_CROP = {
     5: "soybean",
     6: "sunflower",
     21: "barley",
+    22: "wheat",
     23: "wheat",
     24: "wheat",
     31: "rapeseed",
     42: "kidneybeans",
+    43: "potato",
     48: "watermelon",
     51: "chickpea",
     52: "lentil",
@@ -77,7 +87,6 @@ CDL_TO_CROP = {
     72: "orange",
     212: "orange",
 }
-
 
 OSM_CROP_MAP = {
     "wheat": "wheat",
@@ -88,36 +97,57 @@ OSM_CROP_MAP = {
     "sunflower": "sunflower",
     "rapeseed": "rapeseed",
     "canola": "rapeseed",
+    "oilseed_rape": "rapeseed",
     "barley": "barley",
+    "winter_barley": "barley",
+    "spring_barley": "barley",
     "soybean": "soybean",
     "soy": "soybean",
     "rice": "rice",
     "cotton": "cotton",
     "grapes": "grapes",
+    "grape": "grapes",
     "vineyard": "grapes",
     "apple": "apple",
     "apples": "apple",
     "orange": "orange",
+    "oranges": "orange",
     "citrus": "orange",
     "chickpea": "chickpea",
+    "chickpeas": "chickpea",
     "lentil": "lentil",
-    "coffee": "coffee",
+    "lentils": "lentil",
+    "kidneybeans": "kidneybeans",
+    "beans": "kidneybeans",
+    "dry_beans": "kidneybeans",
+    "potato": "potato",
+    "potatoes": "potato",
     "watermelon": "watermelon",
+    "watermelons": "watermelon",
 }
 
-
 US_AGRO_ZONES = [
-    (41.87, -93.09),
-    (38.50, -98.00),
-    (33.57, -101.85),
-    (35.75, -90.95),
-    (46.80, -117.15),
-    (47.42, -120.31),
-    (38.29, -122.28),
-    (28.53, -81.37),
-    (47.55, -100.45),
+    (41.87, -93.09),   # Iowa (maize, soybean)
+    (38.50, -98.00),   # Kansas (wheat, maize)
+    (33.57, -101.85),  # West Texas (cotton)
+    (35.75, -90.95),   # Arkansas Delta (rice, soybean, cotton)
+    (46.80, -117.15),  # Palouse WA/ID (wheat, barley, lentil, chickpea)
+    (47.42, -120.31),  # Wenatchee WA (apple)
+    (43.55, -112.05),  # Snake River Plain ID (potato, barley, wheat)
+    (42.60, -113.80),  # Magic Valley ID (potato, barley, maize)
+    (47.05, -119.30),  # Columbia Basin WA (potato, apple, maize)
+    (46.80, -67.95),   # Aroostook ME (potato, barley)
+    (44.30, -89.55),   # Central Sands WI (potato, maize, soybean)
+    (47.55, -100.45),  # North Dakota (wheat, barley, rapeseed, lentil, kidneybeans, sunflower)
+    (48.10, -105.50),  # NE Montana (lentil, chickpea, wheat, barley)
+    (43.00, -85.60),   # West Michigan (apple, maize, soybean)
+    (38.29, -122.28),  # Napa CA (grapes)
+    (36.65, -119.65),  # Central Valley CA (grapes, orange, cotton, watermelon)
+    (39.30, -121.85),  # Sacramento Valley CA (rice)
+    (31.45, -83.55),   # Georgia (cotton, watermelon)
+    (28.53, -81.37),   # Central Florida (orange, watermelon)
+    (27.95, -81.60),   # South-Central Florida (orange)
 ]
-
 
 GLOBAL_AGRO_CENTERS = {
     "UKRAINE": [
@@ -140,6 +170,15 @@ GLOBAL_AGRO_CENTERS = {
         (52.10, 11.60),
         (52.40, 16.90),
         (44.40, 26.10),
+        (60.80, 23.10),   # Southern Finland
+        (55.90, 13.50),   # Skane Sweden
+        (41.60, -4.70),   # Castile Spain
+        (37.60, -5.10),   # Andalusia Spain
+    ],
+    "CANADA": [
+        (52.13, -106.67), # Saskatchewan
+        (49.90, -97.14),  # Manitoba
+        (46.24, -63.13),  # Prince Edward Island (potato)
     ],
     "INDIA": [
         (30.90, 75.85),
@@ -157,8 +196,6 @@ GLOBAL_AGRO_CENTERS = {
 
 
 def map_ewoc_code_to_crop(ewoc_code):
-
-
     if ewoc_code is None:
         return None
     try:
@@ -173,6 +210,8 @@ def map_ewoc_code_to_crop(ewoc_code):
         return "maize"
     if s.startswith("110108"):
         return "rice"
+    if s.startswith("1102"):
+        return "potato"
     if s.startswith(("110302005", "110302003", "110302004", "110302000")):
         return "watermelon"
     if s.startswith("110500003"):
@@ -195,19 +234,19 @@ def map_ewoc_code_to_crop(ewoc_code):
         return "apple"
     if s.startswith("120103"):
         return "orange"
-    if s.startswith(("120200001", "120200005", "140200002", "140205001")):
-        return "coffee"
     return None
 
 
 def detect_region(lat, lon):
-    if -125.0 <= lon <= -66.0 and 24.0 <= lat <= 50.0:
+    if -141.0 <= lon <= -52.0 and 49.0 < lat <= 70.0:
+        return "CANADA"
+    if -125.0 <= lon <= -66.0 and 24.0 <= lat <= 49.0:
         return "USA"
     if 22.1 <= lon <= 40.2 and 44.3 <= lat <= 52.4:
         return "UKRAINE"
     if 27.0 <= lon <= 180.0 and 41.2 <= lat <= 70.0 and not (73.0 <= lon <= 135.0 and lat < 50.0):
         return "RUSSIA"
-    if -10.0 <= lon <= 32.0 and 35.0 <= lat <= 62.0:
+    if -10.0 <= lon <= 32.0 and 35.0 <= lat <= 71.0:
         return "EUROPE"
     if 68.0 <= lon <= 97.5 and 7.0 <= lat <= 36.0:
         return "INDIA"
@@ -238,21 +277,20 @@ def extract_geojson_centroid(geom):
 
 
 def fetch_worldcereal_rdm_points(
-    max_per_crop=22,
+    max_per_crop=95,
+    max_per_col_crop=18,
     existing_keys=None,
     existing_crop_counts=None,
-    existing_region_counts=None
 ):
-    print("[1A/4] Опрос каталога ESA WorldCereal RDM API (SkipCount/MaxResultCount пагинация)...")
+    print("[1A/4] Опрос каталога ESA WorldCereal RDM API (глобальные, холодные, средиземноморские и др. зоны)...")
     seen_keys = set(existing_keys or ())
     crop_counts = dict(existing_crop_counts or {})
-    region_counts = dict(existing_region_counts or {})
     points = []
     session = get_http_session()
 
     try:
         collections = []
-        for skip in (0, 250):
+        for skip in (0, 250, 500):
             resp = session.get(
                 "https://ewoc-rdm-api.iiasa.ac.at/collections",
                 params={"SkipCount": skip, "MaxResultCount": 250},
@@ -263,32 +301,53 @@ def fetch_worldcereal_rdm_points(
                 raw_data = resp.json()
                 batch = raw_data if isinstance(raw_data, list) else raw_data.get("collections", raw_data.get("items", []))
                 collections.extend(batch)
+                if len(batch) < 250:
+                    break
 
         print(f"  [RDM] Получено метаданных коллекций: {len(collections)}")
 
-
         curated_order = [
+            "2021_nld_lpis_poly_110",
+            "2021_bel_lpisflanders_poly_110",
+            "2025_pol_lpis_poly_110",
+            "2021_fin_lpis_poly_110",
+            "2022_fin_lpis_poly_110",
+            "2021_can_aafccropinventory_point_110",
+            "2022_can_aafcacigtd_point_110",
+            "2023_can_aafcacigtd_point_110",
             "2021_glo_ewocval_poly_111",
             "2022_glo_ewocval_poly_111",
-            "2018_ind_cgiargardian_point_110",
-            "2021_lka_faowapor1_poly_111",
-            "2020_rwa_faowaporakagera_point_111",
-            "2017_lbn_faowapor2_poly_111",
+            "2021_swe_eurocrops_poly_110",
+            "2021_est_eurocrops_poly_110",
+            "2021_ltu_eurocrops_poly_110",
+            "2021_lva_lpis_poly_110",
+            "2019_esp_sigpaccatalunya_poly_111",
+            "2022_eu_lucas_poly_111",
+            "2018_eu_lucas_point_110",
+            "2021_dnk_lpis_poly_110",
+            "2021_deu_eurocropsnrw_poly_110",
+            "2023_deu_eurocropsbb_poly_110",
+            "2021_aut_lpis_poly_110",
+            "2021_cze_lpis_poly_110",
+            "2021_fra_lpis_poly_110",
+            "2021_irl_lpis_poly_110",
+            "2023_mar_um6p_poly_111",
+            "2019_egy_faowapor2_poly_111",
             "2017_lbn_faowapor1_poly_111",
-            "2021_ken_copernicusgeoglamsr_point_111",
-            "2021_ken_copernicusgeoglamlr_point_111",
-            "2021_uga_copernicusgeoglamsr_point_111",
-            "2021_uga_copernicusgeoglamlr_point_111",
+            "2017_lbn_faowapor2_poly_111",
+            "2018_as_cawaproject_poly_111",
+            "2018_ind_cgiargardian_point_110",
+            "2023_npl_cimmyt_poly_110",
+            "2023_pak_adbkharif_point_110",
+            "2021_lka_faowapor1_poly_111",
+            "2021_chn_kang_point_110",
+            "2017_chn_youhanshenrice_point_110",
             "2021_aus_clumcom_poly_110",
             "2017_bra_jecamcirad_poly_111",
-            "2023_mar_um6p_poly_111",
-            "2023_npl_cimmyt_poly_110",
-            "2021_can_aafccropinventory_point_110",
-            "2018_as_cawaproject_poly_111",
+            "2021_mex_cimmyt1_poly_111",
+            "2021_ken_copernicusgeoglamsr_point_111",
+            "2021_uga_copernicusgeoglamsr_point_111",
             "2023_tza_copernicusgeoglamlr_point_111",
-            "2018_eu_lucas_point_110",
-            "2023_pak_adbkharif_point_110",
-            "2021_chn_kang_point_110",
         ]
         curated_rank = {cid: idx for idx, cid in enumerate(curated_order)}
 
@@ -301,89 +360,121 @@ def fetch_worldcereal_rdm_points(
                     crop_cols.append(c)
 
         def col_sort_key(c):
-            cid = str(c.get("collectionId", ""))
+            cid = str(c.get("collectionId") or c.get("id") or "")
             rank = curated_rank.get(cid, 999)
             is_point = 0 if "_point_" in cid else 1
             return (rank, is_point, -len(c.get("ewocCodes") or []))
 
         crop_cols.sort(key=col_sort_key)
-        print(f"  [RDM] Из них с целевыми культурами (_110/_111): {len(crop_cols)}")
+        needed_crops = {c for c in TARGET_CLASSES if crop_counts.get(c, 0) < max_per_crop}
+        if needed_crops and len(needed_crops) < len(TARGET_CLASSES):
+            filtered_cols = [
+                c for c in crop_cols
+                if any(map_ewoc_code_to_crop(e) in needed_crops for e in (c.get("ewocCodes") or []))
+            ]
+            if filtered_cols:
+                crop_cols = filtered_cols
+        print(f"  [RDM] Коллекций с целевыми культурами (_110/_111): {len(crop_cols)}", flush=True)
 
-        for col in crop_cols[:45]:
+        def fetch_one_col(col):
             col_id = str(col.get("collectionId") or col.get("id"))
-            limit_n = 500 if col_id in ("2021_glo_ewocval_poly_111", "2022_glo_ewocval_poly_111") else 250
-            try:
-                ir = session.get(
-                    f"https://ewoc-rdm-api.iiasa.ac.at/collections/{col_id}/items",
-                    params={"SkipCount": 0, "MaxResultCount": limit_n, "limit": limit_n},
-                    verify=False,
-                    timeout=12
-                )
-                if ir.status_code == 200:
+            ewocs = [str(e) for e in (col.get("ewocCodes") or [])]
+            has_potato = any(e.startswith("1102") for e in ewocs)
+            is_big = any(k in col_id for k in ("glo_ewocval", "lucas", "nld_lpis", "bel_lpisflanders", "pol_lpis", "fin_lpis", "deu_eurocrops"))
+            limit_n = 350 if (has_potato or is_big) else 250
+            pages = (0, 500, 1000, 2000, 3000) if has_potato else ((0, 500, 1000) if is_big else (0, 400))
+            out = []
+            sess = get_http_session()
+            for skip in pages:
+                try:
+                    ir = sess.get(
+                        f"https://ewoc-rdm-api.iiasa.ac.at/collections/{col_id}/items",
+                        params={"SkipCount": skip, "MaxResultCount": limit_n, "limit": limit_n},
+                        verify=False,
+                        timeout=14
+                    )
+                    if ir.status_code != 200:
+                        continue
                     features = ir.json().get("features", [])
+                    if not features:
+                        break
                     for feat in features:
-                        props = feat.get("properties", {})
-                        ewoc_raw = props.get("ewoc_code")
-                        crop = map_ewoc_code_to_crop(ewoc_raw)
+                        out.append((col_id, feat))
+                except Exception:
+                    continue
+            return col_id, out
 
-                        if not crop and str(ewoc_raw).startswith("110100") and col_id.startswith(("2021_glo_", "2022_glo_")):
-                            crop = "wheat"
-                        if not crop:
-                            continue
+        target_cols = crop_cols[:150]
+        with ThreadPoolExecutor(max_workers=8) as pool:
+            futs = [pool.submit(fetch_one_col, col) for col in target_cols]
+            for idx, fut in enumerate(as_completed(futs), 1):
+                col_id, items = fut.result()
+                col_crop_counts = {}
+                for _, feat in items:
+                    props = feat.get("properties", {})
+                    ewoc_raw = props.get("ewoc_code")
+                    crop = map_ewoc_code_to_crop(ewoc_raw)
+                    if not crop and str(ewoc_raw).startswith("110100") and ("glo_ewocval" in col_id):
+                        crop = "wheat"
+                    if not crop or crop not in TARGET_CLASSES:
+                        continue
 
-                        lat_lon = extract_geojson_centroid(feat.get("geometry"))
-                        if not lat_lon:
-                            continue
-                        lat, lon = round(lat_lon[0], 5), round(lat_lon[1], 5)
-                        yr_str = str(props.get("valid_time", "2022"))[:4]
-                        year = min(int(yr_str) if yr_str.isdigit() else 2022, 2024)
-                        year = max(year, 2018)
+                    if crop_counts.get(crop, 0) >= max_per_crop:
+                        continue
+                    if col_crop_counts.get(crop, 0) >= max_per_col_crop:
+                        continue
 
-                        key_dedup = (round(lat, 4), round(lon, 4), year)
-                        if key_dedup in seen_keys:
-                            continue
+                    lat_lon = extract_geojson_centroid(feat.get("geometry"))
+                    if not lat_lon:
+                        continue
+                    lat, lon = round(lat_lon[0], 5), round(lat_lon[1], 5)
+                    yr_str = str(props.get("valid_time", "2022"))[:4]
+                    year = min(int(yr_str) if yr_str.isdigit() else 2022, 2024)
+                    year = max(year, 2018)
 
-                        reg = detect_region(lat, lon)
+                    key_dedup = (round(lat, 4), round(lon, 4), year)
+                    if key_dedup in seen_keys:
+                        continue
 
-                        need_crop = crop_counts.get(crop, 0) < max_per_crop
-                        need_region = reg in ("UKRAINE", "RUSSIA", "INDIA") and region_counts.get(reg, 0) < 16
-                        if not (need_crop or need_region):
-                            continue
-
-                        seen_keys.add(key_dedup)
-                        points.append({
-                            "lat": lat,
-                            "lon": lon,
-                            "year": year,
-                            "label": crop,
-                            "region": reg,
-                            "source": f"ESA_RDM:{col_id}"
-                        })
-                        crop_counts[crop] = crop_counts.get(crop, 0) + 1
-                        region_counts[reg] = region_counts.get(reg, 0) + 1
-            except Exception:
-                continue
-
-            if len(points) >= 220:
-                break
+                    seen_keys.add(key_dedup)
+                    reg = detect_region(lat, lon)
+                    rdm_props = {
+                        k: props[k]
+                        for k in ("ewoc_code", "irrigation_status", "irrigation", "irr", "management")
+                        if props.get(k) is not None
+                    }
+                    points.append({
+                        "lat": lat,
+                        "lon": lon,
+                        "year": year,
+                        "label": crop,
+                        "region": reg,
+                        "source": f"ESA_RDM:{col_id}",
+                        "rdm_props": rdm_props,
+                    })
+                    crop_counts[crop] = crop_counts.get(crop, 0) + 1
+                    col_crop_counts[crop] = col_crop_counts.get(crop, 0) + 1
+                if idx % 15 == 0 or idx == len(target_cols):
+                    print(f"  [RDM] Просмотрено коллекций {idx}/{len(target_cols)} | Собрано точек: {len(points)}", flush=True)
+                if len(points) >= 1650:
+                    break
     except Exception as e:
         print(f"  [RDM] Ошибка: {e}")
 
-    print(f"  [RDM] Собрано новых открытых полей из WorldCereal: {len(points)}")
+    print(f"  [RDM] Собрано новых полей из WorldCereal: {len(points)}")
     return points
 
 
-def fetch_overpass_global_farmland(max_per_region_crop=16, existing_keys=None):
-
-
-    print("\n[1B/4] Быстрый сбор реальных полей по Украине, России, ЕС, Индии и Китаю (Overpass API)...")
-    existing_keys = existing_keys or set()
+def fetch_overpass_global_farmland(max_per_region_crop=14, existing_keys=None):
+    print("\n[1B/4] Сбор реальных полей по Украине, России, ЕС, Канаде, Индии и Китаю (Overpass API)...")
+    seen_keys = set(existing_keys or ())
     points = []
     region_crop_counts = {}
     rng = np.random.default_rng(42)
     session = get_http_session()
 
     active_mirrors = [
+        "https://overpass.openstreetmap.fr/api/interpreter",
         "https://overpass.private.coffee/api/interpreter",
         "https://overpass-api.de/api/interpreter",
     ]
@@ -403,10 +494,11 @@ def fetch_overpass_global_farmland(max_per_region_crop=16, existing_keys=None):
             e = round(lon0 + 0.30, 3)
 
             ql_query = f"""
-            [out:json][timeout:5];
+            [out:json][timeout:6];
             (
               way["landuse"="farmland"]["crop"]({s},{w},{n},{e});
               way["landuse"="vineyard"]({s},{w},{n},{e});
+              way["landuse"="orchard"]["crop"]({s},{w},{n},{e});
             );
             out center 100;
             """
@@ -414,14 +506,15 @@ def fetch_overpass_global_farmland(max_per_region_crop=16, existing_keys=None):
             resp_json = None
             for ep in list(active_mirrors):
                 try:
-                    r = session.post(ep, data={"data": ql_query}, timeout=5)
+                    r = session.post(ep, data={"data": ql_query}, timeout=7)
                     if r.status_code == 200:
                         resp_json = r.json()
                         break
                     elif r.status_code in (406, 429, 504):
                         active_mirrors.remove(ep)
                 except Exception:
-                    active_mirrors.remove(ep)
+                    if ep in active_mirrors:
+                        active_mirrors.remove(ep)
 
             if not resp_json:
                 continue
@@ -441,14 +534,15 @@ def fetch_overpass_global_farmland(max_per_region_crop=16, existing_keys=None):
 
                 raw_crop = raw_crop.split(";")[0].strip()
                 crop = OSM_CROP_MAP.get(raw_crop)
-                if not crop:
+                if not crop or crop not in TARGET_CLASSES:
                     continue
 
                 lat = round(float(center["lat"]), 5)
                 lon = round(float(center["lon"]), 5)
                 year = 2023
 
-                if (round(lat, 4), round(lon, 4), year) in existing_keys:
+                dedup_key = (round(lat, 4), round(lon, 4), year)
+                if dedup_key in seen_keys:
                     continue
 
                 reg = detect_region(lat, lon)
@@ -456,13 +550,21 @@ def fetch_overpass_global_farmland(max_per_region_crop=16, existing_keys=None):
                 if region_crop_counts.get(key, 0) >= max_per_region_crop:
                     continue
 
+                osm_tags = {
+                    k: str(tags[k]).lower().strip()
+                    for k in ("irrigated", "irrigation", "crop:irrigation", "water_source")
+                    if tags.get(k) is not None
+                }
+
+                seen_keys.add(dedup_key)
                 points.append({
                     "lat": lat,
                     "lon": lon,
                     "year": year,
                     "label": crop,
                     "region": reg,
-                    "source": f"OSM_Field:{el.get('id')}"
+                    "source": f"OSM_Field:{el.get('id')}",
+                    "osm_tags": osm_tags,
                 })
                 region_crop_counts[key] = region_crop_counts.get(key, 0) + 1
                 reg_added += 1
@@ -472,27 +574,20 @@ def fetch_overpass_global_farmland(max_per_region_crop=16, existing_keys=None):
     return points
 
 
-def fetch_usda_cropscape_points(max_per_crop=20, year=2023, existing_keys=None, existing_crop_counts=None):
+def fetch_usda_cropscape_points(max_per_crop=125, year=2023, existing_keys=None, existing_crop_counts=None, seed=42):
     print(f"\n[2/4] Опрос USDA CropScape CDL API (США, {year} год)...")
-    existing_keys = existing_keys or set()
+    seen_keys = set(existing_keys or ())
     crop_counts = dict(existing_crop_counts or {})
     transformer = Transformer.from_crs("EPSG:4326", "EPSG:5070", always_xy=True)
     points_by_crop = {}
-    rng = np.random.default_rng(42)
-
-
-    target_zones = US_AGRO_ZONES + [
-        (36.65, -119.65),
-        (31.45, -83.55),
-        (27.95, -81.60),
-    ]
+    rng = np.random.default_rng(seed)
 
     candidates = []
-    for base_lat, base_lon in target_zones:
-        for _ in range(32):
-            lat = round(base_lat + float(rng.uniform(-0.38, 0.38)), 5)
-            lon = round(base_lon + float(rng.uniform(-0.38, 0.38)), 5)
-            if (round(lat, 4), round(lon, 4), year) not in existing_keys:
+    for base_lat, base_lon in US_AGRO_ZONES:
+        for _ in range(65):
+            lat = round(base_lat + float(rng.uniform(-0.45, 0.45)), 5)
+            lon = round(base_lon + float(rng.uniform(-0.45, 0.45)), 5)
+            if (round(lat, 4), round(lon, 4), year) not in seen_keys:
                 candidates.append((lat, lon))
 
     def query_pixel(lat_lon):
@@ -529,10 +624,12 @@ def fetch_usda_cropscape_points(max_per_crop=20, year=2023, existing_keys=None, 
             res = fut.result()
             if res:
                 crop = res["label"]
+                if crop not in TARGET_CLASSES:
+                    continue
                 if crop_counts.get(crop, 0) >= max_per_crop:
                     continue
                 lst = points_by_crop.setdefault(crop, [])
-                if len(lst) + crop_counts.get(crop, 0) < max_per_crop:
+                if len(lst) + crop_counts.get(crop, 0) < max_per_crop and len(lst) < 55:
                     lst.append(res)
 
     us_points = [pt for lst in points_by_crop.values() for pt in lst]
@@ -542,12 +639,21 @@ def fetch_usda_cropscape_points(max_per_crop=20, year=2023, existing_keys=None, 
     return us_points
 
 
-def get_real_nasa_power_8m(lat, lon, year):
+def get_real_nasa_power(lat, lon, year):
     safe_year = max(2018, min(int(year), 2024))
+    hemi = "N" if lat >= 0 else "S"
+    nasa_key = (round(lat, 1), round(lon, 1), safe_year, hemi)
+    with _cache_lock:
+        if nasa_key in _nasa_cache:
+            n8, n12 = _nasa_cache[nasa_key]
+            return dict(n8), dict(n12)
+
     if lat >= 0:
-        start_s, end_s = f"{safe_year}0301", f"{safe_year}1031"
+        start_s, end_s = f"{safe_year}0101", f"{safe_year}1231"
+        season_months = {"03", "04", "05", "06", "07", "08", "09", "10"}
     else:
-        start_s, end_s = f"{safe_year}0901", f"{safe_year + 1}0430"
+        start_s, end_s = f"{safe_year}0501", f"{safe_year + 1}0430"
+        season_months = {"09", "10", "11", "12", "01", "02", "03", "04"}
 
     params = {
         "parameters": ",".join([
@@ -556,8 +662,8 @@ def get_real_nasa_power_8m(lat, lon, year):
             "GWETTOP", "GWETROOT", "TS", "EVPTRNS"
         ]),
         "community": "AG",
-        "longitude": lon,
-        "latitude": lat,
+        "longitude": round(lon, 2),
+        "latitude": round(lat, 2),
         "start": start_s,
         "end": end_s,
         "format": "JSON"
@@ -565,44 +671,60 @@ def get_real_nasa_power_8m(lat, lon, year):
 
     session = get_http_session()
     last_err = None
-    for attempt in range(3):
+    raw = None
+    for attempt in range(5):
         try:
-            r = session.get(
-                "https://power.larc.nasa.gov/api/temporal/daily/point",
-                params=params,
-                timeout=25
-            )
+            with _nasa_sem:
+                r = session.get(
+                    "https://power.larc.nasa.gov/api/temporal/daily/point",
+                    params=params,
+                    timeout=25
+                )
             if r.status_code == 429:
-                time.sleep(1.5 * (attempt + 1))
+                wait_s = float(r.headers.get("Retry-After", 4.0 * (attempt + 1)))
+                last_err = RuntimeError("HTTP 429 Rate Limit")
+                time.sleep(min(wait_s, 30.0))
                 continue
             r.raise_for_status()
             raw = r.json()["properties"]["parameter"]
             break
         except Exception as e:
             last_err = e
-            time.sleep(1.0)
+            time.sleep(1.5 * (attempt + 1))
     else:
         raise ValueError(f"NASA POWER ошибка: {last_err}")
 
-    def valid_arr(key):
-        vals = [float(v) for v in raw.get(key, {}).values() if v is not None and v > -900]
-        if len(vals) < 150:
-            raise ValueError(f"Нет данных NASA по {key}")
-        return np.array(vals, dtype=np.float64)
+    def valid_series(key, months_filter=None):
+        series = raw.get(key, {})
+        items = []
+        for date_str, val in series.items():
+            if val is None or val <= -900:
+                continue
+            if months_filter is not None and date_str[4:6] not in months_filter:
+                continue
+            items.append((date_str, float(val)))
+        return items
 
-    t2m = valid_arr("T2M")
-    t2m_max = valid_arr("T2M_MAX")
-    t2m_min = valid_arr("T2M_MIN")
-    rh2m = valid_arr("RH2M")
-    prec = valid_arr("PRECTOTCORR")
-    solar = valid_arr("ALLSKY_SFC_SW_DWN")
-    ws2m = valid_arr("WS2M")
-    gwettop = valid_arr("GWETTOP")
-    gwetroot = valid_arr("GWETROOT")
-    ts = valid_arr("TS")
-    evptrns = valid_arr("EVPTRNS")
+    # 8-month growing season stats (consistent with JS SoilData.js)
+    def season_arr(key):
+        items = valid_series(key, season_months)
+        if len(items) < 150:
+            raise ValueError(f"Нет сезонных данных NASA по {key}")
+        return np.array([v for _, v in items], dtype=np.float64)
 
-    return {
+    t2m = season_arr("T2M")
+    t2m_max = season_arr("T2M_MAX")
+    t2m_min = season_arr("T2M_MIN")
+    rh2m = season_arr("RH2M")
+    prec = season_arr("PRECTOTCORR")
+    solar = season_arr("ALLSKY_SFC_SW_DWN")
+    ws2m = season_arr("WS2M")
+    gwettop = season_arr("GWETTOP")
+    gwetroot = season_arr("GWETROOT")
+    ts = season_arr("TS")
+    evptrns = season_arr("EVPTRNS")
+
+    nasa_8m = {
         "T2M": round(float(np.mean(t2m)), 2),
         "T2M_MAX": round(float(np.mean(t2m_max)), 2),
         "T2M_MIN": round(float(np.mean(t2m_min)), 2),
@@ -617,13 +739,112 @@ def get_real_nasa_power_8m(lat, lon, year):
         "EVPTRNS": round(float(np.mean(evptrns)), 2),
     }
 
+    # 12-month hydrology stats for infer_irrigation
+    prec_12m_items = valid_series("PRECTOTCORR")
+    gwetroot_12m_items = valid_series("GWETROOT")
+    gwettop_12m_items = valid_series("GWETTOP")
+    evptrns_12m_items = valid_series("EVPTRNS")
+
+    if len(prec_12m_items) < 250 or len(gwetroot_12m_items) < 250 or len(gwettop_12m_items) < 250:
+        raise ValueError("Недостаточно 12-мес данных NASA POWER")
+
+    monthly_precip = {}
+    for date_str, val in prec_12m_items:
+        ym = date_str[:6]
+        monthly_precip[ym] = monthly_precip.get(ym, 0.0) + val
+    ordered_months = [monthly_precip[k] for k in sorted(monthly_precip.keys())]
+
+    if len(ordered_months) >= 12:
+        m12 = ordered_months[:12]
+        max_wet_quarter_mm = max(m12[i] + m12[(i + 1) % 12] + m12[(i + 2) % 12] for i in range(12))
+    elif len(ordered_months) >= 3:
+        max_wet_quarter_mm = max(sum(ordered_months[i:i + 3]) for i in range(len(ordered_months) - 2))
+    else:
+        max_wet_quarter_mm = sum(ordered_months)
+
+    nasa_12m = {
+        "precip_12m": float(sum(v for _, v in prec_12m_items)),
+        "GWETROOT": float(np.mean([v for _, v in gwetroot_12m_items])),
+        "GWETTOP": float(np.mean([v for _, v in gwettop_12m_items])),
+        "EVPTRNS": float(np.mean([v for _, v in evptrns_12m_items])) if evptrns_12m_items else nasa_8m["EVPTRNS"],
+        "max_wet_quarter_mm": float(max_wet_quarter_mm),
+    }
+
+    with _cache_lock:
+        _nasa_cache[nasa_key] = (dict(nasa_8m), dict(nasa_12m))
+
+    return nasa_8m, nasa_12m
+
+
+def infer_irrigation(pt, nasa_12m):
+    # Step A: Check OSM tags on Overpass points
+    osm_tags = pt.get("osm_tags") or {}
+    irrigated_tag = str(osm_tags.get("irrigated", "")).lower().strip()
+    if irrigated_tag in ("yes", "true", "1"):
+        return 1.0
+    if irrigated_tag in ("no", "false", "0"):
+        return 0.0
+
+    for k in ("irrigation", "crop:irrigation"):
+        val = str(osm_tags.get(k, "")).lower().strip()
+        if val:
+            if val in ("no", "none", "rainfed", "false", "0"):
+                return 0.0
+            return 1.0
+
+    water_src = str(osm_tags.get("water_source", "")).lower().strip()
+    if water_src in ("canal", "well", "borehole", "river", "pond", "reservoir", "lake", "irrigation", "groundwater", "spring"):
+        return 1.0
+
+    # Step B: Check ESA WorldCereal RDM properties
+    rdm_props = pt.get("rdm_props") or {}
+    for k in ("irrigation", "irr", "management"):
+        raw_val = rdm_props.get(k)
+        if raw_val is not None:
+            s_val = str(raw_val).lower().strip()
+            if s_val in ("irrigated", "yes", "true", "1", "surface", "sprinkler", "drip", "flood", "furrow", "pivot"):
+                return 1.0
+            if s_val in ("rainfed", "no", "false", "0"):
+                return 0.0
+
+    irr_status = rdm_props.get("irrigation_status")
+    if irr_status is not None:
+        try:
+            code = int(float(irr_status))
+            if code >= 200 or code == 1:
+                return 1.0
+            if code == 100:
+                return 0.0
+        except Exception:
+            pass
+
+    # Step C: 12-month NASA POWER moisture & monsoon heuristics
+    precip_12m = float(nasa_12m.get("precip_12m", 0.0))
+    gwetroot = float(nasa_12m.get("GWETROOT", 0.0))
+    gwettop = float(nasa_12m.get("GWETTOP", 0.0))
+    max_wet_quarter_mm = float(nasa_12m.get("max_wet_quarter_mm", 0.0))
+    label = str(pt.get("label", "")).lower()
+
+    if precip_12m < 500.0 and (gwetroot >= 0.48 or gwettop >= 0.45):
+        return 1.0
+    if precip_12m < 550.0 and label in WATER_LOVING_CROPS:
+        return 1.0
+    if label == "rice" and (precip_12m < 1000.0 or max_wet_quarter_mm < 550.0):
+        return 1.0
+    return 0.0
+
 
 def get_real_srtm(lat, lon):
+    cache_key = (round(lat, 4), round(lon, 4))
+    with _cache_lock:
+        if cache_key in _srtm_cache:
+            return dict(_srtm_cache[cache_key])
+
     d_lat = 0.0009
     d_lon = 0.0009 / max(math.cos(math.radians(lat)), 0.1)
     session = get_http_session()
 
-    for attempt in range(3):
+    for attempt in range(4):
         try:
             r = session.get(
                 "https://api.open-meteo.com/v1/elevation",
@@ -634,7 +855,7 @@ def get_real_srtm(lat, lon):
                 timeout=12
             )
             if r.status_code == 429:
-                time.sleep(1.5 * (attempt + 1))
+                time.sleep(2.0 * (attempt + 1))
                 continue
             r.raise_for_status()
             elevs = r.json().get("elevation")
@@ -643,24 +864,30 @@ def get_real_srtm(lat, lon):
 
             z0, zn, ze = float(elevs[0]), float(elevs[1]), float(elevs[2])
             slope_pct = math.sqrt(((ze - z0) / 100.0) ** 2 + ((zn - z0) / 100.0) ** 2) * 100.0
-            return {
+            res = {
                 "ELEVATION": round(z0, 1),
                 "SLOPE": round(slope_pct, 2)
             }
+            with _cache_lock:
+                _srtm_cache[cache_key] = dict(res)
+            return res
         except Exception:
-            if attempt == 2:
+            if attempt == 3:
                 raise
-            time.sleep(1.0)
+            time.sleep(1.2 * (attempt + 1))
 
 
 def get_real_soilgrids(lat, lon):
-
+    cache_key = (round(lat, 4), round(lon, 4))
+    with _cache_lock:
+        if cache_key in _soil_cache:
+            return dict(_soil_cache[cache_key])
 
     session = get_http_session()
     vals = {}
     delta = 0.012
 
-    for prop in ("phh2o", "nitrogen", "soc", "clay"):
+    for prop in ("phh2o", "nitrogen", "soc", "clay", "sand", "silt"):
         url = (
             f"https://maps.isric.org/mapserv?map=/map/{prop}.map"
             f"&SERVICE=WCS&VERSION=2.0.1&REQUEST=GetCoverage"
@@ -682,17 +909,28 @@ def get_real_soilgrids(lat, lon):
             except Exception:
                 time.sleep(0.5 * (attempt + 1))
 
-    if all(k in vals for k in ("phh2o", "nitrogen", "soc", "clay")):
-        return {
-            "N": round(vals["nitrogen"] * 0.35, 1),
-            "P": round(vals["soc"] * 0.18, 1),
-            "K": round(vals["clay"] * 0.22, 1),
-            "ph": round(vals["phh2o"] / 10.0, 2)
+    if all(k in vals for k in ("phh2o", "nitrogen", "soc", "clay", "sand")):
+        clay_pct = round(vals["clay"] / 10.0, 1)
+        sand_pct = round(vals["sand"] / 10.0, 1)
+        if "silt" in vals:
+            silt_pct = round(vals["silt"] / 10.0, 1)
+        else:
+            silt_pct = round(max(0.0, 100.0 - clay_pct - sand_pct), 1)
+        res = {
+            "ph": round(min(9.0, max(4.0, vals["phh2o"] / 10.0)), 2),
+            "soc": round(vals["soc"] / 10.0, 2),
+            "nitrogen": round(vals["nitrogen"] / 100.0, 2),
+            "clay": clay_pct,
+            "sand": sand_pct,
+            "silt": silt_pct,
         }
+        with _cache_lock:
+            _soil_cache[cache_key] = dict(res)
+        return res
 
-
+    # USDA SDA fallback in exact same raw SoilGrids units
     if -125.0 <= lon <= -66.0 and 24.0 <= lat <= 50.0:
-        q = f"""SELECT TOP 1 ch.ph1to1h2o_r, ch.om_r, ch.claytotal_r
+        q = f"""SELECT TOP 1 ch.ph1to1h2o_r, ch.om_r, ch.claytotal_r, ch.sandtotal_r, ch.silttotal_r
         FROM mapunit mu
         INNER JOIN component c ON c.mukey = mu.mukey AND c.majcompflag = 'Yes'
         INNER JOIN chorizon ch ON ch.cokey = c.cokey AND ch.hzdept_r = 0
@@ -705,25 +943,35 @@ def get_real_soilgrids(lat, lon):
         )
         if r_sda.status_code == 200:
             tbl = r_sda.json().get("Table")
-            if tbl and len(tbl[0]) >= 3 and all(tbl[0][i] is not None for i in range(3)):
-                ph_v = float(tbl[0][0])
+            if tbl and len(tbl[0]) >= 4 and all(tbl[0][i] is not None for i in range(4)):
+                ph_v = round(min(9.0, max(4.0, float(tbl[0][0]))), 2)
                 om_v = float(tbl[0][1])
-                clay_v = float(tbl[0][2])
-                return {
-                    "N": round(om_v * 28.0, 1),
-                    "P": round(om_v * 14.5, 1),
-                    "K": round(clay_v * 2.2, 1),
-                    "ph": round(ph_v, 2)
+                soc_v = round(om_v * 5.8, 2)
+                n_v = round(soc_v * 0.086, 2)
+                clay_pct = round(float(tbl[0][2]), 1)
+                sand_pct = round(float(tbl[0][3]), 1)
+                silt_pct = round(float(tbl[0][4]), 1) if len(tbl[0]) >= 5 and tbl[0][4] is not None else round(max(0.0, 100.0 - clay_pct - sand_pct), 1)
+                res = {
+                    "ph": ph_v,
+                    "soc": soc_v,
+                    "nitrogen": n_v,
+                    "clay": clay_pct,
+                    "sand": sand_pct,
+                    "silt": silt_pct,
                 }
+                with _cache_lock:
+                    _soil_cache[cache_key] = dict(res)
+                return res
 
     raise ValueError("Нет данных о почве (город/вода)")
 
 
 def enrich_point(pt):
     try:
-        nasa = get_real_nasa_power_8m(pt["lat"], pt["lon"], pt["year"])
+        nasa_8m, nasa_12m = get_real_nasa_power(pt["lat"], pt["lon"], pt["year"])
         srtm = get_real_srtm(pt["lat"], pt["lon"])
         soil = get_real_soilgrids(pt["lat"], pt["lon"])
+        irrigation = infer_irrigation(pt, nasa_12m)
         return {
             "lat": pt["lat"],
             "lon": pt["lon"],
@@ -731,11 +979,12 @@ def enrich_point(pt):
             "region": pt["region"],
             "source": pt["source"],
             **soil,
-            **nasa,
+            **nasa_8m,
             **srtm,
+            "IRRIGATION": irrigation,
             "label": pt["label"]
         }
-    except Exception as e:
+    except Exception:
         return None
 
 
@@ -743,67 +992,104 @@ def main():
     dataset_file = BASE_DIR / "hybrid_global_real_dataset_8m.csv"
     cache_file = BASE_DIR / "candidates_cache_8m.json"
 
+    required_cols = set(FEATURE_NAMES) | {"lat", "lon", "year", "region", "source", "label"}
     existing_df = pd.read_csv(dataset_file) if dataset_file.exists() else pd.DataFrame()
+    schema_valid = (not existing_df.empty) and required_cols.issubset(set(existing_df.columns)) and ("N" not in existing_df.columns)
+
+    if not schema_valid and not existing_df.empty:
+        print(f"Обнаружена старая схема {dataset_file.name} (N/P/K). Пересобираем датасет под 21 сырой признак...")
+        existing_df = pd.DataFrame()
+
+    if not existing_df.empty:
+        existing_df = existing_df[existing_df["label"].isin(TARGET_CLASSES)].reset_index(drop=True)
+
     done_keys = set()
     if not existing_df.empty:
         for _, r in existing_df.iterrows():
             done_keys.add((round(float(r["lat"]), 4), round(float(r["lon"]), 4), int(r["year"])))
-        print(f"Загружен чекпоинт {dataset_file.name}: в базе уже {len(existing_df)} полей.")
+        print(f"Загружен чекпоинт {dataset_file.name}: в базе уже {len(existing_df)} полей (новая схема).")
 
     all_candidates = []
     if cache_file.exists():
-        with open(cache_file, "r", encoding="utf-8") as f:
-            cached = json.load(f)
-        unfinished = [
-            p for p in cached
-            if (round(p["lat"], 4), round(p["lon"], 4), int(p["year"])) not in done_keys
-        ]
-        if unfinished:
-            print(f"Продолжаем прерванную партию из {cache_file.name}: осталось {len(unfinished)} точек...")
-            all_candidates = unfinished
+        try:
+            with open(cache_file, "r", encoding="utf-8") as f:
+                cached_obj = json.load(f)
+            if isinstance(cached_obj, dict) and cached_obj.get("schema_version") == 2:
+                cached = cached_obj.get("candidates", [])
+                unfinished = [
+                    p for p in cached
+                    if p.get("label") in TARGET_CLASSES
+                    and (round(p["lat"], 4), round(p["lon"], 4), int(p["year"])) not in done_keys
+                ]
+                if unfinished:
+                    print(f"Продолжаем партию из {cache_file.name}: осталось {len(unfinished)} точек...")
+                    all_candidates = unfinished
+        except Exception:
+            pass
 
-    if not all_candidates and (existing_df.empty or len(existing_df) < 500 or existing_df["label"].nunique() < 16):
+    if len(existing_df) < 1650 and len(existing_df) + len(all_candidates) < 1900:
         existing_crop_counts = existing_df["label"].value_counts().to_dict() if not existing_df.empty else {}
-        existing_region_counts = existing_df["region"].value_counts().to_dict() if not existing_df.empty else {}
-        rdm_pts = fetch_worldcereal_rdm_points(
-            max_per_crop=22,
-            existing_keys=done_keys,
-            existing_crop_counts=existing_crop_counts,
-            existing_region_counts=existing_region_counts
-        )
-
-        for p in rdm_pts:
+        cand_keys = set(done_keys)
+        for p in all_candidates:
+            cand_keys.add((round(p["lat"], 4), round(p["lon"], 4), int(p["year"])))
             existing_crop_counts[p["label"]] = existing_crop_counts.get(p["label"], 0) + 1
-        osm_pts = fetch_overpass_global_farmland(max_per_region_crop=16, existing_keys=done_keys)
-        us_pts = fetch_usda_cropscape_points(
-            max_per_crop=20,
-            year=2023,
-            existing_keys=done_keys,
-            existing_crop_counts=existing_crop_counts
-        )
-        all_candidates = rdm_pts + osm_pts + us_pts
 
+        rdm_pts = fetch_worldcereal_rdm_points(
+            max_per_crop=120,
+            max_per_col_crop=22,
+            existing_keys=cand_keys,
+            existing_crop_counts=existing_crop_counts,
+        )
+        for p in rdm_pts:
+            cand_keys.add((round(p["lat"], 4), round(p["lon"], 4), int(p["year"])))
+            existing_crop_counts[p["label"]] = existing_crop_counts.get(p["label"], 0) + 1
+
+        osm_pts = fetch_overpass_global_farmland(max_per_region_crop=14, existing_keys=cand_keys)
+        for p in osm_pts:
+            cand_keys.add((round(p["lat"], 4), round(p["lon"], 4), int(p["year"])))
+            existing_crop_counts[p["label"]] = existing_crop_counts.get(p["label"], 0) + 1
+
+        us_pts = fetch_usda_cropscape_points(
+            max_per_crop=135,
+            year=2023,
+            existing_keys=cand_keys,
+            existing_crop_counts=existing_crop_counts,
+            seed=101,
+        )
+        for p in us_pts:
+            cand_keys.add((round(p["lat"], 4), round(p["lon"], 4), int(p["year"])))
+            existing_crop_counts[p["label"]] = existing_crop_counts.get(p["label"], 0) + 1
+
+        us_pts_22 = fetch_usda_cropscape_points(
+            max_per_crop=135,
+            year=2022,
+            existing_keys=cand_keys,
+            existing_crop_counts=existing_crop_counts,
+            seed=202,
+        )
+
+        all_candidates.extend(rdm_pts + osm_pts + us_pts + us_pts_22)
         if all_candidates:
             with open(cache_file, "w", encoding="utf-8") as f:
-                json.dump(all_candidates, f, indent=2)
+                json.dump({"schema_version": 2, "candidates": all_candidates}, f, indent=2)
 
     pending_pts = [
         p for p in all_candidates
         if (round(p["lat"], 4), round(p["lon"], 4), int(p["year"])) not in done_keys
     ]
 
-    print(f"\n[3/4] Новых точек для опроса NASA (8 мес.) + SRTM + SoilGrids: {len(pending_pts)}")
+    print(f"\n[3/4] Новых точек для опроса NASA (8m + 12m) + SRTM + SoilGrids: {len(pending_pts)}")
 
     valid_rows = existing_df.to_dict(orient="records") if not existing_df.empty else []
 
     if pending_pts:
-        with ThreadPoolExecutor(max_workers=6) as pool:
+        with ThreadPoolExecutor(max_workers=10) as pool:
             futures = [pool.submit(enrich_point, pt) for pt in pending_pts]
             for idx, fut in enumerate(as_completed(futures), 1):
                 row = fut.result()
                 if row is not None:
                     valid_rows.append(row)
-                if idx % 15 == 0 or idx == len(pending_pts):
+                if idx % 25 == 0 or idx == len(pending_pts):
                     print(f"  Обработано: {idx}/{len(pending_pts)} | Всего валидных записей: {len(valid_rows)}", flush=True)
                     if valid_rows:
                         pd.DataFrame(valid_rows).to_csv(dataset_file, index=False)
@@ -812,6 +1098,7 @@ def main():
     if df.empty:
         raise RuntimeError("Не удалось собрать валидные строки. Проверь сетевое соединение.")
 
+    df = df[df["label"].isin(TARGET_CLASSES)].copy()
     df = df.drop_duplicates(subset=["lat", "lon", "year"]).reset_index(drop=True)
     counts = df["label"].value_counts()
     valid_crops = counts[counts >= 5].index.tolist()
@@ -819,19 +1106,23 @@ def main():
     df.to_csv(dataset_file, index=False)
 
     print("\n=======================================================")
-    print("Статистика датасета (8-месячный сезон) по регионам:")
+    print(f"Итого валидных строк: {len(df)}")
+    print("Статистика датасета по регионам:")
     print(df["region"].value_counts().to_string())
     print("\nРаспределение по культурам:")
     print(df["label"].value_counts().to_string())
+    print("\nРаспределение IRRIGATION:")
+    print(df["IRRIGATION"].value_counts().to_string())
     print("=======================================================\n")
 
-    if len(valid_crops) < 2:
-        raise RuntimeError("Слишком мало классов (<2) для обучения. Запусти скрипт еще раз для добора данных.")
+    if len(df) < 1500:
+        raise RuntimeError(f"Собрано только {len(df)} строк (< 1500). Требуется >= 1500.")
 
+    if len(valid_crops) < 2:
+        raise RuntimeError("Слишком мало классов (<2) для обучения.")
 
     X = df[FEATURE_NAMES].astype(np.float32)
     y = df["label"].astype(str)
-
     classes = sorted(y.unique().tolist())
 
     X_train, X_test, y_train, y_test = train_test_split(
@@ -840,10 +1131,10 @@ def main():
 
     rf_model = RandomForestClassifier(
         n_estimators=300,
-        max_depth=18,
+        max_depth=16,
         min_samples_split=2,
         min_samples_leaf=1,
-        class_weight=None,
+        class_weight="balanced_subsample",
         random_state=42,
         n_jobs=-1
     )
@@ -853,7 +1144,7 @@ def main():
     y_proba = rf_model.predict_proba(X_test)
     top1_acc = accuracy_score(y_test, y_pred) * 100
     top3_acc = top_k_accuracy_score(y_test, y_proba, k=3, labels=rf_model.classes_) * 100
-    print(f"[4/4] Точность модели (Top-1): {top1_acc:.2f}% | Точность попадания в Top-3 рекомендации: {top3_acc:.2f}%\n")
+    print(f"[4/4] Точность модели (Top-1): {top1_acc:.2f}% | Точность попадания в Top-3: {top3_acc:.2f}%\n")
     print(classification_report(y_test, y_pred, zero_division=0))
 
     initial_type = [("float_input", FloatTensorType([None, len(FEATURE_NAMES)]))]
@@ -863,9 +1154,7 @@ def main():
         options={id(rf_model): {"zipmap": False}},
         target_opset=15
     )
-
     onnx_bytes = onnx_model.SerializeToString()
-
 
     for p in [BASE_DIR / "crop_classifier.onnx", PROJECT_ROOT / "public" / "models" / "crop_classifier.onnx"]:
         p.parent.mkdir(parents=True, exist_ok=True)
@@ -879,6 +1168,23 @@ def main():
         p.parent.mkdir(parents=True, exist_ok=True)
         p.write_text(json.dumps(FEATURE_NAMES, indent=2), encoding="utf-8")
 
+    bounds = {
+        "features": {
+            col: {
+                "min": round(float(np.min(X[col])), 4),
+                "max": round(float(np.max(X[col])), 4),
+                "p05": round(float(np.percentile(X[col], 5)), 4),
+                "p95": round(float(np.percentile(X[col], 95)), 4),
+                "mean": round(float(np.mean(X[col])), 4),
+            }
+            for col in FEATURE_NAMES
+        },
+        "rowCount": int(len(df)),
+        "classes": classes,
+    }
+    for p in [BASE_DIR / "feature_bounds.json", PROJECT_ROOT / "src" / "lib" / "crop" / "feature_bounds.json"]:
+        p.parent.mkdir(parents=True, exist_ok=True)
+        p.write_text(json.dumps(bounds, indent=2), encoding="utf-8")
 
     gold = [
         {"x": X.iloc[i].tolist(), "p": rf_model.predict_proba(X.iloc[[i]])[0].tolist()}
@@ -886,10 +1192,21 @@ def main():
     ]
     (BASE_DIR / "golden.json").write_text(json.dumps(gold), encoding="utf-8")
 
+    # Verify ONNX inference parity
+    sess = ort.InferenceSession(str(PROJECT_ROOT / "public" / "models" / "crop_classifier.onnx"))
+    inp_name = sess.get_inputs()[0].name
+    out_names = [o.name for o in sess.get_outputs()]
+    assert "probabilities" in out_names, f"Expected 'probabilities' output, got {out_names}"
+    ort_proba = sess.run(["probabilities"], {inp_name: X_test.values[:10].astype(np.float32)})[0]
+    sk_proba = rf_model.predict_proba(X_test.iloc[:10])
+    max_diff = float(np.max(np.abs(ort_proba - sk_proba)))
+    print(f"ONNX Runtime parity check: outputs={out_names}, max_diff={max_diff:.2e}, size={len(onnx_bytes) / 1024 / 1024:.2f} MB")
+    assert max_diff < 1e-4, f"ONNX parity mismatch: {max_diff}"
+
     print("Готово! Сохранены:")
-    print(f"  - {dataset_file}")
-    print("  - public/models/crop_classifier.onnx и ml/crop_classifier.onnx (18 признаков, 8-месячный сезон)")
-    print("  - src/lib/crop/classes.json и src/lib/crop/features.json")
+    print(f"  - {dataset_file} ({len(df)} строк)")
+    print(f"  - public/models/crop_classifier.onnx и ml/crop_classifier.onnx ({len(FEATURE_NAMES)} признаков, {len(classes)} культур)")
+    print("  - src/lib/crop/classes.json, src/lib/crop/features.json, src/lib/crop/feature_bounds.json")
 
 
 if __name__ == "__main__":

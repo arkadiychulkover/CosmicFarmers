@@ -1,9 +1,18 @@
 import { getWeather, parseWeatherResponse } from '../lib/weather/SoilData.js';
 
-export const WEATHER_CACHE_KEY = 'nasa-preset-cache-v7';
-const SOILGRIDS_CACHE_KEY = 'soilgrids-coord-cache-v3';
+export const WEATHER_CACHE_KEY = 'nasa-preset-cache-v8';
+const SOILGRIDS_CACHE_KEY = 'soilgrids-coord-cache-v4';
 const SOILGRIDS_TIMEOUT_MS = 5000;
 const inflightRequests = new Map();
+
+const DEFAULT_D_FACTORS = {
+  phh2o: 10,
+  soc: 10,
+  nitrogen: 100,
+  clay: 10,
+  sand: 10,
+  silt: 10,
+};
 
 function clamp(value, min, max) {
   return Math.min(max, Math.max(min, value));
@@ -12,7 +21,7 @@ function clamp(value, min, max) {
 function meanSoilGridsLayer(layers, name) {
   const layer = layers?.find((l) => l.name === name);
   if (!layer) return null;
-  const dFactor = Number(layer.unit_measure?.d_factor) || 1;
+  const dFactor = Number(layer.unit_measure?.d_factor) || DEFAULT_D_FACTORS[name] || 1;
   const vals = (layer.depths || [])
     .map((d) => d?.values?.mean)
     .filter((v) => v !== null && v !== undefined && Number.isFinite(Number(v)))
@@ -21,41 +30,61 @@ function meanSoilGridsLayer(layers, name) {
   return vals.reduce((a, b) => a + b, 0) / vals.length;
 }
 
-function buildSoilRecord({ phRaw, clayPct, sandPct, siltPct, totalNGkg, socGkg }, sourceLabel = 'ISRIC SoilGrids v2.0') {
-  const ph = phRaw !== null && phRaw !== undefined ? Number(clamp(phRaw, 4.5, 8.5).toFixed(1)) : 6.5;
-  const sand = Number((sandPct ?? 35).toFixed(1));
-  const clay = Number((clayPct ?? 25).toFixed(1));
-  const silt = Number((siltPct ?? Math.max(0, 100 - sand - clay)).toFixed(1));
-  const soc = Number((socGkg ?? 15).toFixed(1));
-  const totalN = Number((totalNGkg ?? 1.8).toFixed(2));
+function classifySoilTexture({ sand, clay, soc, ph }) {
+  if (sand >= 55 && clay < 20) return 'sandy';
+  if (soc >= 22 && ph >= 6.0 && ph <= 7.8 && clay >= 18) return 'chernozem';
+  return 'loam';
+}
 
-  let soil = 'loam';
-  if (sand >= 55 && clay < 20) {
-    soil = 'sandy';
-  } else if (soc >= 22 && ph >= 6.0 && ph <= 7.8 && clay >= 18) {
-    soil = 'chernozem';
-  }
-
-  const phAvail = clamp(1 - Math.abs(ph - 6.6) * 0.15, 0.55, 1.0);
-  const n = Math.round(clamp(totalN * 42 + soc * 0.9, 25, 200));
-  const p = Math.round(clamp((32 + soc * 1.6 + clay * 0.35) * phAvail, 15, 150));
-  const k = Math.round(clamp(22 + clay * 1.1 + silt * 0.45 + soc * 0.35, 20, 110));
+function buildSoilRecord(
+  { phRaw, clayPct, sandPct, siltPct, totalNGkg, socGkg },
+  sourceLabel = 'ISRIC SoilGrids v2.0',
+) {
+  const ph = phRaw !== null && phRaw !== undefined
+    ? Number(clamp(phRaw, 4.0, 9.0).toFixed(1))
+    : 6.5;
+  const sand = Number(clamp(sandPct ?? 35, 0, 100).toFixed(1));
+  const clay = Number(clamp(clayPct ?? 25, 0, 100).toFixed(1));
+  const silt = siltPct !== null && siltPct !== undefined
+    ? Number(clamp(siltPct, 0, 100).toFixed(1))
+    : Number(clamp(100 - clay - sand, 0, 100).toFixed(1));
+  const soc = Number(Math.max(0, socGkg ?? 15).toFixed(1));
+  const nitrogen = Number(Math.max(0, totalNGkg ?? 1.8).toFixed(2));
+  const soil = classifySoilTexture({ sand, clay, soc, ph });
 
   return {
     ph,
+    soc,
+    nitrogen,
+    clay,
+    sand,
+    silt,
     soil,
-    n,
-    p,
-    k,
     soilSource: sourceLabel,
     soilMeta: {
       clayPct: clay,
       sandPct: sand,
       siltPct: silt,
       socGkg: soc,
-      totalNGkg: totalN,
+      totalNGkg: nitrogen,
     },
   };
+}
+
+function isValidRawSoilRecord(record) {
+  return Boolean(
+    record &&
+    record.soilMeta &&
+    Number.isFinite(Number(record.ph)) &&
+    Number.isFinite(Number(record.soc)) &&
+    Number.isFinite(Number(record.nitrogen)) &&
+    Number.isFinite(Number(record.clay)) &&
+    Number.isFinite(Number(record.sand)) &&
+    Number.isFinite(Number(record.silt)) &&
+    record.n === undefined &&
+    record.p === undefined &&
+    record.k === undefined
+  );
 }
 
 function readSoilGridsCoordCache(numLat, numLon) {
@@ -64,7 +93,7 @@ function readSoilGridsCoordCache(numLat, numLon) {
     if (!raw) return null;
     const all = JSON.parse(raw);
     const key = `${numLat.toFixed(3)},${numLon.toFixed(3)}`;
-    if (all?.[key]?.soilMeta) return all[key];
+    if (isValidRawSoilRecord(all?.[key])) return all[key];
   } catch {}
   return null;
 }
@@ -113,7 +142,7 @@ async function querySoilGridsPoint(lat, lon, parentSignal, sourceLabel) {
     const totalNGkg = meanSoilGridsLayer(layers, 'nitrogen');
     const socGkg = meanSoilGridsLayer(layers, 'soc');
 
-    if (phRaw === null && clayPct === null && sandPct === null && totalNGkg === null) {
+    if (phRaw === null && clayPct === null && sandPct === null && totalNGkg === null && socGkg === null) {
       return { status: 'empty', data: null };
     }
 
@@ -135,7 +164,7 @@ export function deriveSoilAndNutrients(parsed, lat, lon) {
   const absLat = Math.abs(numLat);
 
   const t2m = Number(parsed?.t2m ?? parsed?.temperature?.mean) || clamp(28 - absLat * 0.42, 5, 28);
-  const precip = Number(parsed?.prectotcorr) || clamp(((Number(parsed?.precipitation?.total) || 420) / 7), 15, 140);
+  const precip = Number(parsed?.prectotcorr) || clamp(((Number(parsed?.precipitation?.total) || 420) / 8), 15, 140);
   const rh = Number(parsed?.rh2m ?? parsed?.atmosphere?.rh2m) || clamp(52 + (precip - 45) * 0.25, 30, 88);
   const gwetroot = Number(parsed?.gwetroot ?? parsed?.soilMoisture?.rootZone) || 0.55;
   const gwettop = Number(parsed?.gwettop ?? parsed?.soilMoisture?.surface) || 0.52;
@@ -153,15 +182,11 @@ export function deriveSoilAndNutrients(parsed, lat, lon) {
   let basePh = 6.5 - ((precip - 55) / 100) * 1.1 - ((rh - 62) / 100) * 0.7 + ((t2m - 16) / 22) * 0.35;
   if (soil === 'chernozem') basePh = Math.max(basePh, 6.6);
   if (soil === 'sandy') basePh = Math.max(basePh, 7.0);
-  const ph = Number(clamp(basePh, 4.8, 8.2).toFixed(1));
+  const ph = Number(clamp(basePh, 4.0, 9.0).toFixed(1));
 
   const bonus = soil === 'chernozem' ? 1.35 : soil === 'sandy' ? 0.55 : 1.0;
   const moistureFactor = clamp((precip / 60) * 0.6 + (gwetroot / 0.55) * 0.4, 0.55, 1.45);
   const tempOrganicFactor = clamp(1.25 - Math.max(t2m - 14, 0) * 0.025, 0.65, 1.35);
-
-  const n = Math.round(clamp(135 * bonus * moistureFactor * tempOrganicFactor, 25, 200));
-  const p = Math.round(clamp(72 * bonus * moistureFactor * tempOrganicFactor, 15, 150));
-  const k = Math.round(clamp(58 * (soil === 'sandy' ? 0.65 : soil === 'chernozem' ? 1.18 : 1.0) * (0.85 + 0.15 * moistureFactor), 20, 110));
 
   const waterRetentionIndex = clamp(gwetroot * 0.65 + gwettop * 0.35, 0.18, 0.92);
   const aridityRatio = clamp(evptrns / Math.max(precip / 30, 0.6), 0.4, 2.6);
@@ -182,22 +207,24 @@ export function deriveSoilAndNutrients(parsed, lat, lon) {
   const sand = Number(sandPct.toFixed(1));
   const silt = Number(clamp(100 - clay - sand, 10, 62).toFixed(1));
 
-  const socGkg = Number(clamp(18.5 * bonus * moistureFactor * tempOrganicFactor, 6.5, 44.0).toFixed(1));
-  const totalNGkg = Number(clamp(socGkg * 0.086 + 0.2, 0.5, 4.0).toFixed(2));
+  const soc = Number(clamp(18.5 * bonus * moistureFactor * tempOrganicFactor, 6.5, 44.0).toFixed(1));
+  const nitrogen = Number(clamp(soc * 0.086 + 0.2, 0.5, 4.0).toFixed(2));
 
   return {
     ph,
+    soc,
+    nitrogen,
+    clay,
+    sand,
+    silt,
     soil,
-    n,
-    p,
-    k,
     soilSource: 'NASA POWER Agro-Climatic Model',
     soilMeta: {
       clayPct: clay,
       sandPct: sand,
       siltPct: silt,
-      socGkg,
-      totalNGkg,
+      socGkg: soc,
+      totalNGkg: nitrogen,
     },
   };
 }
@@ -237,18 +264,23 @@ function buildPayload(lat, lon, weather, derived, seasonYear) {
   const rawGdd = Number(weather.gdd?.value ?? weather.gdd) || 1800;
   const normalizedGdd = Math.round(rawGdd);
   const t2m = Number(weather.t2m) || 15;
+  const elevation = Number.isFinite(Number(weather.elevation ?? weather.terrain?.elevation))
+    ? Number(weather.elevation ?? weather.terrain?.elevation)
+    : 180.0;
+  const slope = Number.isFinite(Number(weather.slope ?? weather.terrain?.slope))
+    ? Number(weather.slope ?? weather.terrain?.slope)
+    : 1.5;
 
   return {
     lat: Number(Number(lat).toFixed(4)),
     lon: Number(Number(lon).toFixed(4)),
     ph: derived.ph,
+    soc: derived.soc,
+    nitrogen: derived.nitrogen,
+    clay: derived.clay,
+    sand: derived.sand,
+    silt: derived.silt,
     soil: derived.soil,
-    n: derived.n,
-    p: derived.p,
-    k: derived.k,
-    N: derived.n,
-    P: derived.p,
-    K: derived.k,
     soilSource: derived.soilSource ?? 'NASA POWER Agro-Climatic Model',
     soilMeta: derived.soilMeta ?? null,
     T2M: t2m,
@@ -263,13 +295,13 @@ function buildPayload(lat, lon, weather, derived, seasonYear) {
     GWETROOT: Number(weather.gwetroot ?? weather.soilMoisture?.rootZone) || 0.58,
     TS: Number(weather.ts ?? weather.ecostress?.surfaceTemp) || (t2m + 1.0),
     EVPTRNS: Number(weather.evptrns ?? weather.ecostress?.evapotranspiration) || 3.2,
-    ELEVATION: Number.isFinite(Number(weather.elevation ?? weather.terrain?.elevation))
-      ? Number(weather.elevation ?? weather.terrain?.elevation)
-      : 180.0,
-    SLOPE: Number.isFinite(Number(weather.slope ?? weather.terrain?.slope))
-      ? Number(weather.slope ?? weather.terrain?.slope)
-      : 1.5,
+    ELEVATION: elevation,
+    SLOPE: slope,
+    terrainFallback: Boolean(weather.terrainFallback ?? weather.terrain?.terrainFallback),
+    isSouthernHemisphere: Boolean(weather.isSouthernHemisphere ?? Number(lat) < 0),
     seasonYear,
+    daily_t2m: weather.daily_t2m || [],
+    daily_t2m_year: weather.daily_t2m_year ?? seasonYear,
     weather,
   };
 }
@@ -283,6 +315,9 @@ function readPresetCache(presetId, numLat, numLon) {
     if (
       entry &&
       entry.data &&
+      Array.isArray(entry.data.months12) &&
+      entry.data.months12.length === 12 &&
+      isValidRawSoilRecord(entry.soilData) &&
       Math.abs(entry.lat - numLat) < 0.001 &&
       Math.abs(entry.lon - numLon) < 0.001
     ) {
@@ -319,10 +354,7 @@ export async function fetchNasaDataForCoords(lat, lon, options = {}) {
   if (canUsePresetCache) {
     const cached = readPresetCache(presetId, numLat, numLon);
     if (cached) {
-      const derived = cached.soilData?.soilMeta
-        ? cached.soilData
-        : deriveSoilAndNutrients(cached.data, numLat, numLon);
-      return buildPayload(numLat, numLon, cached.data, derived, cached.seasonYear);
+      return buildPayload(numLat, numLon, cached.data, cached.soilData, cached.seasonYear);
     }
   }
 
@@ -352,7 +384,9 @@ export async function fetchNasaDataForCoords(lat, lon, options = {}) {
   const { parsed, seasonYear, soilGrids } = await pending;
   if (signal?.aborted) return null;
 
-  const derived = soilGrids?.soilMeta ? soilGrids : deriveSoilAndNutrients(parsed, numLat, numLon);
+  const derived = isValidRawSoilRecord(soilGrids)
+    ? soilGrids
+    : deriveSoilAndNutrients(parsed, numLat, numLon);
   const payload = buildPayload(numLat, numLon, parsed, derived, seasonYear);
 
   if (canUsePresetCache) {

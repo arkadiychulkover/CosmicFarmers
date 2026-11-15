@@ -1,12 +1,21 @@
-<script>  import MatchBadge from './MatchBadge.svelte';
+<script>
+  import MatchBadge from './MatchBadge.svelte';
   import { cropImage } from '../data/crops.js';
 
-  let { item = {} } = $props();
+  let {
+    item = {},
+    sowWindow = null,
+    harvestWindow = null,
+    coverWindow = null,
+  } = $props();
 
   const id = $derived(item?.id);
   const name = $derived(item?.name || 'Recommended Next Crop');
   const tag = $derived(item?.tag || 'Crop');
   const match = $derived(Number(item?.match ?? 0));
+  const sow = $derived(sowWindow || item?.sowWindow || null);
+  const harvest = $derived(harvestWindow || item?.harvestWindow || null);
+  const cover = $derived(coverWindow || item?.coverWindow || null);
 
   const photo = $derived.by(() => {
     const imgUrl = id ? cropImage(id) : null;
@@ -47,6 +56,35 @@
       <MatchBadge value={match} />
     </div>
 
+    {#if sow || harvest || cover}
+      <div class="schedule">
+        {#if sow}
+          <div class="sched-item">
+            <span>Planting (Sow)</span>
+            <strong>{sow.label || sow}</strong>
+          </div>
+        {/if}
+        {#if harvest}
+          <div class="sched-item">
+            <span>Harvest</span>
+            <strong>{harvest.label || harvest}</strong>
+          </div>
+        {/if}
+        {#if cover?.hasBareWindow || cover?.isAlleyCover}
+          <div class="sched-item cover">
+            <span>
+              {cover.isAlleyCover ? 'Alley Cover Crop' : `Off-Season Cover (${cover.warmCoverMonths ?? 0} warm / ${cover.bareMonths ?? 0} bare mo)`}
+            </span>
+            <strong>
+              {cover.coverCrop}
+              {#if cover.sowWindow?.label} · Sow {cover.sowWindow.label}{/if}
+              {#if cover.terminateWindow?.label} · {cover.terminateWindow.label}{/if}
+            </strong>
+          </div>
+        {/if}
+      </div>
+    {/if}
+
     <h4>Why This Crop Fits Your Field:</h4>
 
     <ul>
@@ -63,7 +101,8 @@
   </div>
 </article>
 
-<style>  .card {
+<style>
+  .card {
     overflow: hidden;
     border-radius: 20px;
     background: var(--color-result-card);
@@ -120,14 +159,54 @@
     padding: 2px 10px;
     border: 1px solid var(--color-result-text);
     border-radius: 999px;
-    font-size: 9px;
+    font-size: 12px;
     font-weight: 700;
     letter-spacing: 0.02em;
     opacity: 0.9;
   }
 
+  .schedule {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px;
+    margin-top: 12px;
+  }
+
+  .sched-item {
+    display: grid;
+    gap: 2px;
+    padding: 6px 9px;
+    border-radius: 6px;
+    border: 1px solid var(--color-border-dim);
+    background: color-mix(in srgb, var(--color-bg) 35%, transparent);
+  }
+
+  .sched-item.cover {
+    grid-column: 1 / -1;
+    border-color: var(--color-status-good-border);
+    background: var(--color-status-good-bg);
+  }
+
+  .sched-item span {
+    font-size: 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: var(--color-result-dim);
+  }
+
+  .sched-item strong {
+    font-size: 9.5px;
+    font-weight: 600;
+    line-height: 1.3;
+    color: var(--color-result-text);
+  }
+
+  .sched-item.cover span {
+    color: var(--color-tone-good);
+  }
+
   h4 {
-    margin: 16px 0 14px;
+    margin: 14px 0 12px;
     text-align: center;
     font-size: 11px;
     font-weight: 700;
@@ -157,11 +236,11 @@
   }
 
   .dot.good {
-    background: var(--color-tone-good, #4ade80);
+    background: var(--color-tone-good);
   }
 
   .dot.warn {
-    background: var(--color-tone-warn, #facc15);
+    background: var(--color-tone-warn);
   }
 
   .reason-content {
@@ -172,14 +251,14 @@
   }
 
   strong {
-    font-size: 10px;
+    font-size: 11px;
     font-weight: 700;
     color: var(--color-result-text);
   }
 
   p {
     margin: 0;
-    font-size: 9px;
+    font-size: 12px;
     font-weight: 700;
     line-height: 1.45;
     color: var(--color-result-dim);

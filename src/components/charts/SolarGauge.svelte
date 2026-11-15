@@ -91,13 +91,13 @@
   }
 
   .optimal-arc {
-    stroke: #b2ff9e;
+    stroke: var(--color-accent);
     stroke-width: 3;
     stroke-linecap: butt;
   }
 
   .marker {
-    fill: #b2ff9e;
+    fill: var(--color-accent);
     stroke: #6d7d99;
     stroke-width: 1.5;
   }
@@ -135,7 +135,7 @@
   }
 
   .optimal p {
-    color: #b2ff9e;
+    color: var(--color-accent);
     font-family: var(--font-display);
     font-size: 16px;
     font-weight: 600;
@@ -171,7 +171,7 @@
   }
 
   .optimal em {
-    color: #f3e474;
+    color: var(--color-tone-warn);
     font-size: 12px;
   }
 
