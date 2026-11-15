@@ -48,7 +48,7 @@ npm run dev
 
 ### Verification & Production Build
 ```bash
-# Run the 45 automated unit, agronomy, geospatial, and UI compliance tests
+# Run the 47 automated unit, agronomy, geospatial, and UI compliance tests
 npm test
 
 # Build production bundle into dist/
@@ -115,7 +115,7 @@ Running CosmicValley's live pipeline (`Goal: Soil Regeneration`, `Rainfed`, `Pre
 | **Open-Meteo Elevation API** *(SRTM / Copernicus DEM)* | `~90 m` DEM | `CC BY 4.0` | Global field elevation and slope calculation with explicit fallback disclosure. |
 | **OpenStreetMap** *(Overpass API, Slippy Tiles, Nominatim)* | Vector & raster tiles | `ODbL` (`© OpenStreetMap contributors`) | Global land-use fallback validation and keyless interactive coordinate picker & search. |
 | **UN FAO Paper 56** & **Saxton & Rawls** | Reference methodology | `Open Reference` | Penman-Monteith `ET0`, crop coefficients (`Kc`), SCS effective precipitation, and SOC-adjusted Available Water Capacity (`AWC`). |
-| **Crop Visuals (`src/crops/*.webp`)** | `1204 × 672` WebP | `Gemini · SI` watermarked (`13/26`) | 13 crops (`alfalfa, apple, barley, chickpea, cotton, crimson-clover, grapes, hairy-vetch, kidneybeans, lentil, maize, soybean, wheat`) generated via Google Gemini SI tools, stamped with a visible Gemini sparkle + `Gemini · SI` watermark (zero NASA branding), and saved as WebP; remaining 13 pending user replacement. |
+| **Crop Visuals (`src/crops/*.webp`)** | `1204 × 672` WebP | `Gemini · SI` + `Grok · SI` (`26/26`) | All 26 crop visuals converted to `1204 × 672` WebP with zero NASA branding: 13 (`alfalfa, apple, barley, chickpea, cotton, crimson-clover, grapes, hairy-vetch, kidneybeans, lentil, maize, soybean, wheat`) generated via Google Gemini SI tools (`✦ Gemini · SI`), and 13 (`millet, oats, oats-field-pea, oilseed-radish, orange, peanut, potato, rapeseed, rice, sorghum, sunflower, watermelon, winter-rye`) generated via xAI Grok SI tools (`Grok · SI` + native `GROK` mark). |
 
 ### Why Multi-Resolution Data Fusion Works
 Synoptic weather and atmospheric water balance vary smoothly across `~50 km` grids (**NASA POWER**), whereas vegetation cover (`250 m` **MODIS NDVI**), topsoil organic carbon and texture (`250 m` **SoilGrids** / `30 m` **SSURGO**), and slope runoff risk (`10–90 m` **Sentinel-2** / **SRTM & Copernicus DEM**) change parcel by parcel. CosmicValley harmonizes these layers at the field coordinate (`Mar–Oct` NH / `Sep–Apr` SH growing seasons) while allowing farmers to override soil lab measurements directly on Screen 1.
@@ -170,7 +170,7 @@ CosmicFarmers/
 │   ├── screens/                # FarmSoilScreen, TelemetryScreen, CalculatingScreen, ResultsScreen
 │   ├── stores/                 # Reactive Svelte 5 session state
 │   └── utils/                  # NASA API helper & multi-page PDF generator (downloadPlan.js)
-├── tests/                      # 45 Vitest unit, integration & UI compliance tests
+├── tests/                      # 47 Vitest unit, integration & UI compliance tests
 └── package.json
 ```
 
