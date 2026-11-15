@@ -2,6 +2,7 @@
   import { cropImage } from '../data/crops.js';
 
   let { item = {} } = $props();
+  let expanded = $state(false);
 
   const id = $derived(item?.id);
   const name = $derived(item?.name || 'Crop recommendation');
@@ -23,7 +24,12 @@
     <MatchBadge value={match} size="small" />
   </div>
   {#if summary}
-    <p>{summary}</p>
+    <p class:expanded>{summary}</p>
+    {#if summary.length > 110}
+      <button type="button" class="more" aria-expanded={expanded} onclick={() => (expanded = !expanded)}>
+        {expanded ? 'Show less' : 'Show more'}
+      </button>
+    {/if}
   {/if}
 </article>
 
@@ -64,12 +70,30 @@
 
   p {
     margin: 0;
-    font-size: 9.5px;
+    font-size: 12px;
     line-height: 1.45;
     color: var(--color-result-dim);
     display: -webkit-box;
     -webkit-line-clamp: 3;
     -webkit-box-orient: vertical;
     overflow: hidden;
+  }
+
+  p.expanded {
+    display: block;
+    -webkit-line-clamp: unset;
+    overflow: visible;
+  }
+
+  .more {
+    align-self: flex-start;
+    padding: 0;
+    border: none;
+    background: none;
+    color: var(--color-result-text);
+    font-size: 12px;
+    font-weight: 700;
+    text-decoration: underline;
+    cursor: pointer;
   }
 </style>

@@ -116,7 +116,7 @@
 
   p {
     margin: 0;
-    font-size: 9px;
+    font-size: 12px;
     font-weight: 700;
     line-height: 1;
     color: var(--color-text-dim);

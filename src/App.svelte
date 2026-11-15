@@ -9,7 +9,7 @@
   import Header from './components/Header.svelte';
   import SideTabs from './components/SideTabs.svelte';
   import EmptyRoute from './components/EmptyRoute.svelte';
-  import Globus from './components/Globus.svelte';
+  import Globus from './components/globus.svelte';
   import GlobeControls from './components/GlobeControls.svelte';
   import FarmSoilScreen from './screens/FarmSoilScreen.svelte';
   import TelemetryScreen from './screens/TelemetryScreen.svelte';
@@ -63,6 +63,7 @@
   let previousTab = $state('telemetry');
   let globeDisplayStyle = $state('default');
   let globeZoom = $state(100);
+  let globeGibsDate = $state('');
   let isGlobeFullscreen = $state(false);
   let globeRef = $state(null);
   let stageEl = $state(null);
@@ -216,6 +217,7 @@
           latitude={$session.form.lat}
           longitude={$session.form.lon}
           displayStyle={globeDisplayStyle}
+          gibsDate={globeGibsDate}
           bind:zoom={globeZoom}
         />
       </div>
@@ -224,6 +226,7 @@
         <div class="globe-controls-wrapper">
           <GlobeControls
             bind:displayStyle={globeDisplayStyle}
+            bind:gibsDate={globeGibsDate}
             bind:zoom={globeZoom}
             isFullscreen={isGlobeFullscreen}
             onreset={resetGlobePosition}
@@ -307,7 +310,7 @@
   .content {
     flex: 1;
     min-width: 0;
-    padding: 32px 36px;
+    padding: 32px clamp(16px, 4vw, 36px);
     opacity: 1;
     transition: opacity 0.2s ease;
     overflow-y: auto;
@@ -389,10 +392,10 @@
   .results-overlay {
     position: absolute;
     top: 20px;
-    left: calc(var(--results-offset, 118px) - var(--panel-collapsed-width, 36px));
+    left: clamp(60px, calc(var(--results-offset, 118px) - var(--panel-collapsed-width, 36px)), 12vw);
     z-index: 10;
     width: var(--results-width, 387px);
-    max-width: calc(100vw - 120px);
+    max-width: calc(100vw - clamp(60px, 12vw, 120px) - 24px);
     max-height: calc(100vh - var(--header-height) - 32px);
     overflow-y: auto;
     overscroll-behavior: contain;
@@ -446,7 +449,7 @@
     bottom: 10px;
     left: 0;
     text-align: center;
-    font-size: 9px;
+    font-size: 12px;
     font-weight: 700;
     line-height: 1;
     color: var(--color-text-dim);
@@ -454,7 +457,7 @@
     z-index: 1;
   }
 
-  @media (max-width: 860px) {
+  @media (max-width: 720px) {
     .panel {
       display: none !important;
     }
@@ -560,7 +563,7 @@
       margin-top: 4px;
       margin-bottom: 24px;
       text-align: center;
-      font-size: 10px;
+      font-size: 11px;
     }
   }
 </style>
