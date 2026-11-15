@@ -4,8 +4,10 @@
   import * as topojson from 'topojson-client';
   import worldData from 'world-atlas/countries-110m.json';
   import riversData from '../assets/world-rivers.json';
+  import { gibsMaxDate } from '../data/gibsLegends.js';
+  import { resolveNearestGibsDate } from '../lib/weather/gibsDateResolver.js';
 
-  export type GlobeDisplayStyle = 'default' | 'satellite' | 'soil' | 'solar' | 'ndvi' | 'lst';
+  export type GlobeDisplayStyle = 'default' | 'satellite' | 'soil' | 'solar' | 'ndvi' | 'lst' | 'imerg';
 
   interface GibsOverlayConfig {
     id: string;
@@ -66,6 +68,13 @@
       ext: 'png',
       zoomLevel: 2,
       opacity: 0.82
+    },
+    imerg: {
+      id: 'IMERG_Precipitation_Rate',
+      tileMatrixSet: '2km',
+      ext: 'png',
+      zoomLevel: 2,
+      opacity: 0.85
     }
   };
 
@@ -89,7 +98,12 @@
     'solar-radiation': 'solar',
     radiation: 'solar',
     ndvi: 'ndvi',
-    lst: 'lst'
+    lst: 'lst',
+    imerg: 'imerg',
+    precipitation: 'imerg',
+    'precipitation (imerg)': 'imerg',
+    'gpm imerg': 'imerg',
+    rain: 'imerg'
   };
 
   let gibsTime = 'default';
@@ -275,11 +289,33 @@
     });
   }
 
-  function fetchGibsLayerCanvas(styleKey: Exclude<GlobeDisplayStyle, 'default'>): Promise<HTMLCanvasElement | null> {
+  async function fetchGibsLayerCanvas(
+    styleKey: Exclude<GlobeDisplayStyle, 'default'>,
+    requestedTime: string = gibsTime
+  ): Promise<HTMLCanvasElement | null> {
     const config = GIBS_OVERLAYS[styleKey];
-    if (!config) return Promise.resolve(null);
+    if (!config) return null;
 
-    const time = config.isBaseImagery ? 'default' : gibsTime;
+    let time = config.isBaseImagery ? 'default' : requestedTime;
+    if (!config.isBaseImagery && time !== 'default') {
+      try {
+        const resolved = await resolveNearestGibsDate({
+          layerId: config.id,
+          projection: 'epsg4326',
+          tileMatrixSet: config.tileMatrixSet,
+          ext: config.ext,
+          zoomLevel: config.zoomLevel,
+          requestedDate: time,
+          maxDate: gibsMaxDate()
+        });
+        if (resolved?.resolvedDate) {
+          time = resolved.resolvedDate;
+        }
+      } catch {
+        // Fall back to requested time if date probing fails
+      }
+    }
+
     const cacheKey = `${config.id}:${config.tileMatrixSet}:${config.zoomLevel}:${time}`;
     const existing = gibsLayerCache.get(cacheKey);
     if (existing) return existing;
@@ -641,7 +677,7 @@
 
     if (style === 'default') return;
 
-    const overlayCanvas = await fetchGibsLayerCanvas(style);
+    const overlayCanvas = await fetchGibsLayerCanvas(style, gibsTime);
     if (!threeReady || seq !== renderSeq || !overlayCanvas) return;
 
     let bakedTex = styleTextureCache.get(cacheKey);
@@ -658,11 +694,12 @@
     const showRivers = riversVisible;
     const gradFrom = strokeGradientFrom;
     const gradTo = strokeGradientTo;
+    const requestedTime = gibsTime;
 
     const layerEntries = await Promise.all(
       PRELOAD_STYLES.map(async (style) => ({
         style,
-        overlayCanvas: await fetchGibsLayerCanvas(style)
+        overlayCanvas: await fetchGibsLayerCanvas(style, requestedTime)
       }))
     );
 

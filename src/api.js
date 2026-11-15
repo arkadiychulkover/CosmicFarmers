@@ -26,8 +26,13 @@ export async function getTelemetry(lat, lon, options = {}) {
       stormDays: w.stress?.stormDays ?? w.stormDays ?? 0,
       daily_t2m: w.daily_t2m || payload.daily_t2m || [],
       daily_t2m_12: w.daily_t2m_12 || [],
+      daily_t2m_max_12: w.daily_t2m_max_12 || payload.daily_t2m_max_12 || [],
+      seasonDailyT2mMax: w.seasonDailyT2mMax || payload.seasonDailyT2mMax || [],
+      daily_precip_12: w.daily_precip_12 || payload.daily_precip_12 || [],
+      seasonDailyPrecip: w.seasonDailyPrecip || payload.seasonDailyPrecip || [],
       daily_dates: w.daily_dates || [],
       daily_t2m_year: w.daily_t2m_year ?? payload.daily_t2m_year ?? payload.seasonYear,
+      riskCalendarMonths: w.riskCalendarMonths || payload.riskCalendarMonths || [],
       terrainFallback: Boolean(payload.terrainFallback ?? w.terrain?.terrainFallback),
       soil: {
         ph: payload.ph,
@@ -102,10 +107,5 @@ export async function getTelemetry(lat, lon, options = {}) {
     };
   }
 
-  try {
-    const { getTelemetry: getMockTelemetry } = await import('./mocks/telemetry.js');
-    return await getMockTelemetry(lat, lon);
-  } catch {
-    throw new Error('Telemetry data is unavailable for these coordinates.');
-  }
+  throw new Error('Telemetry data is unavailable for these coordinates.');
 }

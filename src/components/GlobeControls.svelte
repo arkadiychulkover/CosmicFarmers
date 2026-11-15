@@ -1,6 +1,7 @@
 <script>
   import GibsLegend from './GibsLegend.svelte';
   import { gibsLegends, gibsMaxDate } from '../data/gibsLegends.js';
+  import { resolveNearestGibsDate } from '../lib/weather/gibsDateResolver.js';
 
   const styleOptions = [
     { id: 'default', label: 'Default' },
@@ -9,6 +10,7 @@
     { id: 'solar', label: 'Solar Radiation Intensity' },
     { id: 'ndvi', label: 'Vegetation (NDVI)' },
     { id: 'lst', label: 'Land Surface Temp' },
+    { id: 'imerg', label: 'Precipitation (IMERG)' },
   ];
 
   const MIN_ZOOM = 50;
@@ -27,6 +29,60 @@
   const legendLayer = $derived(displayStyle !== 'default' && gibsLegends[displayStyle] ? displayStyle : null);
   const timed = $derived(Boolean(legendLayer && gibsLegends[legendLayer].timed));
   const maxDate = gibsMaxDate();
+
+  let resolvingDate = $state(false);
+  let resolvedDateNote = $state(null);
+
+  $effect(() => {
+    const layerKey = legendLayer;
+    const isTimed = timed;
+    const requested = gibsDate;
+
+    if (!layerKey || !isTimed || !/^\d{4}-\d{2}-\d{2}$/.test(requested)) {
+      resolvingDate = false;
+      resolvedDateNote = null;
+      return;
+    }
+
+    const legend = gibsLegends[layerKey];
+    const layerId = legend?.layerId || legend?.epsg4326?.id;
+    if (!layerId) {
+      resolvingDate = false;
+      resolvedDateNote = null;
+      return;
+    }
+
+    const controller = new AbortController();
+    resolvingDate = true;
+    resolvedDateNote = null;
+
+    resolveNearestGibsDate({
+      layerId,
+      projection: 'epsg4326',
+      tileMatrixSet: legend.epsg4326?.tileMatrixSet,
+      ext: legend.epsg4326?.ext || 'png',
+      zoomLevel: legend.epsg4326?.zoomLevel ?? 2,
+      requestedDate: requested,
+      maxDate,
+      signal: controller.signal,
+    })
+      .then((res) => {
+        if (controller.signal.aborted) return;
+        resolvingDate = false;
+        resolvedDateNote = res?.shifted && res?.resolvedDate && res.resolvedDate !== requested
+          ? res.resolvedDate
+          : null;
+      })
+      .catch(() => {
+        if (controller.signal.aborted) return;
+        resolvingDate = false;
+        resolvedDateNote = null;
+      });
+
+    return () => {
+      controller.abort();
+    };
+  });
 
   function zoomOut() {
     zoom = Math.max(MIN_ZOOM, Math.round((zoom - ZOOM_STEP) / 5) * 5);
@@ -53,14 +109,25 @@
   </div>
 
   {#if legendLayer}
-    <div class="layer-info">
+    <div class="layer-info" class:has-callout={resolvingDate || Boolean(resolvedDateNote)}>
       <GibsLegend layer={legendLayer} />
       {#if timed}
-        <label class="date-field">
-          <span>Date</span>
-          <input type="date" max={maxDate} bind:value={gibsDate} />
-          <button type="button" class="date-reset" disabled={!gibsDate} onclick={() => (gibsDate = '')}>Latest</button>
-        </label>
+        <div class="date-picker-wrap">
+          <label class="date-field">
+            <span>Date</span>
+            <input type="date" max={maxDate} bind:value={gibsDate} />
+            <button type="button" class="date-reset" disabled={!gibsDate} onclick={() => (gibsDate = '')}>Latest</button>
+          </label>
+          {#if resolvingDate}
+            <div class="date-callout date-callout--loading" role="status" aria-live="polite">
+              Checking GIBS date…
+            </div>
+          {:else if resolvedDateNote}
+            <div class="date-callout" role="status" aria-live="polite">
+              Showing nearest available: <strong>{resolvedDateNote}</strong>
+            </div>
+          {/if}
+        </div>
       {/if}
     </div>
   {/if}
@@ -178,24 +245,37 @@
   .layer-info {
     display: flex;
     flex-wrap: wrap;
-    align-items: center;
+    align-items: stretch;
     justify-content: center;
     gap: 12px;
+  }
+
+  .layer-info.has-callout {
+    margin-bottom: 24px;
+  }
+
+  .date-picker-wrap {
+    position: relative;
+    display: flex;
+    align-items: stretch;
   }
 
   .date-field {
     display: flex;
     align-items: center;
     gap: 8px;
-    padding: 6px 10px;
+    height: 100%;
+    padding: 8px 12px;
+    border: 1px solid color-mix(in srgb, var(--color-border-dim) 45%, transparent);
     border-radius: 8px;
     background: color-mix(in srgb, var(--color-card) 42%, transparent);
     color: var(--color-text);
     font-size: 12px;
+    line-height: 1.2;
   }
 
   .date-field input {
-    padding: 2px 6px;
+    padding: 3px 6px;
     border: 1px solid var(--color-border-dim);
     border-radius: 4px;
     background: var(--color-field);
@@ -204,7 +284,7 @@
   }
 
   .date-reset {
-    padding: 2px 8px;
+    padding: 3px 8px;
     border: 1px solid var(--color-border-dim);
     border-radius: 999px;
     background: transparent;
@@ -216,6 +296,41 @@
   .date-reset:disabled {
     opacity: 0.45;
     cursor: default;
+  }
+
+  .date-callout {
+    position: absolute;
+    top: calc(100% + 8px);
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 20;
+    padding: 5px 10px;
+    border-radius: 7px;
+    border: 1px solid var(--color-status-info-border);
+    background: var(--color-panel);
+    color: var(--color-text);
+    font-size: 11px;
+    line-height: 1.3;
+    white-space: nowrap;
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.35);
+    pointer-events: none;
+  }
+
+  .date-callout::before {
+    content: '';
+    position: absolute;
+    top: -5px;
+    left: 50%;
+    width: 8px;
+    height: 8px;
+    transform: translateX(-50%) rotate(45deg);
+    background: var(--color-panel);
+    border-left: 1px solid var(--color-status-info-border);
+    border-top: 1px solid var(--color-status-info-border);
+  }
+
+  .date-callout--loading {
+    color: var(--color-text-dim);
   }
 
   .bottom-bar {

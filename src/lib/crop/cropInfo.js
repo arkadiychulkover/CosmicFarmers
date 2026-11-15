@@ -1,4 +1,11 @@
 export const CROP_INFO = {
+  alfalfa: {
+    name: 'Alfalfa (Medicago sativa)',
+    tag: 'Perennial Nitrogen-Fixing Forage',
+    soil: 'Deep taproot improves soil structure, builds organic carbon, and fixes atmospheric nitrogen in neutral-to-alkaline well-drained soils',
+    climate: 'thrive across temperate and irrigated semi-arid zones with ample spring-to-autumn warmth',
+    advisory: 'Maintain a 3+ year perennial forage stand before rotating out into high-demand cereals like maize or wheat',
+  },
   apple: {
     name: 'Apple (Malus domestica)',
     tag: 'Cool-Climate Orchard Perennial',
@@ -55,12 +62,33 @@ export const CROP_INFO = {
     climate: 'support full-season hybrids with reliable summer heat units and moisture',
     advisory: 'Rotates well after legumes and avoids continuous-corn rootworm buildup',
   },
+  millet: {
+    name: 'Millet (Pennisetum / Panicum spp.)',
+    tag: 'Heat- & Drought-Resilient Grain',
+    soil: 'Adapts well to light, low-fertility, well-drained sandy loam soils where moisture is limiting',
+    climate: 'perform reliably in hot, dry, and short-season rainfed environments',
+    advisory: 'Low moisture demand fits arid transitions cleanly; rotate with peanut, chickpea, or legumes',
+  },
+  oats: {
+    name: 'Oats (Avena sativa)',
+    tag: 'Cool-Season Soil-Building Cereal',
+    soil: 'Tolerates slightly acidic and moderate-fertility soils while suppressing cereal root diseases',
+    climate: 'favor cool, moist springs and temperate summers without extreme heat at grain fill',
+    advisory: 'Valuable cereal break against wheat/barley take-all; pairs well before legumes, potato, or alfalfa',
+  },
   orange: {
     name: 'Orange (Citrus sinensis)',
     tag: 'Subtropical Citrus Orchard',
     soil: 'Prefers well-drained, slightly acidic soil with steady organic matter',
     climate: 'offer a warm, frost-free climate with reliable moisture or irrigation',
     advisory: 'A multi-year orchard commitment; guard against frost and maintain perennial alley cover',
+  },
+  peanut: {
+    name: 'Peanut / Groundnut (Arachis hypogaea)',
+    tag: 'Warm-Season Nitrogen-Fixing Legume',
+    soil: 'Needs loose, well-drained sandy loam for subterranean pegging and fixes biological nitrogen',
+    climate: 'require a long, warm, frost-free season with steady moisture through flowering and pod fill',
+    advisory: 'Strong nitrogen credit before cereals or cotton; keep a 3-4 year break to limit soil-borne disease',
   },
   potato: {
     name: 'Potato (Solanum tuberosum)',
@@ -82,6 +110,13 @@ export const CROP_INFO = {
     soil: 'Thrives in fine-textured clay or loam soils capable of holding standing or abundant moisture',
     climate: 'rely on abundant monsoon rainfall or full irrigation and a hot, humid season',
     advisory: 'Requires reliable water supply; rotate with dryland pulses where drainage allows',
+  },
+  sorghum: {
+    name: 'Sorghum (Sorghum bicolor)',
+    tag: 'Drought-Tolerant C4 Cereal',
+    soil: 'Tolerates variable pH, moderate salinity, and clay-to-sandy loams via deep fibrous roots',
+    climate: 'excel in warm-to-hot semi-arid regions where maize faces drought or heat stress',
+    advisory: 'Rotate with peanut, soybean, or chickpea; avoid back-to-back sorghum on Striga-prone soils',
   },
   soybean: {
     name: 'Soybean (Glycine max)',
