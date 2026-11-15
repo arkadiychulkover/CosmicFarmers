@@ -34,7 +34,7 @@ describe('landCoverMask.js Classification, Bounds & Timeout Behavior', () => {
     vi.stubGlobal('fetch', vi.fn(async (url) => {
       const s = String(url);
       if (s.includes('di-nlcd.img.arcgis.com')) {
-        return jsonResponse({ value: '82' }); // NLCD Cultivated Crops
+        return jsonResponse({ value: '82' });
       }
       if (s.includes('sdmdataaccess.nrcs.usda.gov')) {
         return jsonResponse({ Table: [['Clarion loam', 'All areas are prime farmland', '6.4', '24', '36', '40', '2.1']] });
@@ -86,7 +86,7 @@ describe('landCoverMask.js Classification, Bounds & Timeout Behavior', () => {
   it('keeps below-sea-level polders (elevation < 0 with Sentinel-2 cropland & valid soil) as arable cropland', async () => {
     vi.stubGlobal('fetch', vi.fn(async (url) => {
       if (String(url).includes('Sentinel2_10m_LandCover')) {
-        return jsonResponse({ value: '5' }); // Crops
+        return jsonResponse({ value: '5' });
       }
       return jsonResponse({});
     }));

@@ -126,7 +126,6 @@ describe('SoilData Hemisphere Seasonality, Cross-Year Frost & Climate Metrics', 
       };
     }));
 
-    // Southern Hemisphere -34.6 and -15.6
     await getWeather(-58.38, -34.6);
     const shDailyUrl = new URL(requestedUrls.find((u) => u.includes('/temporal/daily/')));
     const shStart = shDailyUrl.searchParams.get('start');
@@ -141,7 +140,6 @@ describe('SoilData Hemisphere Seasonality, Cross-Year Frost & Climate Metrics', 
     expect(shTropUrl.searchParams.get('start').slice(4)).toBe('0501');
     expect(shTropUrl.searchParams.get('end').slice(4)).toBe('0430');
 
-    // Northern Hemisphere +42.0
     requestedUrls.length = 0;
     await getWeather(-93.63, 42.0);
     const nhDailyUrl = new URL(requestedUrls.find((u) => u.includes('/temporal/daily/')));
@@ -153,10 +151,6 @@ describe('SoilData Hemisphere Seasonality, Cross-Year Frost & Climate Metrics', 
   });
 
   it('computes accurate SH cross-year frost dates and frost-free days at lat -34.6 (May Y .. Apr Y+1)', () => {
-    // 2024-05-01 .. 2025-04-30:
-    // Early autumn/winter frosts May 20-Aug 31, lastSpringFrost = 2024-09-05,
-    // warm frost-free summer Sep 6 .. Apr 19, firstAutumnFrost = 2025-04-20.
-    // Exact days between 2024-09-05 and 2025-04-20 = 226 days (Sep 6..Apr 19 inclusive).
     const daily = buildDailySeries(2024, 5, 12, ({ y, m, d }) => {
       const isEarlyFrost = y === 2024 && ((m >= 6 && m <= 8) || (m === 5 && d >= 20));
       const isLastSpringFrost = y === 2024 && m === 9 && d === 5;
@@ -167,7 +161,7 @@ describe('SoilData Hemisphere Seasonality, Cross-Year Frost & Climate Metrics', 
         tMax: frost ? 8.0 : 25.0,
         tMin: frost ? -2.0 : 11.0,
         ts: frost ? -0.5 : 19.0,
-        precip: m >= 9 || m <= 4 ? 3.0 : 1.0, // wetter in Sep-Apr growing season
+        precip: m >= 9 || m <= 4 ? 3.0 : 1.0,
       };
     });
 
@@ -187,13 +181,11 @@ describe('SoilData Hemisphere Seasonality, Cross-Year Frost & Climate Metrics', 
     expect(parsed.frostFreeDays).toBeLessThanOrEqual(227);
     expect(parsed.frostFreeDays).toBeLessThanOrEqual(365);
 
-    // Chronological daily_dates order check
     expect(parsed.daily_dates[0]).toBe('2024-05-01');
     expect(parsed.daily_dates[parsed.daily_dates.length - 1]).toBe('2025-04-30');
   });
 
   it('handles SH lat -15.6 (frost-free tropical) and NH lat +42.0 (temperate) frost metrics accurately', () => {
-    // Tropical SH (-15.6): zero frost days all year
     const shTropDaily = buildDailySeries(2024, 5, 12, () => ({
       t2m: 26.0,
       tMax: 31.0,
@@ -215,8 +207,6 @@ describe('SoilData Hemisphere Seasonality, Cross-Year Frost & Climate Metrics', 
     expect(shTrop.firstAutumnFrost).toBeNull();
     expect(shTrop.frostFreeDays).toBeGreaterThanOrEqual(365);
 
-    // Temperate NH (+42.0): last spring frost 2024-04-15, first autumn frost 2024-10-20
-    // Days between Apr 15 and Oct 20 (Apr 16..Oct 19 inclusive) = 15 + 31 + 30 + 31 + 31 + 30 + 19 = 187
     const nhDaily = buildDailySeries(2024, 1, 12, ({ m, d }) => {
       const frost = m <= 3 || (m === 4 && d <= 15) || (m === 10 && d >= 20) || m >= 11;
       return {
@@ -245,7 +235,6 @@ describe('SoilData Hemisphere Seasonality, Cross-Year Frost & Climate Metrics', 
       t2m: 16,
       tMax: 22,
       tMin: 10,
-      // 4 mm/day during Mar-Oct (8-mo growing season), 1 mm/day during Nov-Feb
       precip: m >= 3 && m <= 10 ? 4.0 : 1.0,
     }));
     const parsed = parseWeatherResponse({
@@ -285,7 +274,6 @@ describe('SoilData Hemisphere Seasonality, Cross-Year Frost & Climate Metrics', 
   });
 
   it('computes freezeThawDays, 10-yr rainfall percentiles (p25, median, p75), and NDVI bare-soil calendar fusion', () => {
-    // Include days where TS crosses 0C and diurnal T2M_MIN <= 0 && T2M_MAX > 0
     const daily = buildDailySeries(2024, 1, 12, ({ m, d }) => {
       const freezeThaw = m === 3 && d <= 10;
       const deepFreeze = m === 1 && d <= 15;
@@ -327,7 +315,7 @@ describe('SoilData Hemisphere Seasonality, Cross-Year Frost & Climate Metrics', 
     });
 
     expect(fused.bareSoilSource).toBe('NASA GIBS MODIS Terra NDVI (8-Day)');
-    expect(fused.riskCalendarMonths[2].bareSoil).toBe(true); // Mar NDVI 0.22 < 0.25 even if temp >= 5
+    expect(fused.riskCalendarMonths[2].bareSoil).toBe(true);
     expect(fused.riskCalendarMonths[6].bareSoil).toBe(false);
     expect(fused.riskCalendarMonths[6].ndvi).toBeCloseTo(0.78, 2);
   });

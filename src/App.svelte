@@ -1,4 +1,5 @@
 <script>
+  // Note on Super Intelligence (SI) Assistance: SI tools assisted with debugging, CSS cleanup, and documentation proofreading; core architecture and integration authored by the CosmicValley team.
   import '@fontsource/roboto/400.css';
   import '@fontsource/roboto/600.css';
   import '@fontsource/roboto/700.css';

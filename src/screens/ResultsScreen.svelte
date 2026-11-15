@@ -35,6 +35,19 @@
   const precipSummary = $derived(result?.precipitationSummary ?? null);
   const scenarioComparison = $derived(result?.scenarioComparison ?? null);
   const scenarios = $derived(scenarioComparison?.scenarios ?? result?.scenarios ?? []);
+  const strategyComparison = $derived(result?.strategyComparison ?? []);
+
+  function switchStrategy(goalKey) {
+    if (!goalKey || goalKey === "baseline" || goalKey === result?.goal) return;
+    session.update((s) => ({
+      ...s,
+      form: {
+        ...s.form,
+        goal: goalKey,
+      },
+    }));
+    goto("/calculating");
+  }
   const top = $derived(recommendations[0] ?? null);
   const others = $derived(recommendations.slice(1));
   const years = $derived(result?.years ?? []);
@@ -383,6 +396,81 @@
               {/each}
             </tbody>
           </table>
+        </div>
+      </section>
+    {/if}
+
+    {#if strategyComparison.length}
+      <section class="scenario-panel strategy-panel" aria-label="Rotation strategy comparison">
+        <div class="scenario-head">
+          <div class="scenario-title">Strategy Comparison vs. Monocrop</div>
+          <div class="scenario-sub">
+            Compare business-as-usual continuous monoculture against all 3 NASA-guided rotations before planting.
+          </div>
+        </div>
+        <div class="strategy-list">
+          {#each strategyComparison as st (st.key)}
+            <article class="strategy-card" class:active={st.isActive} class:baseline={st.isBaseline}>
+              <div class="strategy-top">
+                <span class="strategy-name">{st.title}</span>
+                <span class="strategy-badge" class:active={st.isActive} class:baseline={st.isBaseline}>{st.badge}</span>
+              </div>
+              <div class="strategy-seq">{st.sequenceLabel}</div>
+              <div class="strategy-cover">{st.coverLabel}</div>
+              <div class="strategy-metrics">
+                <div class="strategy-metric">
+                  <span class="strategy-m-label">3-Yr ETc</span>
+                  <span class="strategy-m-val">{st.metrics.etc3YrMm} mm</span>
+                  <span class="strategy-m-sub">
+                    {#if st.isBaseline}
+                      {result?.irrigation === "rainfed"
+                        ? `${st.metrics.moistureDeficit3YrMm} mm def`
+                        : `${st.metrics.irrigationDemand3YrM3Ha.toLocaleString("en-US")} m³/ha`}
+                    {:else}
+                      {st.metrics.waterSavedPct >= 0 ? `+${st.metrics.waterSavedPct}%` : `${st.metrics.waterSavedPct}%`} vs base
+                    {/if}
+                  </span>
+                </div>
+                <div class="strategy-metric">
+                  <span class="strategy-m-label">Soil 3-Yr ΔSOC</span>
+                  <span class="strategy-m-val">{st.metrics.deltaSocGkg >= 0 ? `+${st.metrics.deltaSocGkg}` : st.metrics.deltaSocGkg} g/kg</span>
+                  <span class="strategy-m-sub">{st.metrics.nFixingCrops}/3 N-fixers</span>
+                </div>
+                <div class="strategy-metric">
+                  <span class="strategy-m-label">Resilience</span>
+                  <span class="strategy-m-val">{st.metrics.climateScore}/100</span>
+                  <span class="strategy-m-sub">{st.metrics.avgMatchPct !== null ? `${st.metrics.avgMatchPct}% ONNX` : "Baseline ref"}</span>
+                </div>
+              </div>
+              <dl class="strategy-dl">
+                <div class="strategy-dl-row">
+                  <dt>Why Suggested</dt>
+                  <dd>{st.why} ({st.evidence})</dd>
+                </div>
+                <div class="strategy-dl-row">
+                  <dt>Benefits</dt>
+                  <dd>{st.benefits}</dd>
+                </div>
+                <div class="strategy-dl-row">
+                  <dt>Missing Info</dt>
+                  <dd>{st.gaps}</dd>
+                </div>
+                <div class="strategy-dl-row">
+                  <dt>Local Risks</dt>
+                  <dd>{st.risks}</dd>
+                </div>
+              </dl>
+              {#if !st.isBaseline && !st.isActive}
+                <button
+                  type="button"
+                  class="strategy-switch-btn"
+                  onclick={() => switchStrategy(st.key)}
+                >
+                  Switch to {st.title} →
+                </button>
+              {/if}
+            </article>
+          {/each}
         </div>
       </section>
     {/if}
@@ -1547,5 +1635,166 @@
     .globe-slot {
       right: 8px;
     }
+  }
+  .strategy-panel {
+    gap: 10px;
+  }
+
+  .strategy-list {
+    display: grid;
+    gap: 8px;
+  }
+
+  .strategy-card {
+    display: grid;
+    gap: 6px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    border: 1px solid var(--color-border-dim);
+    background: var(--color-field);
+  }
+
+  .strategy-card.active {
+    border-color: var(--color-accent);
+    box-shadow: inset 3px 0 0 var(--color-accent);
+  }
+
+  .strategy-card.baseline {
+    border-style: dashed;
+  }
+
+  .strategy-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+
+  .strategy-name {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--color-text);
+  }
+
+  .strategy-badge {
+    padding: 2px 7px;
+    border-radius: 999px;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.4px;
+    border: 1px solid var(--color-border-dim);
+    color: var(--color-text-dim);
+    background: var(--color-panel);
+    white-space: nowrap;
+  }
+
+  .strategy-badge.active {
+    color: var(--color-tone-good);
+    border-color: var(--color-status-good-border);
+    background: var(--color-status-good-bg);
+  }
+
+  .strategy-badge.baseline {
+    color: var(--color-info);
+    border-color: var(--color-status-info-border);
+    background: var(--color-status-info-bg);
+  }
+
+  .strategy-seq {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--color-text);
+    line-height: 1.35;
+  }
+
+  .strategy-cover {
+    font-size: 11px;
+    color: var(--color-text-dim);
+    line-height: 1.35;
+  }
+
+  .strategy-metrics {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 6px;
+  }
+
+  .strategy-metric {
+    display: grid;
+    gap: 1px;
+    padding: 6px 8px;
+    border-radius: 6px;
+    background: var(--color-panel);
+    border: 1px solid rgba(109, 125, 153, 0.25);
+  }
+
+  .strategy-m-label {
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--color-text-dim);
+  }
+
+  .strategy-m-val {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--color-text);
+  }
+
+  .strategy-m-sub {
+    font-size: 10px;
+    color: var(--color-text-dim);
+  }
+
+  .strategy-dl {
+    display: grid;
+    gap: 5px;
+    margin: 2px 0 0;
+    padding: 0;
+  }
+
+  .strategy-dl-row {
+    display: grid;
+    gap: 1px;
+  }
+
+  .strategy-dl-row dt {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.35px;
+    color: var(--color-text-dim);
+  }
+
+  .strategy-dl-row dd {
+    margin: 0;
+    font-size: 11px;
+    line-height: 1.4;
+    color: var(--color-text);
+  }
+
+  .strategy-switch-btn {
+    margin-top: 2px;
+    min-height: 36px;
+    padding: 6px 10px;
+    border-radius: 8px;
+    border: 1px solid var(--color-border-dim);
+    background: var(--color-panel);
+    color: var(--color-text);
+    font: inherit;
+    font-size: 11px;
+    font-weight: 700;
+    cursor: pointer;
+    text-align: center;
+    transition: border-color 0.15s ease, color 0.15s ease;
+  }
+
+  .strategy-switch-btn:hover {
+    border-color: var(--color-accent);
+    color: var(--color-accent);
+  }
+
+  .strategy-switch-btn:focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
   }
 </style>
