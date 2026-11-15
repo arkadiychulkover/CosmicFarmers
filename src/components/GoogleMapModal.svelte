@@ -1,6 +1,8 @@
 <script lang="ts">  import { onMount, onDestroy, createEventDispatcher } from 'svelte';
+  import GibsLegend from './GibsLegend.svelte';
+  import { gibsMaxDate } from '../data/gibsLegends.js';
 
-  export let apiKey: string = 'AIzaSyBKj8CqToLMmorTvvQc_cqgbGtvVoYAxO4';
+  export let apiKey: string = (import.meta as any).env?.VITE_GOOGLE_MAPS_API_KEY ?? '';
   export let initialLat: number = 50.45;
   export let initialLng: number = 30.52;
   export let onconfirm: ((data: { lat: number; lng: number; address: string }) => void) | undefined = undefined;
@@ -47,6 +49,15 @@
   };
 
   let activeGibsLayer: GibsLayerId | null = null;
+  let gibsDate: string = '';
+  const gibsMax = gibsMaxDate();
+
+  function applyGibsDate() {
+    const google = (window as any).google;
+    if (!map || !google || !activeGibsLayer) return;
+    clearGibsOverlay();
+    map.overlayMapTypes.push(createGibsMapType(gibsLayers[activeGibsLayer]));
+  }
 
   const darkMapStyle = [
     { elementType: 'geometry', stylers: [{ color: '#090d14' }] },
@@ -384,6 +395,7 @@
   }
 
   function createGibsMapType(layer: { id: string; matrix: string; maxZoom: number; opacity: number }) {
+    const time = /^\d{4}-\d{2}-\d{2}$/.test(gibsDate) ? gibsDate : 'default';
     const google = (window as any).google;
     return {
       tileSize: new google.maps.Size(256, 256),
@@ -409,7 +421,7 @@
         const ty = Math.floor(coord.y / scale);
 
         const img = doc.createElement('img');
-        img.src = `https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/${layer.id}/default/default/${layer.matrix}/${z}/${ty}/${tx}.png`;
+        img.src = `https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/${layer.id}/default/${time}/${layer.matrix}/${z}/${ty}/${tx}.png`;
         img.alt = '';
         img.draggable = false;
         img.style.position = 'absolute';
@@ -749,7 +761,14 @@
         <div class="gibs-badge">
           <span class="gibs-dot"></span>
           NASA GIBS · {gibsLayers[activeGibsLayer].title}
+          <label class="gibs-date">
+            <input type="date" max={gibsMax} bind:value={gibsDate} onchange={applyGibsDate} aria-label="Layer date" />
+          </label>
+          {#if gibsDate}
+            <button type="button" class="gibs-latest" onclick={() => { gibsDate = ''; applyGibsDate(); }}>Latest</button>
+          {/if}
         </div>
+        <div class="gibs-legend"><GibsLegend layer={activeGibsLayer} compact /></div>
       {/if}
 
       <div bind:this={mapContainer} class="map-container"></div>
@@ -1238,6 +1257,38 @@
     border: 1px solid rgba(57, 255, 20, 0.45);
     color: #e2e8f0;
     font-size: 12px;
+    pointer-events: none;
+  }
+
+  .gibs-badge {
+    pointer-events: auto;
+  }
+
+  .gibs-date input {
+    padding: 1px 4px;
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    border-radius: 4px;
+    background: rgba(255, 255, 255, 0.08);
+    color: #e2e8f0;
+    font-size: 12px;
+    color-scheme: dark;
+  }
+
+  .gibs-latest {
+    padding: 1px 8px;
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    border-radius: 999px;
+    background: transparent;
+    color: #e2e8f0;
+    font-size: 12px;
+    cursor: pointer;
+  }
+
+  .gibs-legend {
+    position: absolute;
+    left: 16px;
+    bottom: 64px;
+    z-index: 5;
     pointer-events: none;
   }
 

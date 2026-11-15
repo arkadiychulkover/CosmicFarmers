@@ -87,19 +87,19 @@
   }
 
   .optimal-arc {
-    stroke: #b2ff9e;
+    stroke: var(--color-accent);
     stroke-width: 3;
     stroke-linecap: round;
   }
 
   .marker {
-    fill: #b2ff9e;
+    fill: var(--color-accent);
     stroke: #6d7d99;
     stroke-width: 1.5;
   }
 
   .number {
-    fill: #f3e474;
+    fill: var(--color-tone-warn);
     font-family: var(--font-display);
     font-size: 16px;
     font-weight: 600;
@@ -108,7 +108,7 @@
   .edge {
     fill: var(--color-card-dim);
     font-family: var(--font-body);
-    font-size: 8px;
+    font-size: 9px;
   }
 
   .optimal p,
@@ -119,8 +119,8 @@
   }
 
   .optimal p {
-    color: #b2ff9e;
-    font-size: 8px;
+    color: var(--color-accent);
+    font-size: 9px;
     font-weight: 400;
     line-height: 1;
     text-transform: uppercase;
@@ -138,13 +138,13 @@
   .optimal span {
     display: block;
     color: var(--color-card-dim);
-    font-size: 8px;
+    font-size: 9px;
     line-height: 1.1;
   }
 
   .optimal em {
     display: block;
-    color: #f3e474;
+    color: var(--color-tone-warn);
     font-size: 10px;
     font-style: normal;
     font-weight: 500;

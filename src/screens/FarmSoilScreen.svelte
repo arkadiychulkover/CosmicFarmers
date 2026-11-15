@@ -8,7 +8,7 @@
   import ActionButton from '../components/ActionButton.svelte';
   import GoogleMapModal from '../components/GoogleMapModal.svelte';
   import { presets } from '../data/presets.js';
-  import { cropOptions, soilOptions, goalOptions } from '../data/options.js';
+  import { cropOptions, soilOptions, goalOptions, irrigationOptions } from '../data/options.js';
   import { session, applyPreset, loadCoordsIntoSession, markCustomSoilEdited } from '../stores/session.svelte.js';
 
   let isMapOpen = $state(false);
@@ -97,6 +97,8 @@
 
   <GoalSelector label="Primary Management Goal" options={goalOptions} bind:value={$session.form.goal} />
 
+  <GoalSelector label="Water Supply (Irrigation)" name="irrigation" options={irrigationOptions} bind:value={$session.form.irrigation} />
+
   <div class="soil-warning">
     <h3>Soil Metrics</h3>
     <p>Satellite data may be inaccurate, make your own measurements and tune it for more accurate results.</p>
@@ -121,6 +123,16 @@
   <SliderField label="Available Nitrogen (N)" max={200} unit="mg/kg" mark={$session.autoSoil.n} onchange={onSoilChange} bind:value={$session.form.n} />
   <SliderField label="Available Phosphorus (P)" max={150} unit="mg/kg" mark={$session.autoSoil.p} onchange={onSoilChange} bind:value={$session.form.p} />
   <SliderField label="Exchangeable Potassium (K)" max={300} unit="mg/kg" mark={$session.autoSoil.k} onchange={onSoilChange} bind:value={$session.form.k} />
+
+  {#if $session.nasaError}
+    <div class="error" role="alert">
+      <p>Could not load NASA data for this location.</p>
+      <span>{$session.nasaError}</span>
+      <button type="button" onclick={coordinatesEdited}>Try again</button>
+    </div>
+  {:else if !canProceed && !$session.nasaLoading}
+    <p class="hint">Waiting for climate data for the chosen coordinates…</p>
+  {/if}
 
   <div class="actions">
     <ActionButton
@@ -212,9 +224,49 @@
   .soil-warning p {
     margin: 0;
     color: var(--color-text-dim);
-    font-size: 9px;
+    font-size: 12px;
     font-weight: 700;
-    line-height: 1;
+    line-height: 1.35;
+  }
+
+  .error {
+    display: grid;
+    gap: 4px;
+    justify-items: center;
+    padding: 10px 16px;
+    border: 1px solid var(--color-danger);
+    border-radius: 6px;
+    text-align: center;
+  }
+
+  .error p,
+  .hint {
+    margin: 0;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--color-text);
+  }
+
+  .hint {
+    text-align: center;
+    color: var(--color-text-dim);
+    font-weight: 400;
+  }
+
+  .error span {
+    font-size: 12px;
+    color: var(--color-text-dim);
+  }
+
+  .error button {
+    margin-top: 4px;
+    padding: 4px 14px;
+    border: 1px solid var(--color-border-strong);
+    border-radius: 999px;
+    background: transparent;
+    color: var(--color-text);
+    font-size: 12px;
+    cursor: pointer;
   }
 
   .actions {

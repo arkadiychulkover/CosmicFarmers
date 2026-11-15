@@ -14,6 +14,24 @@ export const soilOptions = [
   { value: 'custom', label: 'Custom' },
 ];
 
+export const irrigationOptions = [
+  {
+    value: 'rainfed',
+    title: 'Rainfed',
+    description: 'No irrigation: crops rely only on rainfall and stored soil moisture.',
+  },
+  {
+    value: 'supplemental',
+    title: 'Supplemental irrigation',
+    description: 'Occasional watering in dry spells to cover the rainfall deficit.',
+  },
+  {
+    value: 'irrigated',
+    title: 'Fully irrigated',
+    description: 'Regular irrigation keeps root-zone moisture high through the whole season.',
+  },
+];
+
 export const goalOptions = [
   {
     value: 'regeneration',

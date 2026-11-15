@@ -24,6 +24,7 @@ const defaults = {
     lat: 42.0308,
     lon: -93.6319,
     predecessor: 'corn',
+    irrigation: 'rainfed',
     goal: 'regeneration',
     soil: 'loam',
     ph: 6.2,
