@@ -11,6 +11,7 @@
   import EmptyRoute from './components/EmptyRoute.svelte';
   import Globus from './components/globus.svelte';
   import GlobeControls from './components/GlobeControls.svelte';
+  import DataSourcesModal from './components/DataSourcesModal.svelte';
   import FarmSoilScreen from './screens/FarmSoilScreen.svelte';
   import TelemetryScreen from './screens/TelemetryScreen.svelte';
   import CalculatingScreen from './screens/CalculatingScreen.svelte';
@@ -67,6 +68,7 @@
   let isGlobeFullscreen = $state(false);
   let globeRef = $state(null);
   let stageEl = $state(null);
+  let showDataSources = $state(false);
 
   function syncRouteState(matchedPath) {
     const normalized = KNOWN_PATHS.has(matchedPath) ? matchedPath : '/';
@@ -268,18 +270,37 @@
     </a>
   </div>
 
-  <footer>©CosmicValley, IT STEP Students Team</footer>
+  <footer class="app-footer">
+    <div class="footer-meta">
+      <span>©CosmicValley, IT STEP Students Team</span>
+      <button
+        type="button"
+        class="footer-sources-btn"
+        onclick={() => (showDataSources = true)}
+      >
+        Data Sources &amp; Licenses
+      </button>
+    </div>
+    <p class="footer-disclaimer">
+      NASA does not endorse any non-U.S. Government entity and is not responsible for information contained on non-U.S. Government websites. For non-U.S. Government websites, participants must comply with any data use parameters of that specific website.
+    </p>
+  </footer>
 </div>
+
+<DataSourcesModal bind:open={showDataSources} />
 
 <style>
   .app {
+    display: flex;
+    flex-direction: column;
     min-height: 100vh;
   }
 
   .layout {
+    flex: 1 0 auto;
     display: flex;
-    align-items: flex-start;
-    min-height: calc(100vh - var(--header-height));
+    align-items: stretch;
+    min-height: calc(100vh - var(--header-height) - 56px);
     position: relative;
     overflow: hidden;
   }
@@ -289,7 +310,7 @@
     flex-shrink: 0;
     width: var(--panel-width);
     max-width: calc(100vw - var(--rail-width));
-    min-height: calc(100vh - var(--header-height));
+    min-height: calc(100vh - var(--header-height) - 56px);
     background: var(--color-panel);
     border-right: 1px solid var(--color-border);
     transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -313,8 +334,10 @@
     padding: 32px clamp(16px, 4vw, 36px);
     opacity: 1;
     transition: opacity 0.2s ease;
+    overflow-x: hidden;
     overflow-y: auto;
-    max-height: calc(100vh - var(--header-height));
+    overflow-anchor: none;
+    max-height: calc(100vh - var(--header-height) - 56px);
     scrollbar-width: none;
     -ms-overflow-style: none;
   }
@@ -329,7 +352,7 @@
     position: relative;
     flex: 1;
     min-width: 0;
-    height: calc(100vh - var(--header-height));
+    height: calc(100vh - var(--header-height) - 56px);
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -396,7 +419,7 @@
     z-index: 10;
     width: var(--results-width, 387px);
     max-width: calc(100vw - clamp(60px, 12vw, 120px) - 24px);
-    max-height: calc(100vh - var(--header-height) - 32px);
+    max-height: calc(100vh - var(--header-height) - 86px);
     overflow-y: auto;
     overscroll-behavior: contain;
     padding-right: 6px;
@@ -443,18 +466,60 @@
     display: none;
   }
 
-  footer {
-    position: fixed;
-    right: 0;
-    bottom: 10px;
-    left: 0;
+  .app-footer {
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    padding: 8px 20px 10px;
+    border-top: 1px solid color-mix(in srgb, var(--color-border-dim) 45%, transparent);
+    background: var(--color-panel);
     text-align: center;
-    font-size: 12px;
-    font-weight: 700;
-    line-height: 1;
+    font-size: 11px;
+    line-height: 1.35;
     color: var(--color-text-dim);
-    pointer-events: none;
-    z-index: 1;
+    z-index: 5;
+  }
+
+  .footer-meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    font-weight: 700;
+  }
+
+  .footer-sources-btn {
+    padding: 2px 9px;
+    border: 1px solid color-mix(in srgb, var(--color-border-dim) 60%, transparent);
+    border-radius: 999px;
+    background: transparent;
+    color: var(--color-accent);
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: border-color 0.15s ease, background-color 0.15s ease;
+  }
+
+  .footer-sources-btn:hover {
+    border-color: var(--color-accent);
+    background: color-mix(in srgb, var(--color-accent) 12%, transparent);
+  }
+
+  .footer-sources-btn:focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+  }
+
+  .footer-disclaimer {
+    margin: 0;
+    max-width: 980px;
+    font-size: 10.5px;
+    font-weight: 400;
+    color: var(--color-text-dim);
   }
 
   @media (max-width: 720px) {
@@ -558,12 +623,13 @@
       fill: currentColor;
     }
 
-    footer {
-      position: static;
-      margin-top: 4px;
-      margin-bottom: 24px;
-      text-align: center;
+    .app-footer {
+      padding: 10px 14px 18px;
       font-size: 11px;
+    }
+
+    .footer-disclaimer {
+      font-size: 10px;
     }
   }
 </style>

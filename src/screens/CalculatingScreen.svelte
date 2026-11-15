@@ -45,6 +45,9 @@
             bypassCache: !isCachedPreset,
             signal: controller.signal,
           });
+          if (nasaData && !controller.signal.aborted) {
+            $session.nasaData = nasaData;
+          }
         }
 
         if (controller.signal.aborted) return;
@@ -222,6 +225,12 @@
   .actions {
     width: 75%;
     margin: 0 auto;
+  }
+
+  @media (max-width: 600px) {
+    .actions {
+      width: 100%;
+    }
   }
 
   @keyframes spin {

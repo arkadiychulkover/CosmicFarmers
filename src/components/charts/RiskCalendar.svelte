@@ -1,57 +1,105 @@
 <script>
-  let { months = [], year = '' } = $props();
+  let {
+    months = [],
+    year = '',
+    freezeThawDays = null,
+    ndviSource = null,
+    ndviFallback = false,
+  } = $props();
 
   const maxBalance = $derived(Math.max(1, ...months.map((m) => Math.abs(m.balance))));
   const maxFrost = $derived(Math.max(1, ...months.map((m) => m.frostDays)));
   const maxRain = $derived(Math.max(1, ...months.map((m) => m.heavyRainDays)));
+  const hasNdvi = $derived(
+    months.some((m) => m.ndvi !== null && m.ndvi !== undefined && Number.isFinite(Number(m.ndvi))),
+  );
 
   function level(value, max) {
     if (!value) return 0;
     return Math.max(0.25, value / max);
   }
+
+  function ndviTone(val) {
+    if (val === null || val === undefined || !Number.isFinite(Number(val))) return 0;
+    const n = Number(val);
+    return Math.max(0.15, Math.min(1, n));
+  }
 </script>
 
-<div class="calendar" role="table" aria-label="12-month risk calendar {year}">
-  <div class="row head" role="row">
-    <span class="rowlabel"></span>
-    {#each months as m (m.label)}
-      <span class="cell mlabel" role="columnheader">{m.label}</span>
-    {/each}
+<div class="calendar-box" aria-label="12-month agro-climatic risk and MODIS NDVI calendar {year}">
+  <div class="calendar" role="table" aria-label="12-month risk calendar {year}">
+    <div class="row head" role="row">
+      <span class="rowlabel"></span>
+      {#each months as m (m.label)}
+        <span class="cell mlabel" role="columnheader">{m.label}</span>
+      {/each}
+    </div>
+
+    <div class="row" role="row">
+      <span class="rowlabel" role="rowheader">Frost days (Tmin ≤ 0°C)</span>
+      {#each months as m (m.label)}
+        <span class="cell frost" role="cell" style:--lv={level(m.frostDays, maxFrost)} title="{m.label}: {m.frostDays} frost days">{m.frostDays || '·'}</span>
+      {/each}
+    </div>
+
+    <div class="row" role="row">
+      <span class="rowlabel" role="rowheader">Heavy-rain days (≥ 20 mm)</span>
+      {#each months as m (m.label)}
+        <span class="cell rain" role="cell" style:--lv={level(m.heavyRainDays, maxRain)} title="{m.label}: {m.heavyRainDays} heavy-rain days">{m.heavyRainDays || '·'}</span>
+      {/each}
+    </div>
+
+    {#if hasNdvi}
+      <div class="row" role="row">
+        <span class="rowlabel" role="rowheader">Satellite MODIS NDVI</span>
+        {#each months as m (m.label)}
+          {@const val = m.ndvi !== null && m.ndvi !== undefined && Number.isFinite(Number(m.ndvi)) ? Number(m.ndvi) : null}
+          <span
+            class="cell ndvi"
+            class:bare-ndvi={val !== null && val < 0.25}
+            role="cell"
+            style:--lv={ndviTone(val)}
+            title="{m.label}: MODIS NDVI {val !== null ? val.toFixed(2) : 'unavailable'}"
+          >{val !== null ? val.toFixed(2) : '—'}</span>
+        {/each}
+      </div>
+    {/if}
+
+    <div class="row" role="row">
+      <span class="rowlabel" role="rowheader">Bare-soil window{hasNdvi ? ' (NDVI < 0.25)' : ''}</span>
+      {#each months as m (m.label)}
+        <span class="cell bare" class:on={m.bareSoil} role="cell" title="{m.label}: {m.bareSoil ? 'bare soil / off-season gap — cover crop recommended' : 'active canopy or vegetation cover'}">{m.bareSoil ? 'Bare' : 'Cover'}</span>
+      {/each}
+    </div>
+
+    <div class="row" role="row">
+      <span class="rowlabel" role="rowheader">Water balance P − ET, mm</span>
+      {#each months as m (m.label)}
+        <span
+          class="cell bal"
+          class:deficit={m.balance < 0}
+          role="cell"
+          style:--lv={Math.max(0.15, Math.abs(m.balance) / maxBalance)}
+          title="{m.label}: rain {m.precip} mm, ET {m.et} mm"
+        >{m.balance}</span>
+      {/each}
+    </div>
   </div>
 
-  <div class="row" role="row">
-    <span class="rowlabel" role="rowheader">Frost days (Tmin ≤ 0°C)</span>
-    {#each months as m (m.label)}
-      <span class="cell frost" role="cell" style:--lv={level(m.frostDays, maxFrost)} title="{m.label}: {m.frostDays} frost days">{m.frostDays || '·'}</span>
-    {/each}
-  </div>
-
-  <div class="row" role="row">
-    <span class="rowlabel" role="rowheader">Heavy-rain days (≥ 20 mm)</span>
-    {#each months as m (m.label)}
-      <span class="cell rain" role="cell" style:--lv={level(m.heavyRainDays, maxRain)} title="{m.label}: {m.heavyRainDays} heavy-rain days">{m.heavyRainDays || '·'}</span>
-    {/each}
-  </div>
-
-  <div class="row" role="row">
-    <span class="rowlabel" role="rowheader">Bare-soil window</span>
-    {#each months as m (m.label)}
-      <span class="cell bare" class:on={m.bareSoil} role="cell" title="{m.label}: {m.bareSoil ? 'no active crop cover expected' : 'growth possible'}">{m.bareSoil ? '■' : '·'}</span>
-    {/each}
-  </div>
-
-  <div class="row" role="row">
-    <span class="rowlabel" role="rowheader">Water balance P − ET, mm</span>
-    {#each months as m (m.label)}
-      <span
-        class="cell bal"
-        class:deficit={m.balance < 0}
-        role="cell"
-        style:--lv={Math.max(0.15, Math.abs(m.balance) / maxBalance)}
-        title="{m.label}: rain {m.precip} mm, ET {m.et} mm"
-      >{m.balance}</span>
-    {/each}
-  </div>
+  {#if freezeThawDays !== null || ndviSource}
+    <div class="cal-meta">
+      {#if freezeThawDays !== null}
+        <span class="meta-chip" class:warn-chip={Number(freezeThawDays) >= 20}>
+          Freeze–Thaw Transitions (0°C): <b>{freezeThawDays}d</b>
+        </span>
+      {/if}
+      {#if ndviSource}
+        <span class="meta-chip" class:warn-chip={ndviFallback}>
+          Bare-Soil Source: <b>{ndviSource}</b>
+        </span>
+      {/if}
+    </div>
+  {/if}
 </div>
 
 <style>
@@ -100,8 +148,53 @@
     background: color-mix(in srgb, var(--color-water) calc(var(--lv) * 70%), var(--color-panel));
   }
 
+  .bare {
+    font-size: 9.5px;
+    letter-spacing: 0.02em;
+  }
+
   .bare.on {
     background: color-mix(in srgb, var(--color-heat) 55%, var(--color-panel));
+  }
+
+  .ndvi {
+    font-size: 10px;
+    background: color-mix(in srgb, var(--color-accent) calc(var(--lv) * 65%), var(--color-panel));
+  }
+
+  .ndvi.bare-ndvi {
+    background: color-mix(in srgb, var(--color-heat) 45%, var(--color-panel));
+  }
+
+  .calendar-box {
+    display: grid;
+    gap: 8px;
+  }
+
+  .cal-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+  }
+
+  .meta-chip {
+    padding: 3px 9px;
+    border-radius: 999px;
+    border: 1px solid var(--color-border-dim);
+    background: var(--color-panel);
+    color: var(--color-card-dim);
+    font-size: 10px;
+  }
+
+  .meta-chip b {
+    color: var(--color-text);
+  }
+
+  .meta-chip.warn-chip {
+    border-color: var(--color-status-warn-border);
+    background: var(--color-status-warn-bg);
+    color: var(--color-text);
   }
 
   .bal {

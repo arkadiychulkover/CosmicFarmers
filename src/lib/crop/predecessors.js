@@ -18,5 +18,13 @@ export const PREDECESSOR_TO_MODEL = {
   apple: 'apple',
   grapes: 'grapes',
   orange: 'orange',
+  alfalfa: 'alfalfa',
+  lucerne: 'alfalfa',
+  sorghum: 'sorghum',
+  oats: 'oats',
+  millet: 'millet',
+  peanut: 'peanut',
+  peanuts: 'peanut',
+  groundnut: 'peanut',
   fallow: null,
 };

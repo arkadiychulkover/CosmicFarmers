@@ -1,5 +1,6 @@
 import { writable, get } from 'svelte/store';
-import { resolvePreset } from '../data/presets.js';
+import { resolvePresetAsync } from '../data/presets.js';
+import { fetchLandCoverMask } from '../lib/weather/landCoverMask.js';
 import { fetchNasaDataForCoords, deriveSoilAndNutrients } from '../utils/nasaApi.js';
 
 const LEGACY_SESSION_KEY = 'field-shift-session';
@@ -9,6 +10,7 @@ const defaults = {
   activePresetId: null,
   coordsEditable: false,
   customSoilEdited: false,
+  nonArableAckCoord: null,
   climate: {
     temperature: 0,
     precipitation: 0,
@@ -180,6 +182,36 @@ session.subscribe((current) => {
 });
 
 let coordRequestSeq = 0;
+let activeCoordController = null;
+
+function beginCoordRequest({ presetId = null, lat = null, lon = null } = {}) {
+  if (activeCoordController) {
+    activeCoordController.abort();
+  }
+  const controller = new AbortController();
+  activeCoordController = controller;
+  const seq = ++coordRequestSeq;
+
+  session.update((s) => ({
+    ...s,
+    activePresetId: presetId,
+    coordsEditable: false,
+    customSoilEdited: false,
+    nonArableAckCoord: null,
+    nasaData: null,
+    nasaLoading: true,
+    nasaError: null,
+    form: lat !== null && lon !== null
+      ? {
+          ...s.form,
+          lat,
+          lon,
+        }
+      : s.form,
+  }));
+
+  return { seq, controller };
+}
 
 export function applyNasaPayloadToForm(payload) {
   if (!payload) return;
@@ -215,46 +247,52 @@ export function applyNasaPayloadToForm(payload) {
   }));
 }
 
-export async function loadCoordsIntoSession(lat, lon, { presetId = null } = {}) {
+export async function loadCoordsIntoSession(
+  lat,
+  lon,
+  { presetId = null, precomputedLandCover = null, requestToken = null } = {},
+) {
   const numLat = Number(Number(lat).toFixed(4));
   const numLon = Number(Number(lon).toFixed(4));
   if (Number.isNaN(numLat) || Number.isNaN(numLon)) return;
 
-  const seq = ++coordRequestSeq;
-  session.update((s) => ({
-    ...s,
-    activePresetId: presetId,
-    coordsEditable: false,
-    customSoilEdited: false,
-    nasaData: null,
-    nasaLoading: true,
-    nasaError: null,
-    form: {
-      ...s.form,
-      lat: numLat,
-      lon: numLon,
-    },
-  }));
+  const { seq, controller } = requestToken || beginCoordRequest({ presetId, lat: numLat, lon: numLon });
+  if (requestToken) {
+    if (seq !== coordRequestSeq || controller.signal.aborted) return;
+    session.update((s) => ({
+      ...s,
+      form: {
+        ...s.form,
+        lat: numLat,
+        lon: numLon,
+      },
+    }));
+  }
 
   const isCachedPreset = Boolean(presetId && presetId !== 'random');
 
   try {
     const payload = await fetchNasaDataForCoords(numLat, numLon, {
       presetId,
+      precomputedLandCover,
       bypassCache: !isCachedPreset,
+      signal: controller.signal,
     });
-    if (seq !== coordRequestSeq) return;
+    if (seq !== coordRequestSeq || controller.signal.aborted) return;
     if (payload) {
       applyNasaPayloadToForm(payload);
     }
   } catch (err) {
-    if (seq !== coordRequestSeq) return;
+    if (seq !== coordRequestSeq || controller.signal.aborted || err?.name === 'AbortError') return;
     session.update((s) => ({
       ...s,
       nasaError: err?.message || 'Failed to load climate data for chosen location',
     }));
   } finally {
     if (seq === coordRequestSeq) {
+      if (activeCoordController === controller) {
+        activeCoordController = null;
+      }
       session.update((s) => ({
         ...s,
         nasaLoading: false,
@@ -264,6 +302,34 @@ export async function loadCoordsIntoSession(lat, lon, { presetId = null } = {}) 
 }
 
 export async function applyPreset(preset) {
-  const coords = resolvePreset(preset);
-  await loadCoordsIntoSession(coords.lat, coords.lon, { presetId: preset.id });
+  if (!preset) return;
+  if (preset.values) {
+    await loadCoordsIntoSession(preset.values.lat, preset.values.lon, { presetId: preset.id });
+    return;
+  }
+
+  const currentForm = get(session)?.form;
+  const token = beginCoordRequest({ presetId: preset.id });
+  try {
+    const resolved = await resolvePresetAsync(preset, {
+      checkLandCover: fetchLandCoverMask,
+      signal: token.controller.signal,
+      excludeCoord: currentForm ? { lat: currentForm.lat, lon: currentForm.lon } : null,
+    });
+    if (token.seq !== coordRequestSeq || token.controller.signal.aborted) return;
+    await loadCoordsIntoSession(resolved.lat, resolved.lon, {
+      presetId: preset.id,
+      precomputedLandCover: resolved.landCover ?? null,
+      requestToken: token,
+    });
+  } catch (err) {
+    if (token.seq !== coordRequestSeq || token.controller.signal.aborted || err?.name === 'AbortError') {
+      return;
+    }
+    session.update((s) => ({
+      ...s,
+      nasaLoading: false,
+      nasaError: err?.message || 'Failed to find a valid agricultural field',
+    }));
+  }
 }
