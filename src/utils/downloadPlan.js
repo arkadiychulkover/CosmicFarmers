@@ -33,7 +33,7 @@ export const safe = (text) =>
     .replace(/→/g, '->')
     .replace(/≥/g, '>=')
     .replace(/≤/g, '<=')
-    .replace(/Δ/g, 'd')
+    .replace(/Δ/g, 'delta')
     .replace(/₂/g, '2')
     .replace(/·/g, ' - ')
     .replace(/…/g, '...')
@@ -113,7 +113,7 @@ export async function downloadPlan(result, form) {
   let y = margin + 4;
   doc.setFont('helvetica', 'bold').setFontSize(20).setTextColor(30);
   doc.text('FIELD SHIFT', margin, y);
-  y = paragraph(doc, 'Personalised 3-year crop rotation plan', margin, y + 8, { size: 12, color: 90 });
+  y = paragraph(doc, 'Personalized 3-year crop rotation plan', margin, y + 8, { size: 12, color: 90 });
 
   y += 6;
   y = paragraph(doc, 'FIELD PROFILE & MANAGEMENT', margin, y, { size: 9, style: 'bold', color: 120 }) + 1;
@@ -124,6 +124,7 @@ export async function downloadPlan(result, form) {
     : 'Soil Regeneration';
 
   const soil = result.soilProfile || form;
+  const soilLabel = soil.soilLabel || soil.soil || 'Loam';
   const irrigationText = formatIrrigation(result, form);
   const phVal = Number(soil.ph ?? form.ph ?? 6.5).toFixed(1);
   const socVal = Number(soil.soc ?? form.soc ?? 18).toFixed(1);
@@ -135,7 +136,7 @@ export async function downloadPlan(result, form) {
   for (const line of [
     `Location: lat ${form.lat}, lon ${form.lon}`,
     `Primary management goal: ${goalTitle} | Irrigation regime: ${irrigationText}`,
-    `Raw SoilGrids Profile: pH ${phVal} | SOC ${socVal} g/kg | Total N ${nVal} g/kg | Clay ${clayVal}% / Sand ${sandVal}% / Silt ${siltVal}%`,
+    `Raw SoilGrids Profile (${soilLabel}): pH ${phVal} | SOC ${socVal} g/kg | Total N ${nVal} g/kg | Clay ${clayVal}% / Sand ${sandVal}% / Silt ${siltVal}%`,
     `Previous season: ${result.previousName || 'None'}`,
   ]) {
     y = paragraph(doc, line, margin, y + 2, { size: 9.5 });

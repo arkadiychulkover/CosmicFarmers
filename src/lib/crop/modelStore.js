@@ -2,7 +2,7 @@ import { writable } from 'svelte/store';
 import { OnnxCropModel } from './OnnxCropModel.js';
 
 
-export const cropModel = new OnnxCropModel(`${import.meta.env.BASE_URL}models/crop_classifier.onnx`);
+export const cropModel = new OnnxCropModel(`${import.meta.env?.BASE_URL ?? '/'}models/crop_classifier.onnx`);
 
 
 export const modelStatus = writable('idle');

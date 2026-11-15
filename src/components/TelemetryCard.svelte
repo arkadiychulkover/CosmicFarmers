@@ -6,6 +6,7 @@
     rows = [],
     note = '',
     source = '',
+    resolution = '',
     state = 'ready',
     error = '',
     wide = false,
@@ -15,7 +16,12 @@
 </script>
 
 <article class="card" class:wide class:pending={state !== 'ready'}>
-  {#if source}<p class="source">{source}</p>{/if}
+  {#if source || resolution}
+    <div class="meta-row">
+      {#if source}<p class="source">{source}</p>{:else}<span></span>{/if}
+      {#if resolution}<span class="res-badge" title="Spatial resolution">{resolution}</span>{/if}
+    </div>
+  {/if}
 
   {#if state === 'loading'}
     <p class="loading">The data is loading...</p>
@@ -83,6 +89,14 @@
     position: relative;
   }
 
+  .meta-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
   .source {
     margin: 0;
     color: var(--color-card-dim);
@@ -90,6 +104,20 @@
     font-weight: 600;
     letter-spacing: 0.02em;
     text-transform: uppercase;
+  }
+
+  .res-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 7px;
+    border-radius: 999px;
+    border: 1px solid color-mix(in srgb, var(--color-card-dim) 45%, transparent);
+    background: color-mix(in srgb, var(--color-panel) 72%, transparent);
+    color: var(--color-card-text);
+    font-size: 8px;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+    white-space: nowrap;
   }
 
   .loading {

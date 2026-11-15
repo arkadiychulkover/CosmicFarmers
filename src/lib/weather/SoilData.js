@@ -241,27 +241,44 @@ function computeFrostAndStressMetrics(dp, isSouthern, ex) {
 
   const days = [];
   const dailyT2m12 = [];
+  const dailyT2mMax12 = [];
+  const dailyPrecip12 = [];
   const dailyDates = [];
+  const frostDaysByMonth = new Array(12).fill(0);
+  const heavyRainDaysByMonth = new Array(12).fill(0);
 
   for (const dateKey of uniqueSortedDates) {
     const tMin = tMinMap[dateKey];
     const tMax = tMaxMap[dateKey];
     const tMean = tMeanMap[dateKey];
     const precip = precipMap[dateKey];
+    const monthIdx = Number(dateKey.slice(4, 6)) - 1;
 
     const hasTMin = tMin !== undefined && tMin !== ex && Number.isFinite(tMin);
     const hasTMax = tMax !== undefined && tMax !== ex && Number.isFinite(tMax);
     const hasTMean = tMean !== undefined && tMean !== ex && Number.isFinite(tMean);
     const hasPrecip = precip !== undefined && precip !== ex && Number.isFinite(precip);
 
-    if (hasTMin && tMin <= 0) frostDays++;
+    if (hasTMin && tMin <= 0) {
+      frostDays++;
+      if (monthIdx >= 0 && monthIdx < 12) frostDaysByMonth[monthIdx]++;
+    }
     if (hasTMax && tMax >= 32) heatDays++;
     if (hasPrecip && precip >= 25) stormDays++;
+    if (hasPrecip && precip >= 20 && monthIdx >= 0 && monthIdx < 12) {
+      heavyRainDaysByMonth[monthIdx]++;
+    }
 
     const isoDate = toIsoDate(dateKey);
     if (hasTMean) {
       dailyT2m12.push(Number(tMean.toFixed(2)));
       dailyDates.push(isoDate);
+    }
+    if (hasTMax) {
+      dailyT2mMax12.push(Number(tMax.toFixed(2)));
+    }
+    if (hasPrecip) {
+      dailyPrecip12.push(Number(precip.toFixed(2)));
     }
 
     days.push({
@@ -330,7 +347,11 @@ function computeFrostAndStressMetrics(dp, isSouthern, ex) {
     frostFreeDays,
     stormDays,
     heatDays,
+    frostDaysByMonth,
+    heavyRainDaysByMonth,
     dailyT2m12,
+    dailyT2mMax12,
+    dailyPrecip12,
     dailyDates,
   };
 }
@@ -381,6 +402,7 @@ export function parseWeatherResponse(weatherData) {
   const t2mSeasonArr = sortedValidSeasonValues(dp.T2M, seasonKeySet, ex);
   const t2mMaxSeasonArr = sortedValidSeasonValues(dp.T2M_MAX, seasonKeySet, ex);
   const t2mMinSeasonArr = sortedValidSeasonValues(dp.T2M_MIN, seasonKeySet, ex);
+  const precipSeasonArr = sortedValidSeasonValues(dp.PRECTOTCORR, seasonKeySet, ex);
   const rh2mSeasonArr = sortedValidSeasonValues(dp.RH2M, seasonKeySet, ex);
   const ws2mSeasonArr = sortedValidSeasonValues(dp.WS2M, seasonKeySet, ex);
   const solarSeasonArr = sortedValidSeasonValues(dp.ALLSKY_SFC_SW_DWN, seasonKeySet, ex);
@@ -408,6 +430,16 @@ export function parseWeatherResponse(weatherData) {
   const terrainFallback = Boolean(srtm?.terrainFallback);
 
   const stress = computeFrostAndStressMetrics(dp, seasonCfg.isSouthern, ex);
+
+  const riskCalendarMonths = MONTHS_12.map((label, i) => ({
+    label,
+    precip: monthlyPrecip12[i],
+    et: monthlyEt12[i],
+    balance: monthlyWaterBalance12[i],
+    frostDays: stress.frostDaysByMonth[i] ?? 0,
+    heavyRainDays: stress.heavyRainDaysByMonth[i] ?? 0,
+    bareSoil: !seasonKeySet.has(MONTH_KEYS_12[i]) || monthlyTemp12[i] < 5,
+  }));
 
   return {
     seasonYear,
@@ -504,7 +536,12 @@ export function parseWeatherResponse(weatherData) {
     daily_t2m: t2mSeasonArr,
     seasonDailyT2m: t2mSeasonArr,
     daily_t2m_12: stress.dailyT2m12,
+    seasonDailyT2mMax: t2mMaxSeasonArr,
+    daily_t2m_max_12: stress.dailyT2mMax12,
+    seasonDailyPrecip: precipSeasonArr,
+    daily_precip_12: stress.dailyPrecip12,
     daily_dates: stress.dailyDates,
     daily_t2m_year: seasonYear,
+    riskCalendarMonths,
   };
 }

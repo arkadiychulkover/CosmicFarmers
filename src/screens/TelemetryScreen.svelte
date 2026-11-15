@@ -4,6 +4,7 @@
   import TelemetryCard from '../components/TelemetryCard.svelte';
   import ClimateTable from '../components/ClimateTable.svelte';
   import ActionButton from '../components/ActionButton.svelte';
+  import DataSourcesModal from '../components/DataSourcesModal.svelte';
   import PrecipitationChart from '../components/charts/PrecipitationChart.svelte';
   import TemperatureChart from '../components/charts/TemperatureChart.svelte';
   import TempRangeChart from '../components/charts/TempRangeChart.svelte';
@@ -13,6 +14,7 @@
   import SoilSourceChart from '../components/charts/SoilSourceChart.svelte';
   import SolarGauge from '../components/charts/SolarGauge.svelte';
   import GddBar from '../components/charts/GddBar.svelte';
+  import RiskCalendar from '../components/charts/RiskCalendar.svelte';
   import { session } from '../stores/session.svelte.js';
   import { goalOptions } from '../data/options.js';
   import {
@@ -254,6 +256,27 @@
     return null;
   });
 
+  let showSourcesModal = $state(false);
+
+  const riskMonths = $derived(
+    cards.precip.data?.riskCalendarMonths ||
+    cards.temp.data?.riskCalendarMonths ||
+    $session.nasaData?.weather?.riskCalendarMonths ||
+    []
+  );
+  const riskYear = $derived(
+    cards.temp.data?.seasonYear || $session.nasaData?.seasonYear || ''
+  );
+
+  function soilResolution(soilSource) {
+    const s = String(soilSource || '').toLowerCase();
+    if (!s) return '250 m';
+    if (s.includes('nearest') || s.includes('5 km')) return '~5 km nearest';
+    if (s.includes('power') || s.includes('agro-climatic')) return 'NASA POWER fallback';
+    if (s.includes('soilgrids')) return 'ISRIC SoilGrids v2.0 · 250 m';
+    return '250 m';
+  }
+
   const goalTitle = $derived(goalOptions.find((goal) => goal.value === $session.form.goal)?.title || 'Water Conservation');
 
   const isTelemetryLoading = $derived(
@@ -269,7 +292,16 @@
 </script>
 
 <div class="screen">
-  <h2>NASA Telemetry</h2>
+  <div class="screen-head">
+    <h2>NASA Telemetry</h2>
+    <button
+      type="button"
+      class="sources-btn"
+      onclick={() => (showSourcesModal = true)}
+    >
+      Data Sources &amp; NASA Missions
+    </button>
+  </div>
 
   {#if telemetryAlert}
     <StatusBanner
@@ -282,7 +314,8 @@
 
   <div class="grid">
     <TelemetryCard
-      source={cards.precip.data ? `PRECTOTCORR & EVPTRNS · 12-mo · ${cards.precip.data.seasonLabel}` : 'PRECTOTCORR & EVPTRNS · 12-mo · mm'}
+      source={cards.precip.data ? `NASA POWER · PRECTOTCORR & EVPTRNS · 12-mo · ${cards.precip.data.seasonLabel}` : 'NASA POWER · PRECTOTCORR & EVPTRNS · 12-mo'}
+      resolution="~50 km grid"
       state={cards.precip.status}
       error={cards.precip.error}
       title="12-Month Precipitation & P−ET"
@@ -303,7 +336,8 @@
     </TelemetryCard>
 
     <TelemetryCard
-      source={cards.temp.data ? `T2M / T2M_MAX / T2M_MIN · 12-mo · ${cards.temp.data.seasonLabel}` : 'T2M / T2M_MAX / T2M_MIN · 12-mo'}
+      source={cards.temp.data ? `NASA POWER · T2M / T2M_MAX / T2M_MIN · 12-mo · ${cards.temp.data.seasonLabel}` : 'NASA POWER · T2M / T2M_MAX / T2M_MIN · 12-mo'}
+      resolution="~50 km grid"
       state={cards.temp.status}
       error={cards.temp.error}
       title="Temperature, Heat & Frost"
@@ -326,7 +360,8 @@
     </TelemetryCard>
 
     <TelemetryCard
-      source="ALLSKY_SFC_SW_DWN"
+      source="NASA POWER / CERES · ALLSKY_SFC_SW_DWN"
+      resolution="~50 km–1° grid"
       state={cards.solar.status}
       error={cards.solar.error}
       title="Solar Irradiance"
@@ -340,7 +375,8 @@
     </TelemetryCard>
 
     <TelemetryCard
-      source="Thermal budget · base 10°C"
+      source="NASA POWER · Thermal budget (base 10°C)"
+      resolution="~50 km grid"
       state={cards.gdd.status}
       error={cards.gdd.error}
       title="Growing Degree Days (Base 10°C)"
@@ -353,7 +389,12 @@
       {/if}
     </TelemetryCard>
 
-    <TelemetryCard source="SMAP / GLDAS" state={cards.moisture.status} error={cards.moisture.error}>
+    <TelemetryCard
+      source="NASA POWER (SMAP / MERRA-2)"
+      resolution="~50 km grid"
+      state={cards.moisture.status}
+      error={cards.moisture.error}
+    >
       {#if cards.moisture.data}
         {@const surface = Math.round(cards.moisture.data.surface * 100)}
         {@const root = Math.round(cards.moisture.data.rootZone * 100)}
@@ -373,7 +414,7 @@
               {#if cards.moisture.data.rootZone < 0.35}
                 GWETROOT indicates a moisture deficit — drought-tolerant or irrigated crops prioritized.
               {:else}
-                Root-zone moisture does not show a deficit for this location.
+                Root-zone moisture does not show a deficit for this location (SMAP L4 ~9–11 km assimilated into POWER 0.5° grid).
               {/if}
             </p>
           </div>
@@ -381,24 +422,34 @@
       {/if}
     </TelemetryCard>
 
-    <TelemetryCard source="ECOSTRESS" state={cards.ecostress.status} error={cards.ecostress.error}>
+    <TelemetryCard
+      source="NASA POWER (ECOSTRESS Proxy)"
+      resolution="~50 km grid"
+      state={cards.ecostress.status}
+      error={cards.ecostress.error}
+    >
       {#if cards.ecostress.data}
         <div class="metric">
           <h3>Evapotranspiration & Surface Temp</h3>
           <div class="inset">
-            <span>Evapotranspiration</span>
+            <span>Evapotranspiration (EVPTRNS)</span>
             <strong class="good">{cards.ecostress.data.evapotranspiration} mm/day</strong>
           </div>
           <div class="inset">
-            <span>Land surface temperature</span>
+            <span>Land surface skin temp (TS)</span>
             <strong class="warm">{cards.ecostress.data.surfaceTemp} °C</strong>
           </div>
-          <p class="fine">Daily water loss and observed land surface temperature — not air temperature.</p>
+          <p class="fine">NASA POWER / MERRA-2 energy-balance proxy (~50 km) — not raw 70 m ISS ECOSTRESS thermal scenes.</p>
         </div>
       {/if}
     </TelemetryCard>
 
-    <TelemetryCard source={cards.terrain.data?.terrainFallback ? 'SRTM (Fallback Estimate)' : 'SRTM'} state={cards.terrain.status} error={cards.terrain.error}>
+    <TelemetryCard
+      source={cards.terrain.data?.terrainFallback ? 'SRTM / Open-Meteo (Fallback)' : 'SRTM / Open-Meteo'}
+      resolution={cards.terrain.data?.terrainFallback ? 'Fallback Estimate' : '~30–90 m'}
+      state={cards.terrain.status}
+      error={cards.terrain.error}
+    >
       {#if cards.terrain.data}
         {@const risk = runoff(cards.terrain.data.slope)}
         <div class="metric">
@@ -423,7 +474,8 @@
     </TelemetryCard>
 
     <TelemetryCard
-      source="T2M_MAX / T2M_MIN · 12-mo · °C"
+      source="NASA POWER · T2M_MAX / T2M_MIN · 12-mo · °C"
+      resolution="~50 km grid"
       state={cards.tempRange.status}
       error={cards.tempRange.error}
       title="Seasonal Temp Extremes"
@@ -442,7 +494,8 @@
     </TelemetryCard>
 
     <TelemetryCard
-      source="RH2M · 2m Relative Humidity"
+      source="NASA POWER · RH2M · 2m Relative Humidity"
+      resolution="~50 km grid"
       state={cards.atmosphere.status}
       error={cards.atmosphere.error}
       title="Relative Humidity (2 m)"
@@ -456,7 +509,8 @@
     </TelemetryCard>
 
     <TelemetryCard
-      source="WS2M · 2m Wind Speed"
+      source="NASA POWER · WS2M · 2m Wind Speed"
+      resolution="~50 km grid"
       state={cards.atmosphere.status}
       error={cards.atmosphere.error}
       title="Wind Speed (2 m)"
@@ -482,6 +536,7 @@
 
     <TelemetryCard
       source={cards.texture.data?.soilSource || 'ISRIC SoilGrids v2.0 · 0–15 cm'}
+      resolution={soilResolution(cards.texture.data?.soilSource)}
       state={cards.texture.status}
       error={cards.texture.error}
       title="Soil Texture Composition"
@@ -498,6 +553,7 @@
 
     <TelemetryCard
       source={cards.soc.data?.soilSource ? `${cards.soc.data.soilSource} · SOC` : 'ISRIC SoilGrids v2.0 · SOC'}
+      resolution={soilResolution(cards.soc.data?.soilSource)}
       state={cards.soc.status}
       error={cards.soc.error}
       title="Soil Organic Carbon (SOC)"
@@ -524,20 +580,30 @@
     {#if calendarMonths.length === 12}
       <TelemetryCard
         wide
-        source="12-month stress & cover-crop calendar"
+        source="NASA POWER · 12-month stress & cover-crop calendar"
+        resolution="~50 km grid"
         state="ready"
         title="Annual Stress & Bare-Soil Cover Calendar (Jan–Dec)"
         note={cards.temp.data && cards.precip.data
-          ? `Frost-free: ${cards.temp.data.frostFreeDays}d (${formatFrostDate(cards.temp.data.lastSpringFrost)} – ${formatFrostDate(cards.temp.data.firstAutumnFrost)}) · Extreme storms: ${cards.precip.data.stormDays}d · Bare/off-season months shaded for cover cropping`
+          ? `Frost-free: ${cards.temp.data.frostFreeDays}d (${formatFrostDate(cards.temp.data.lastSpringFrost)} – ${formatFrostDate(cards.temp.data.firstAutumnFrost)}) · Extreme storms: ${cards.precip.data.stormDays}d · Comparing simplified strip vs detailed RiskCalendar matrix below`
           : ''}
       >
-        <div class="cal-strip" role="list" aria-label="12-month stress and cover-crop calendar">
-          {#each calendarMonths as m (m.label)}
-            <div class="cal-cell {m.code}" role="listitem" title={m.title}>
-              <span class="cal-mon">{m.label}</span>
-              <span class="cal-tag">{m.tag}</span>
+        <div class="cal-comparison">
+          <div class="cal-strip" role="list" aria-label="12-month stress and cover-crop calendar">
+            {#each calendarMonths as m (m.label)}
+              <div class="cal-cell {m.code}" role="listitem" title={m.title}>
+                <span class="cal-mon">{m.label}</span>
+                <span class="cal-tag">{m.tag}</span>
+              </div>
+            {/each}
+          </div>
+
+          {#if riskMonths.length === 12}
+            <div class="risk-cal-wrap">
+              <p class="risk-cal-label">Detailed Monthly Stress Matrix (RiskCalendar)</p>
+              <RiskCalendar months={riskMonths} year={riskYear} />
             </div>
-          {/each}
+          {/if}
         </div>
       </TelemetryCard>
     {/if}
@@ -545,6 +611,7 @@
     <TelemetryCard
       wide
       source="Soil inputs · provenance"
+      resolution={soilResolution(cards.source.data?.soilSource)}
       state={cards.source.status}
       error={cards.source.error}
       title="Raw SoilGrids Profile & Provenance"
@@ -586,16 +653,69 @@
   </div>
 </div>
 
+<DataSourcesModal open={showSourcesModal} onclose={() => (showSourcesModal = false)} />
+
 <style>
   .screen {
     display: grid;
     gap: 22px;
   }
 
+  .screen-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+
+  .sources-btn {
+    padding: 5px 12px;
+    border-radius: 999px;
+    border: 1px solid var(--color-border-dim);
+    background: var(--color-panel);
+    color: var(--color-accent);
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    cursor: pointer;
+    transition: border-color 0.15s ease;
+  }
+
+  .sources-btn:hover {
+    border-color: var(--color-accent);
+  }
+
+  .sources-btn:focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+  }
+
   .grid {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 12px;
+  }
+
+  .cal-comparison {
+    display: grid;
+    gap: 12px;
+  }
+
+  .risk-cal-wrap {
+    display: grid;
+    gap: 6px;
+    padding-top: 8px;
+    border-top: 1px solid color-mix(in srgb, var(--color-card-dim) 35%, transparent);
+  }
+
+  .risk-cal-label {
+    margin: 0;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    color: var(--color-card-dim);
   }
 
   .cal-strip {

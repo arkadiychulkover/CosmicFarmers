@@ -1,6 +1,7 @@
 <script lang="ts">  import { onMount, onDestroy, createEventDispatcher } from 'svelte';
   import GibsLegend from './GibsLegend.svelte';
   import { gibsMaxDate } from '../data/gibsLegends.js';
+  import { resolveNearestGibsDate } from '../lib/weather/gibsDateResolver.js';
 
   export let apiKey: string = (import.meta as any).env?.VITE_GOOGLE_MAPS_API_KEY ?? '';
   export let initialLat: number = 50.45;
@@ -40,23 +41,86 @@
 
   let activeMapType: 'roadmap' | 'hybrid' | 'terrain' = 'roadmap';
 
-  type GibsLayerId = 'ndvi' | 'soil' | 'lst';
+  type GibsLayerId = 'ndvi' | 'soil' | 'lst' | 'imerg';
 
   const gibsLayers: Record<GibsLayerId, { title: string; id: string; matrix: string; maxZoom: number; opacity: number }> = {
     ndvi: { title: 'MODIS NDVI', id: 'MODIS_Terra_NDVI_8Day', matrix: 'GoogleMapsCompatible_Level9', maxZoom: 9, opacity: 0.75 },
     soil: { title: 'SMAP Soil Moisture', id: 'SMAP_L4_Analyzed_Surface_Soil_Moisture', matrix: 'GoogleMapsCompatible_Level6', maxZoom: 6, opacity: 0.75 },
-    lst: { title: 'MODIS Land Surface Temperature', id: 'MODIS_Terra_L3_Land_Surface_Temp_8Day_Day', matrix: 'GoogleMapsCompatible_Level7', maxZoom: 7, opacity: 0.75 }
+    lst: { title: 'MODIS Land Surface Temperature', id: 'MODIS_Terra_L3_Land_Surface_Temp_8Day_Day', matrix: 'GoogleMapsCompatible_Level7', maxZoom: 7, opacity: 0.75 },
+    imerg: { title: 'GPM IMERG Precipitation', id: 'IMERG_Precipitation_Rate', matrix: 'GoogleMapsCompatible_Level6', maxZoom: 6, opacity: 0.75 }
   };
 
   let activeGibsLayer: GibsLayerId | null = null;
   let gibsDate: string = '';
+  let gibsShiftedDate: string | null = null;
+  let gibsResolving: boolean = false;
+  let gibsResolveController: AbortController | null = null;
+  let gibsOverlaySeq = 0;
   const gibsMax = gibsMaxDate();
 
-  function applyGibsDate() {
+  async function refreshGibsOverlay() {
     const google = (window as any).google;
-    if (!map || !google || !activeGibsLayer) return;
+    const seq = ++gibsOverlaySeq;
+    gibsResolveController?.abort();
+    gibsResolveController = null;
+
+    if (!map || !google || !activeGibsLayer) {
+      gibsResolving = false;
+      gibsShiftedDate = null;
+      clearGibsOverlay();
+      return;
+    }
+
+    const layer = gibsLayers[activeGibsLayer];
+    const requested = gibsDate;
+    const hasDate = /^\d{4}-\d{2}-\d{2}$/.test(requested);
+
+    if (!hasDate) {
+      gibsResolving = false;
+      gibsShiftedDate = null;
+      clearGibsOverlay();
+      map.overlayMapTypes.push(createGibsMapType(layer, 'default'));
+      return;
+    }
+
+    const controller = new AbortController();
+    gibsResolveController = controller;
+    gibsResolving = true;
+    gibsShiftedDate = null;
+
+    let effectiveTime = requested;
+    try {
+      const res = await resolveNearestGibsDate({
+        layerId: layer.id,
+        projection: 'epsg3857',
+        tileMatrixSet: layer.matrix,
+        ext: 'png',
+        zoomLevel: 0,
+        row: 0,
+        col: 0,
+        requestedDate: requested,
+        maxDate: gibsMax,
+        signal: controller.signal
+      });
+      if (seq !== gibsOverlaySeq || controller.signal.aborted) return;
+      effectiveTime = res?.resolvedDate || requested;
+      gibsShiftedDate = res?.shifted && effectiveTime !== requested ? effectiveTime : null;
+    } catch {
+      if (seq !== gibsOverlaySeq || controller.signal.aborted) return;
+      gibsShiftedDate = null;
+    } finally {
+      if (seq === gibsOverlaySeq && !controller.signal.aborted) {
+        gibsResolving = false;
+      }
+    }
+
+    if (seq !== gibsOverlaySeq || controller.signal.aborted || !map || !activeGibsLayer) return;
     clearGibsOverlay();
-    map.overlayMapTypes.push(createGibsMapType(gibsLayers[activeGibsLayer]));
+    map.overlayMapTypes.push(createGibsMapType(gibsLayers[activeGibsLayer], effectiveTime));
+  }
+
+  function applyGibsDate() {
+    refreshGibsOverlay();
   }
 
   const darkMapStyle = [
@@ -394,8 +458,11 @@
     }
   }
 
-  function createGibsMapType(layer: { id: string; matrix: string; maxZoom: number; opacity: number }) {
-    const time = /^\d{4}-\d{2}-\d{2}$/.test(gibsDate) ? gibsDate : 'default';
+  function createGibsMapType(
+    layer: { id: string; matrix: string; maxZoom: number; opacity: number },
+    timeOverride?: string
+  ) {
+    const time = timeOverride || (/^\d{4}-\d{2}-\d{2}$/.test(gibsDate) ? gibsDate : 'default');
     const google = (window as any).google;
     return {
       tileSize: new google.maps.Size(256, 256),
@@ -444,13 +511,13 @@
   function toggleGibsLayer(id: GibsLayerId) {
     const google = (window as any).google;
     if (!map || !google) return;
-    clearGibsOverlay();
     if (activeGibsLayer === id) {
       activeGibsLayer = null;
+      refreshGibsOverlay();
       return;
     }
     activeGibsLayer = id;
-    map.overlayMapTypes.push(createGibsMapType(gibsLayers[id]));
+    refreshGibsOverlay();
   }
 
   function setMapType(type: 'roadmap' | 'hybrid' | 'terrain') {
@@ -531,6 +598,7 @@
       window.removeEventListener('keydown', handleKeydown);
     }
     if (debounceTimer) clearTimeout(debounceTimer);
+    gibsResolveController?.abort();
   });
 </script>
 
@@ -710,6 +778,20 @@
               <path d="M14 14.8V4a2 2 0 0 0-4 0v10.8a4 4 0 1 0 4 0z" />
             </svg>
           </button>
+
+          <button
+            type="button"
+            class="tool-btn {activeGibsLayer === 'imerg' ? 'active' : ''}"
+            onclick={() => toggleGibsLayer('imerg')}
+            title="NASA GPM IMERG — precipitation"
+            aria-label="NASA GPM IMERG precipitation layer"
+            aria-pressed={activeGibsLayer === 'imerg'}
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M4 14.9A7 7 0 1 1 15.7 8h1.8a4.5 4.5 0 0 1 2.5 8.2" />
+              <path d="M8 19v2M12 17v4M16 19v2" />
+            </svg>
+          </button>
         </div>
 
         <div class="toolbar-group">
@@ -758,17 +840,30 @@
       </div>
 
       {#if activeGibsLayer}
-        <div class="gibs-badge">
+        <div class="gibs-badge" class:has-callout={gibsResolving || Boolean(gibsShiftedDate)}>
           <span class="gibs-dot"></span>
           NASA GIBS · {gibsLayers[activeGibsLayer].title}
-          <label class="gibs-date">
-            <input type="date" max={gibsMax} bind:value={gibsDate} onchange={applyGibsDate} aria-label="Layer date" />
-          </label>
+          <span class="gibs-date-wrap">
+            <label class="gibs-date">
+              <input type="date" max={gibsMax} bind:value={gibsDate} onchange={applyGibsDate} aria-label="Layer date" />
+            </label>
+            {#if gibsResolving}
+              <div class="gibs-date-callout gibs-date-callout--loading" role="status" aria-live="polite">
+                Checking GIBS date…
+              </div>
+            {:else if gibsShiftedDate}
+              <div class="gibs-date-callout" role="status" aria-live="polite">
+                Showing nearest available: <strong>{gibsShiftedDate}</strong>
+              </div>
+            {/if}
+          </span>
           {#if gibsDate}
             <button type="button" class="gibs-latest" onclick={() => { gibsDate = ''; applyGibsDate(); }}>Latest</button>
           {/if}
         </div>
-        <div class="gibs-legend"><GibsLegend layer={activeGibsLayer} compact /></div>
+        <div class="gibs-legend" class:has-callout={gibsResolving || Boolean(gibsShiftedDate)}>
+          <GibsLegend layer={activeGibsLayer} compact />
+        </div>
       {/if}
 
       <div bind:this={mapContainer} class="map-container"></div>
@@ -1257,11 +1352,52 @@
     border: 1px solid rgba(57, 255, 20, 0.45);
     color: #e2e8f0;
     font-size: 12px;
+    pointer-events: auto;
+    transition: bottom 0.15s ease;
+  }
+
+  .gibs-badge.has-callout {
+    bottom: 48px;
+  }
+
+  .gibs-date-wrap {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+  }
+
+  .gibs-date-callout {
+    position: absolute;
+    top: calc(100% + 9px);
+    left: 0;
+    z-index: 8;
+    padding: 4px 10px;
+    border-radius: 6px;
+    background: rgba(13, 19, 32, 0.96);
+    border: 1px solid rgba(0, 240, 255, 0.45);
+    color: #e2e8f0;
+    font-size: 11px;
+    line-height: 1.3;
+    white-space: nowrap;
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.55);
     pointer-events: none;
   }
 
-  .gibs-badge {
-    pointer-events: auto;
+  .gibs-date-callout::before {
+    content: '';
+    position: absolute;
+    top: -5px;
+    left: 18px;
+    width: 8px;
+    height: 8px;
+    transform: rotate(45deg);
+    background: rgba(13, 19, 32, 0.96);
+    border-left: 1px solid rgba(0, 240, 255, 0.45);
+    border-top: 1px solid rgba(0, 240, 255, 0.45);
+  }
+
+  .gibs-date-callout--loading {
+    color: #94a3b8;
   }
 
   .gibs-date input {
@@ -1290,6 +1426,11 @@
     bottom: 64px;
     z-index: 5;
     pointer-events: none;
+    transition: bottom 0.15s ease;
+  }
+
+  .gibs-legend.has-callout {
+    bottom: 96px;
   }
 
   .gibs-dot {

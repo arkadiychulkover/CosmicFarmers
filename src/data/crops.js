@@ -1,4 +1,7 @@
-const images = import.meta.glob('../crops/*.webp', { eager: true, query: '?url', import: 'default' });
+let images = {};
+try {
+  images = import.meta.glob('../crops/*.webp', { eager: true, query: '?url', import: 'default' });
+} catch {}
 
 const svgDataUrl = (svg) => `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
 
