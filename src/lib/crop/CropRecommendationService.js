@@ -43,10 +43,6 @@ export class CropRecommendationService {
     this.#goal = goal;
   }
 
-  /**
-   * Run ONNX inference for field parameters. When supplemental irrigation (0.5)
-   * is selected, average binary P(IRRIGATION=0) and P(IRRIGATION=1) predictions.
-   */
   async predictProbabilities(params) {
     const irr = irrigationToFeature(params?.IRRIGATION ?? params?.irrigation ?? 0);
     if (irr > 0.1 && irr < 0.9) {
@@ -115,7 +111,6 @@ export class CropRecommendationService {
     params = null,
     coverContext = null,
   ) {
-    // Anchor OOD assessment on initial field conditions so N/SOC cycling never falsifies climate OOD
     const baseOodAssessment = assessFieldOod(params, probabilities);
     let current = firstYear ?? this.#rank(probabilities, previousCrop, null, goal, params, baseOodAssessment);
     const candidates = current.recommendations.map((r) => r.crop);
@@ -130,7 +125,6 @@ export class CropRecommendationService {
 
       if (year > 1) {
         if (isPerennialCrop(winner)) {
-          // Perennials (orchards/vineyards/alfalfa stand) stay established across Year 2 and Year 3
           if (yearParams) {
             const alleyCover = coverContext
               ? estimateTransitionCoverWindow(winner, winner, coverContext)
@@ -167,7 +161,6 @@ export class CropRecommendationService {
             recommendations: kept ? [kept, ...rest] : ranked.recommendations,
           };
         } else {
-          // Annual rotation: update soil nitrogen & SOC (crop + off-season cover crop) and re-run ONNX
           const prevWinner = winner;
           const priorCycleCrops = new Set(history);
           const diversityPenalties = new Float32Array(this.#classes.length).fill(1.0);
@@ -206,7 +199,6 @@ export class CropRecommendationService {
               activeCover,
             );
 
-            // Refine once if the cover-crop N/SOC shift changed the winning crop and its cover pairing
             if (coverContext && step.winner !== prelimNext) {
               for (let pass = 0; pass < 2; pass++) {
                 const nextCover = estimateTransitionCoverWindow(prevWinner, step.winner, coverContext);
