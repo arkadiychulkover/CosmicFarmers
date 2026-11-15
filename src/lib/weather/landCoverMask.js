@@ -1,20 +1,3 @@
-/**
- * Land-Use / Land-Cover Mask Service (`landCoverMask.js`).
- *
- * Multi-source point classification fused from CORS-verified endpoints (2026-11-15 probes):
- * 1. US CONUS (24..50N, -125..-66E):
- *    - USGS NLCD Annual LandCover ImageServer (`di-nlcd.img.arcgis.com`, ~250-500ms, 30m, CORS-open)
- *    - USDA NRCS SDA / SSURGO (`sdmdataaccess.nrcs.usda.gov`, ~200-1000ms, CORS-open)
- *    - USDA NASS CropScape CDL (`usdaSoilCdl.js`, 30m crop ID; active in Node/SSR, CORS-safe skip in browser)
- *    - MRLC GeoServer WMS fallback (`www.mrlc.gov`, ~900ms, CORS-open)
- * 2. Global (and US fallback):
- *    - Esri / Impact Observatory Sentinel-2 10m Land Cover (`ic.imagery1.arcgis.com`, ~100-200ms, 10m, CORS-open)
- *    - OSM Overpass API (`overpass-api.de`, CORS-open) when primary imagery returns Clouds/NoData or fails
- * 3. Physical consistency heuristics:
- *    - ISRIC SoilGrids / SSURGO null/unmapped detection for water & impervious urban areas
- *    - Open-Meteo elevation <= 0 check (distinguishing below-sea-level polders from open ocean)
- */
-
 import { fetchUsdaSoilAndCdl, isWithinUsConusBounds } from './usdaSoilCdl.js';
 
 const NLCD_IDENTIFY_URL =
@@ -49,7 +32,6 @@ export const NLCD_CLASS_MAP = Object.freeze({
   95: { category: 'wetland', label: 'Emergent Herbaceous Wetlands' },
 });
 
-// Verified codes from ic.imagery1.arcgis.com Sentinel2_10m_LandCover ImageServer
 export const SENTINEL2_CLASS_MAP = Object.freeze({
   1: { category: 'water', label: 'Water' },
   2: { category: 'forest', label: 'Trees / Forest' },
@@ -120,13 +102,8 @@ function createBudgetSignal(timeoutMs, externalSignal) {
   };
 }
 
-/**
- * Checks whether an ISRIC SoilGrids (or compatible) soil record is effectively empty / water / urban null.
- * @param {object | null | undefined} soilRecord
- * @returns {boolean}
- */
 export function isSoilRecordNullOrEmpty(soilRecord) {
-  if (!soilRecord || typeof soilRecord !== 'object') return false; // unknown, not proved empty
+  if (!soilRecord || typeof soilRecord !== 'object') return false;
   if (soilRecord.isNull === true || soilRecord.unmapped === true) return true;
 
   const layers = soilRecord?.properties?.layers;
@@ -237,13 +214,6 @@ async function querySentinel2LandCover(lat, lon, signal) {
   };
 }
 
-/**
- * Classifies OSM Overpass tags near the query point.
- * @param {number} lat
- * @param {number} lon
- * @param {AbortSignal} signal
- * @returns {Promise<object>}
- */
 async function queryOverpassLandCover(lat, lon, signal) {
   const query = `[out:json][timeout:3];(is_in(${Number(lat).toFixed(5)},${Number(lon).toFixed(5)});way(around:120,${Number(lat).toFixed(5)},${Number(lon).toFixed(5)})["landuse"];way(around:120,${Number(lat).toFixed(5)},${Number(lon).toFixed(5)})["natural"];);out tags 8;`;
   const res = await fetch(OVERPASS_URL, {
@@ -323,27 +293,6 @@ function buildMaskResult({
   };
 }
 
-/**
- * Fetches and fuses multi-source land-use / land-cover classification for (lat, lon).
- * Runs within a hard timeout budget (<= 5s), honors AbortSignal, and gracefully falls back
- * if satellite/vector endpoints fail or are offline.
- *
- * @param {number} lat
- * @param {number} lon
- * @param {{ elevation?: number | null, soilRecord?: object | null, signal?: AbortSignal, timeoutMs?: number, includeOsm?: boolean }} [options]
- * @returns {Promise<{
- *   category: 'cropland' | 'pasture' | 'forest' | 'urban' | 'water' | 'wetland' | 'barren' | 'mixed',
- *   label: string,
- *   isArableSuitable: boolean,
- *   warning: string | null,
- *   source: string,
- *   resolution: string,
- *   usCdlCrop: object | null,
- *   usSsurgo: object | null,
- *   code: number | null,
- *   inUsBounds: boolean,
- * }>}
- */
 export async function fetchLandCoverMask(lat, lon, options = {}) {
   const numLat = Number(lat);
   const numLon = Number(lon);
@@ -388,7 +337,6 @@ export async function fetchLandCoverMask(lat, lon, options = {}) {
       if (nlcdRes.status === 'fulfilled' && nlcdRes.value?.ok && !nlcdRes.value.noData) {
         primary = nlcdRes.value;
       } else {
-        // US fallback: Sentinel-2 10m -> MRLC WMS
         const [s2Res, mrlcRes] = await Promise.allSettled([
           querySentinel2LandCover(numLat, numLon, budgetSignal),
           queryMrlcWmsFallback(numLat, numLon, budgetSignal),
@@ -414,7 +362,6 @@ export async function fetchLandCoverMask(lat, lon, options = {}) {
 
     const { usSsurgo, usCdlCrop } = usda;
 
-    // 1. High-confidence US crop or SSURGO disambiguation
     if (usCdlCrop?.cropId && primary?.category !== 'water' && primary?.category !== 'urban') {
       const cropName = usCdlCrop.rawLabel || usCdlCrop.cropId;
       return buildMaskResult({
@@ -429,7 +376,6 @@ export async function fetchLandCoverMask(lat, lon, options = {}) {
       });
     }
 
-    // SSURGO confirms urban miscellaneous area or unmapped water inside CONUS
     if (usSsurgo?.isUrbanMisc && (!primary || primary.category === 'mixed' || primary.code === 21 || primary.category === 'pasture')) {
       return buildMaskResult({
         category: 'urban',
@@ -443,14 +389,12 @@ export async function fetchLandCoverMask(lat, lon, options = {}) {
       });
     }
 
-    // 2. Primary satellite hit (excluding unresolved Clouds code 10 or NoData)
     if (primary?.ok && !primary.noData && !(primary.code === 10 && primary.source?.includes('Sentinel-2'))) {
       let category = primary.category;
       let label = primary.label;
       let source = primary.source;
       let warningOverride = null;
 
-      // Combine with Overpass if explicitly requested and Sentinel-2 is ambiguous Rangeland (11)
       if (includeOsm && primary.code === 11 && !budgetSignal.aborted) {
         try {
           const osm = await queryOverpassLandCover(numLat, numLon, budgetSignal);
@@ -460,11 +404,9 @@ export async function fetchLandCoverMask(lat, lon, options = {}) {
             source = `${primary.source} + ${osm.source}`;
           }
         } catch {
-          // ignore secondary enrichment failure
         }
       }
 
-      // Coastal/ocean verification when elevation <= 0 and soil is null
       if (category !== 'cropland' && elevation !== undefined && elevation !== null && elevation <= 0 && soilIsEmpty) {
         category = 'water';
         label = 'Sea-Level / Water Body';
@@ -488,7 +430,6 @@ export async function fetchLandCoverMask(lat, lon, options = {}) {
       });
     }
 
-    // 3. NoData / Clouds / primary failed -> fast ocean short-circuit before Overpass
     if (
       primary?.noData &&
       elevation !== undefined &&
@@ -530,7 +471,6 @@ export async function fetchLandCoverMask(lat, lon, options = {}) {
       });
     }
 
-    // SSURGO unmapped or water inside CONUS
     if (usSsurgo?.isWaterOrUnmapped) {
       return buildMaskResult({
         category: 'water',
@@ -543,7 +483,6 @@ export async function fetchLandCoverMask(lat, lon, options = {}) {
       });
     }
 
-    // Open Ocean / Water heuristic: Sentinel-2 NoData + (elevation <= 0 or empty SoilGrids)
     if (
       (primary?.noData || soilIsEmpty) &&
       (resolvedElevation === undefined || resolvedElevation === null || resolvedElevation <= 0)
@@ -571,7 +510,6 @@ export async function fetchLandCoverMask(lat, lon, options = {}) {
       });
     }
 
-    // Graceful neutral fallback when offline / all APIs unreachable
     return buildMaskResult({
       category: 'mixed',
       label: 'Unverified Land Cover (Offline / Fallback)',
