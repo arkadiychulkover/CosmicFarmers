@@ -1,19 +1,22 @@
-<script>  let { columns, anomalies = $bindable(), min = -50, max = 50 } = $props();
+<script>
+  let { columns, anomalies = $bindable(), min = -50, max = 50 } = $props();
 
   function boundsFor(column) {
+    const isTemp = column.key === 'temperature';
     return {
-      lo: column.min ?? min,
-      hi: column.max ?? max,
+      min: column.min ?? (isTemp ? -8 : min),
+      max: column.max ?? (isTemp ? 8 : max),
+      step: column.step ?? (isTemp ? 0.5 : 1),
+      unit: column.unit ?? (isTemp ? 'Δ °C' : '%'),
     };
   }
 
   function commit(column, event) {
-    const key = column.key;
-    const { lo, hi } = boundsFor(column);
+    const { min: colMin, max: colMax } = boundsFor(column);
     let n = Number(event.currentTarget.value);
     if (Number.isNaN(n)) n = 0;
-    n = Math.min(hi, Math.max(lo, n));
-    anomalies[key] = n;
+    n = Math.min(colMax, Math.max(colMin, n));
+    anomalies[column.key] = n;
     event.currentTarget.value = n;
   }
 </script>
@@ -41,25 +44,29 @@
     <tr>
       <th class="row" scope="row">Anomaly</th>
       {#each columns as column (column.key)}
-        <td class="anomaly-cell">
-          <input
-            class="cell anomaly"
-            type="number"
-            min={boundsFor(column).lo}
-            max={boundsFor(column).hi}
-            step={column.step ?? 1}
-            value={anomalies[column.key]}
-            onchange={(event) => commit(column, event)}
-            aria-label="{column.label} anomaly, {column.anomalyUnit ?? '%'}"
-          />
-          <span class="unit">{column.anomalyUnit ?? '%'}</span>
+        {@const cfg = boundsFor(column)}
+        <td>
+          <div class="input-wrap">
+            <input
+              class="cell anomaly"
+              type="number"
+              min={cfg.min}
+              max={cfg.max}
+              step={cfg.step}
+              value={anomalies[column.key]}
+              onchange={(event) => commit(column, event)}
+              aria-label="{column.label} anomaly ({cfg.unit})"
+            />
+            <span class="unit">{cfg.unit}</span>
+          </div>
         </td>
       {/each}
     </tr>
   </tbody>
 </table>
 
-<style>  table {
+<style>
+  table {
     width: 100%;
     border-collapse: separate;
     border-spacing: 8px 6px;
@@ -67,8 +74,8 @@
   }
 
   th {
-    font-size: 12px;
-    font-weight: 700;
+    font-size: 8px;
+    font-weight: 500;
     color: var(--color-text);
   }
 
@@ -95,25 +102,27 @@
     border: 1px solid var(--color-text-dim);
   }
 
-  .anomaly-cell {
+  .input-wrap {
     position: relative;
-  }
-
-  .unit {
-    position: absolute;
-    top: 50%;
-    right: 14px;
-    transform: translateY(-50%);
-    color: var(--color-text-dim);
-    font-size: 12px;
-    pointer-events: none;
+    display: flex;
+    align-items: center;
   }
 
   .anomaly {
     border: 1px solid transparent;
     background: var(--color-option);
+    padding-right: 34px;
     appearance: textfield;
     -moz-appearance: textfield;
+  }
+
+  .unit {
+    position: absolute;
+    right: 7px;
+    font-size: 9px;
+    font-weight: 600;
+    color: var(--color-text-dim);
+    pointer-events: none;
   }
 
   .anomaly::-webkit-outer-spin-button,
