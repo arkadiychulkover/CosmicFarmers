@@ -1,4 +1,5 @@
 <script>
+  import { tick } from 'svelte';
   import { goto } from '@mateothegreat/svelte5-router';
   import Presets from '../components/Presets.svelte';
   import NumberField from '../components/NumberField.svelte';
@@ -119,6 +120,33 @@
       title: `Field Profile Validated (${liveOod.confidenceScore}/100)`,
       message: 'Soil and climate inputs sit well inside the global training distribution.',
       items: [],
+    };
+  });
+
+  let belowWarning = $state(null);
+  let warningTop = null;
+  let scrollLock = null;
+
+  $effect(() => {
+    const signature = oodBanner ? `${oodBanner.title}\n${oodBanner.items.join('\n')}` : '';
+    const marker = belowWarning;
+    const scroller = marker?.closest('.content');
+    if (!marker || !scroller || !signature) return;
+    let cancelled = false;
+    tick().then(() => {
+      if (cancelled) return;
+      const top = marker.getBoundingClientRect().top;
+      if (warningTop !== null) {
+        const delta = top - warningTop;
+        if (delta) {
+          if (scrollLock) scrollLock.top += delta;
+          scroller.scrollTop += delta;
+        }
+      }
+      warningTop = marker.getBoundingClientRect().top;
+    });
+    return () => {
+      cancelled = true;
     };
   });
 
@@ -288,10 +316,35 @@
     textureDrag = null;
     window.removeEventListener('pointermove', moveTexture);
     window.removeEventListener('pointerup', endTexture);
+    releasePanelScroll?.();
+    releasePanelScroll = null;
+  }
+
+  let releasePanelScroll = null;
+
+  function holdPanelScroll(node) {
+    const scroller = node?.closest('.content');
+    if (!scroller) return () => {};
+    scrollLock = { top: scroller.scrollTop };
+    let locking = false;
+    const pin = () => {
+      if (!scrollLock || locking || scroller.scrollTop === scrollLock.top) return;
+      locking = true;
+      scroller.scrollTop = scrollLock.top;
+      locking = false;
+    };
+    scroller.addEventListener('scroll', pin);
+    return () => {
+      scroller.removeEventListener('scroll', pin);
+      pin();
+      scrollLock = null;
+    };
   }
 
   function startTexture(which, event) {
     event.preventDefault();
+    releasePanelScroll?.();
+    releasePanelScroll = holdPanelScroll(event.currentTarget);
     const clay = Number($session.form.clay) || 0;
     const sand = Number($session.form.sand) || 0;
     textureDrag = { which, clay, edge: clay + sand, x: texturePercent(event), shift: event.shiftKey };
@@ -435,12 +488,15 @@
     {/if}
 
     {#if oodBanner}
-      <StatusBanner
-        tone={oodBanner.tone}
-        title={oodBanner.title}
-        message={oodBanner.message}
-        items={oodBanner.items}
-      />
+      <div class="ood-slot">
+        <StatusBanner
+          tone={oodBanner.tone}
+          title={oodBanner.title}
+          message={oodBanner.message}
+          items={oodBanner.items}
+        />
+        <span class="ood-anchor" bind:this={belowWarning}></span>
+      </div>
     {/if}
   {/if}
 
@@ -802,6 +858,19 @@
     color: var(--color-accent);
   }
 
+  .ood-slot {
+    position: relative;
+  }
+
+  .ood-anchor {
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    width: 0;
+    height: 0;
+    pointer-events: none;
+  }
+
   .texture-block {
     display: grid;
     gap: 4px;
@@ -842,13 +911,14 @@
   .split {
     position: absolute;
     z-index: 4;
-    top: 0;
-    bottom: 0;
+    top: 50%;
+    bottom: auto;
     width: 20px;
+    height: 30px;
     padding: 0;
     border: 0;
     background: transparent;
-    transform: translateX(-50%);
+    transform: translate(-50%, -50%);
     cursor: ew-resize;
     touch-action: none;
   }
