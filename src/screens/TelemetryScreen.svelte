@@ -6,7 +6,6 @@
   import ActionButton from '../components/ActionButton.svelte';
   import PrecipitationChart from '../components/charts/PrecipitationChart.svelte';
   import TemperatureChart from '../components/charts/TemperatureChart.svelte';
-  import TempRangeChart from '../components/charts/TempRangeChart.svelte';
   import SoilTextureHistogram from '../components/charts/SoilTextureHistogram.svelte';
   import HumidityGauge from '../components/charts/HumidityGauge.svelte';
   import MetricBar from '../components/charts/MetricBar.svelte';
@@ -18,7 +17,6 @@
   import {
     loadPrecipitation,
     loadTemperature,
-    loadTempRange,
     loadAtmosphere,
     loadSolar,
     loadGdd,
@@ -33,7 +31,6 @@
   const loaders = {
     precip: loadPrecipitation,
     temp: loadTemperature,
-    tempRange: loadTempRange,
     atmosphere: loadAtmosphere,
     solar: loadSolar,
     gdd: loadGdd,
@@ -48,7 +45,6 @@
   let cards = $state({
     precip: { status: 'loading' },
     temp: { status: 'loading' },
-    tempRange: { status: 'loading' },
     atmosphere: { status: 'loading' },
     solar: { status: 'loading' },
     gdd: { status: 'loading' },
@@ -130,6 +126,15 @@
     return 'Thermal Maturity Window: Short-season cultivars only';
   }
 
+  function mixHex(from, to, t) {
+    const parse = (hex) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
+    const [a, b] = [parse(from), parse(to)];
+    const channel = a.map((part, i) => Math.round(part + (b[i] - part) * t));
+    return `#${channel.map((part) => part.toString(16).padStart(2, '0')).join('')}`;
+  }
+
+  const windCenterYellow = mixHex('#FFB26B', '#B2FF9E', 0.5);
+
   function windNote(ws) {
     if (ws >= 5.5) return 'Wind Level: High · elevated evapotranspiration & lodging risk';
     if (ws >= 2.5) return 'Wind Level: Moderate · normal canopy gas exchange';
@@ -158,6 +163,13 @@
     return `${monthNames[m] ?? parts[1]} ${d}`;
   }
 
+  function frostDateParts(iso) {
+    const formatted = formatFrostDate(iso);
+    const match = formatted.match(/^(.*?)(\d+)$/);
+    if (!match)     return [{ text: formatted, val: true }];
+  return [{ text: match[1], val: true }, { text: match[2], num: true }];
+  }
+
   function runoff(slope) {
     if (slope > 8) {
       return {
@@ -180,13 +192,12 @@
   const calendarMonths = $derived.by(() => {
     const p = cards.precip.data;
     const t = cards.temp.data;
-    const tr = cards.tempRange.data;
     const m = cards.moisture.data;
     if (!p?.months12?.length || !t?.monthly12?.length) return [];
 
     const months = p.months12;
     const temps = t.monthly12;
-    const mins = tr?.monthlyMin12?.length === 12 ? tr.monthlyMin12 : temps;
+    const mins = t.monthlyMin12?.length === 12 ? t.monthlyMin12 : temps;
     const wb = p.monthlyWaterBalance12?.length === 12 ? p.monthlyWaterBalance12 : [];
     const moist = m?.monthlyMoisture12?.length === 12 ? m.monthlyMoisture12 : [];
     const isSouth = Boolean(t.isSouthernHemisphere);
@@ -282,6 +293,66 @@
 
   <div class="grid">
     <TelemetryCard
+      wide
+      minHeight={357}
+      source="T2M_MIN / T2M / T2M_MAX"
+      state={cards.temp.status}
+      error={cards.temp.error}
+      title="Temperature & Heat Stress"
+      valueParts={cards.temp.data ? [
+        { text: '12-Mo/season mean ' },
+        { text: String(cards.temp.data.mean12), num: true },
+        { text: '°C(', val: true },
+        { text: String(cards.temp.data.mean), num: true },
+        { text: '°C)', val: true },
+      ] : []}
+      inlineRows
+      rows={cards.temp.data ? [
+        {
+          key: 'frost-dates',
+          parts: [
+            { text: 'last spring/first autumn ' },
+            ...frostDateParts(cards.temp.data.lastSpringFrost),
+            { text: ' / ', val: true },
+            ...frostDateParts(cards.temp.data.firstAutumnFrost),
+          ],
+        },
+        {
+          key: 'frost-free',
+          parts: [
+            { text: 'Frost-free window ' },
+            { text: String(cards.temp.data.frostFreeDays), num: true },
+            { text: ' days'},
+          ],
+        },
+        {
+          key: 'heat-frost',
+          parts: [
+            { text: 'Heat(>32°C) / Frost(≤0°C) ' },
+            { text: String(cards.temp.data.heatDays), num: true },
+            { text: ' d heat · '},
+            { text: String(cards.temp.data.frostDays), num: true },
+            { text: ' d frost'},
+          ],
+        },
+      ] : []}
+    >
+      {#if cards.temp.data}
+        <TemperatureChart
+          values={cards.temp.data.daily?.length ? cards.temp.data.daily : cards.temp.data.monthly}
+          minValues={cards.temp.data.dailyMin?.length ? cards.temp.data.dailyMin : cards.temp.data.monthlyMin}
+          maxValues={cards.temp.data.dailyMax?.length ? cards.temp.data.dailyMax : cards.temp.data.monthlyMax}
+          dates={cards.temp.data.dates}
+          months={cards.temp.data.months}
+          heatDays={cards.temp.data.heatDays}
+        />
+      {/if}
+    </TelemetryCard>
+
+    <TelemetryCard
+      wide
+      minHeight={330}
+      valueGap="5.67px"
       source={cards.precip.data ? `PRECTOTCORR & EVPTRNS · 12-mo · ${cards.precip.data.seasonLabel}` : 'PRECTOTCORR & EVPTRNS · 12-mo · mm'}
       state={cards.precip.status}
       error={cards.precip.error}
@@ -303,29 +374,7 @@
     </TelemetryCard>
 
     <TelemetryCard
-      source={cards.temp.data ? `T2M / T2M_MAX / T2M_MIN · 12-mo · ${cards.temp.data.seasonLabel}` : 'T2M / T2M_MAX / T2M_MIN · 12-mo'}
-      state={cards.temp.status}
-      error={cards.temp.error}
-      title="Temperature, Heat & Frost"
-      rows={cards.temp.data ? [
-        { label: '12-Mo / Season Mean', value: `${cards.temp.data.mean12} °C (${cards.temp.data.mean} °C)` },
-        { label: 'Heat (>32°C) / Frost (≤0°C)', value: `${cards.temp.data.heatDays}d heat · ${cards.temp.data.frostDays}d frost` },
-        { label: 'Frost-Free Window', value: `${cards.temp.data.frostFreeDays} days` },
-        { label: 'Last Spring / First Autumn', value: `${formatFrostDate(cards.temp.data.lastSpringFrost)} / ${formatFrostDate(cards.temp.data.firstAutumnFrost)}` },
-      ] : []}
-    >
-      {#if cards.temp.data}
-        <TemperatureChart
-          values={cards.temp.data.monthly12}
-          months={cards.temp.data.months12}
-          heatDays={cards.temp.data.heatDays}
-          frostDays={cards.temp.data.frostDays}
-          totalDays={365}
-        />
-      {/if}
-    </TelemetryCard>
-
-    <TelemetryCard
+      minHeight={243}
       source="ALLSKY_SFC_SW_DWN"
       state={cards.solar.status}
       error={cards.solar.error}
@@ -340,6 +389,7 @@
     </TelemetryCard>
 
     <TelemetryCard
+      minHeight={243}
       source="Thermal budget · base 10°C"
       state={cards.gdd.status}
       error={cards.gdd.error}
@@ -353,7 +403,7 @@
       {/if}
     </TelemetryCard>
 
-    <TelemetryCard source="SMAP / GLDAS" state={cards.moisture.status} error={cards.moisture.error}>
+    <TelemetryCard minHeight={206} source="SMAP / GLDAS" state={cards.moisture.status} error={cards.moisture.error}>
       {#if cards.moisture.data}
         {@const surface = Math.round(cards.moisture.data.surface * 100)}
         {@const root = Math.round(cards.moisture.data.rootZone * 100)}
@@ -381,7 +431,7 @@
       {/if}
     </TelemetryCard>
 
-    <TelemetryCard source="ECOSTRESS" state={cards.ecostress.status} error={cards.ecostress.error}>
+    <TelemetryCard minHeight={206} source="ECOSTRESS" state={cards.ecostress.status} error={cards.ecostress.error}>
       {#if cards.ecostress.data}
         <div class="metric">
           <h3>Evapotranspiration & Surface Temp</h3>
@@ -398,7 +448,7 @@
       {/if}
     </TelemetryCard>
 
-    <TelemetryCard source={cards.terrain.data?.terrainFallback ? 'SRTM (Fallback Estimate)' : 'SRTM'} state={cards.terrain.status} error={cards.terrain.error}>
+    <TelemetryCard minHeight={217} source={cards.terrain.data?.terrainFallback ? 'SRTM (Fallback Estimate)' : 'SRTM'} state={cards.terrain.status} error={cards.terrain.error}>
       {#if cards.terrain.data}
         {@const risk = runoff(cards.terrain.data.slope)}
         <div class="metric">
@@ -423,25 +473,7 @@
     </TelemetryCard>
 
     <TelemetryCard
-      source="T2M_MAX / T2M_MIN · 12-mo · °C"
-      state={cards.tempRange.status}
-      error={cards.tempRange.error}
-      title="Seasonal Temp Extremes"
-      rows={cards.tempRange.data ? [
-        { label: 'Season Mean Max (T2M_MAX)', value: `${cards.tempRange.data.maxMean} °C` },
-        { label: 'Season Mean Min (T2M_MIN)', value: `${cards.tempRange.data.minMean} °C` },
-      ] : []}
-    >
-      {#if cards.tempRange.data}
-        <TempRangeChart
-          maxValues={cards.tempRange.data.monthlyMax12}
-          minValues={cards.tempRange.data.monthlyMin12}
-          months={cards.tempRange.data.months12}
-        />
-      {/if}
-    </TelemetryCard>
-
-    <TelemetryCard
+      minHeight={217}
       source="RH2M · 2m Relative Humidity"
       state={cards.atmosphere.status}
       error={cards.atmosphere.error}
@@ -456,6 +488,7 @@
     </TelemetryCard>
 
     <TelemetryCard
+      minHeight={243}
       source="WS2M · 2m Wind Speed"
       state={cards.atmosphere.status}
       error={cards.atmosphere.error}
@@ -470,6 +503,13 @@
           max={8}
           unit="m/s"
           gradId="ws2m-fill"
+          stops={[
+            { at: 0, color: windCenterYellow },
+            { at: 2, color: '#B2FF9E' },
+            { at: 3.25, color: '#7BBF69' },
+            { at: 4.5, color: '#B2FF9E' },
+            { at: 8, color: '#FFB26B' },
+          ]}
           milestones={[
             '0–2.0 · Calm canopy',
             '2.0–4.5 · Optimal exchange',
@@ -481,6 +521,7 @@
     </TelemetryCard>
 
     <TelemetryCard
+      minHeight={243}
       source={cards.texture.data?.soilSource || 'ISRIC SoilGrids v2.0 · 0–15 cm'}
       state={cards.texture.status}
       error={cards.texture.error}
@@ -497,6 +538,7 @@
     </TelemetryCard>
 
     <TelemetryCard
+      minHeight={243}
       source={cards.soc.data?.soilSource ? `${cards.soc.data.soilSource} · SOC` : 'ISRIC SoilGrids v2.0 · SOC'}
       state={cards.soc.status}
       error={cards.soc.error}
@@ -511,6 +553,11 @@
           max={60}
           unit="g/kg"
           gradId="soc-fill"
+          stops={[
+            { at: 0, color: '#FFB26B' },
+            { at: 35, color: '#B2FF9E' },
+            { at: 60, color: '#97DF84' },
+          ]}
           milestones={[
             '<12 · Low organic carbon',
             '12–22 · Typical loam',
@@ -521,11 +568,11 @@
       {/if}
     </TelemetryCard>
 
-    {#if calendarMonths.length === 12}
-      <TelemetryCard
-        wide
+    <TelemetryCard
+        minHeight={243}
         source="12-month stress & cover-crop calendar"
-        state="ready"
+        state={calendarMonths.length === 12 ? 'ready' : (cards.temp.status === 'error' || cards.precip.status === 'error' ? 'error' : 'loading')}
+        error={cards.temp.error || cards.precip.error}
         title="Annual Stress & Bare-Soil Cover Calendar (Jan–Dec)"
         note={cards.temp.data && cards.precip.data
           ? `Frost-free: ${cards.temp.data.frostFreeDays}d (${formatFrostDate(cards.temp.data.lastSpringFrost)} – ${formatFrostDate(cards.temp.data.firstAutumnFrost)}) · Extreme storms: ${cards.precip.data.stormDays}d · Bare/off-season months shaded for cover cropping`
@@ -539,11 +586,11 @@
             </div>
           {/each}
         </div>
-      </TelemetryCard>
-    {/if}
+    </TelemetryCard>
 
     <TelemetryCard
       wide
+      minHeight={341}
       source="Soil inputs · provenance"
       state={cards.source.status}
       error={cards.source.error}
@@ -600,8 +647,9 @@
 
   .cal-strip {
     display: grid;
-    grid-template-columns: repeat(12, minmax(0, 1fr));
+    grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 4px;
+    width: 100%;
   }
 
   .cal-cell {
@@ -621,8 +669,8 @@
   }
 
   .cal-cell.cover {
-    background: var(--color-status-info-bg);
-    border-color: var(--color-status-info-border);
+    background: var(--color-status-warn-bg);
+    border-color: var(--color-status-warn-border);
   }
 
   .cal-cell.drought {
@@ -631,8 +679,8 @@
   }
 
   .cal-cell.frost {
-    background: var(--color-status-error-bg);
-    border-color: var(--color-status-error-border);
+    background: color-mix(in srgb, var(--color-chart-orange) 14%, transparent);
+    border-color: color-mix(in srgb, var(--color-chart-orange) 55%, transparent);
   }
 
   .cal-mon {
@@ -658,6 +706,7 @@
     font-family: var(--font-display);
     font-size: 16px;
     font-weight: 600;
+    color: var(--color-panel);
   }
 
   .bar-label,
@@ -759,9 +808,4 @@
     margin: 0 auto;
   }
 
-  @media (max-width: 640px) {
-    .cal-strip {
-      grid-template-columns: repeat(6, minmax(0, 1fr));
-    }
-  }
 </style>

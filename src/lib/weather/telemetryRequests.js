@@ -4,7 +4,7 @@ import {
   MONTHS_12,
   getSeasonYear,
   getSeasonConfig,
-  getWeather,
+  startWeatherRequests,
   parseWeatherResponse,
 } from './SoilData.js';
 import { fetchSoilGrids } from '../../utils/nasaApi.js';
@@ -48,32 +48,68 @@ function awaitWithSignal(promise, signal) {
   });
 }
 
-async function getWeatherShared(lat, lon, signal) {
-  const cached = cachedPayload(lat, lon)?.weather;
-  if (cached) return cached;
+function hasFullYearDaily(weather) {
+  const dates = weather?.temperature?.dates;
+  if (!Array.isArray(dates) || !dates.length) return false;
+  const months = new Set(dates.map((date) => String(date).slice(4, 6)));
+  return months.size >= 12;
+}
 
+function rememberedWeather(lat, lon) {
+  const cached = cachedPayload(lat, lon)?.weather;
+  if (hasFullYearDaily(cached)) return cached;
   const key = coordKey(lat, lon);
-  const currentSeasonYear = getSeasonYear();
   const memCached = parsedWeatherCache.get(key);
-  if (memCached && memCached.seasonYear === currentSeasonYear) {
+  if (memCached && memCached.seasonYear === getSeasonYear() && hasFullYearDaily(memCached)) {
     return memCached;
   }
+  return null;
+}
 
+function weatherParts(lat, lon) {
+  const key = coordKey(lat, lon);
   let pending = inflightWeather.get(key);
   if (!pending) {
-    pending = getWeather(Number(lon), Number(lat))
-      .then((raw) => {
-        const parsed = parseWeatherResponse(raw);
-        parsedWeatherCache.set(key, parsed);
-        return parsed;
-      })
-      .finally(() => {
-        inflightWeather.delete(key);
-      });
+    const requests = startWeatherRequests(Number(lon), Number(lat));
+    const numLat = Number(lat);
+    const numLon = Number(lon);
+    const dailyParsed = requests.daily.then((daily) => parseWeatherResponse({
+      daily,
+      monthly: null,
+      srtm: null,
+      seasonYear: getSeasonYear(),
+      latitude: numLat,
+      longitude: numLon,
+    }));
+    const fullParsed = requests.full.then((raw) => {
+      const parsed = parseWeatherResponse(raw);
+      parsedWeatherCache.set(key, parsed);
+      return parsed;
+    });
+    pending = {
+      terrain: requests.srtm,
+      daily: dailyParsed,
+      full: fullParsed,
+    };
     inflightWeather.set(key, pending);
+    fullParsed.finally(() => {
+      if (inflightWeather.get(key) === pending) inflightWeather.delete(key);
+    });
+  }
+  return pending;
+}
+
+async function getWeatherShared(lat, lon, signal, scope = 'full') {
+  const remembered = rememberedWeather(lat, lon);
+  if (remembered) {
+    if (scope === 'terrain') return remembered.terrain;
+    return remembered;
   }
 
-  return awaitWithSignal(pending, signal);
+  const parts = weatherParts(lat, lon);
+  if (scope === 'terrain') return awaitWithSignal(parts.terrain, signal);
+  if (scope === 'daily') return awaitWithSignal(parts.daily, signal);
+  return awaitWithSignal(parts.full, signal);
 }
 
 function fetchSoilGridsShared(lat, lon, signal) {
@@ -138,7 +174,7 @@ function fetchSoilGridsShared(lat, lon, signal) {
 }
 
 export async function loadPrecipitation(lat, lon, signal) {
-  const w = await getWeatherShared(lat, lon, signal);
+  const w = await getWeatherShared(lat, lon, signal, 'full');
   const seasonCfg = getSeasonConfig(lat);
   return {
     months: w.months || seasonCfg.months,
@@ -163,7 +199,7 @@ export async function loadPrecipitation(lat, lon, signal) {
 }
 
 export async function loadTemperature(lat, lon, signal) {
-  const w = await getWeatherShared(lat, lon, signal);
+  const w = await getWeatherShared(lat, lon, signal, 'daily');
   const seasonCfg = getSeasonConfig(lat);
   return {
     months: w.months || seasonCfg.months,
@@ -171,7 +207,14 @@ export async function loadTemperature(lat, lon, signal) {
     mean: w.temperature?.mean ?? Number(Number(w.t2m ?? 0).toFixed(1)),
     mean12: w.temperature?.mean12 ?? Number(Number(w.t2m ?? 0).toFixed(1)),
     monthly: w.temperature?.monthly || [],
+    monthlyMin: w.temperature?.monthlyMin || [],
+    monthlyMax: w.temperature?.monthlyMax || [],
     monthly12: w.temperature?.monthly12 || w.monthlyTemp12 || [],
+    monthlyMin12: w.temperature?.monthlyMin12 || w.monthlyMin12 || [],
+    dates: w.temperature?.dates || [],
+    daily: w.temperature?.daily || [],
+    dailyMin: w.temperature?.dailyMin || [],
+    dailyMax: w.temperature?.dailyMax || [],
     heatDays: w.temperature?.heatDays ?? w.stress?.heatDays ?? 0,
     frostDays: w.stress?.frostDays ?? w.frostDays ?? 0,
     lastSpringFrost: w.stress?.lastSpringFrost ?? w.lastSpringFrost ?? null,
@@ -183,21 +226,21 @@ export async function loadTemperature(lat, lon, signal) {
 }
 
 export async function loadSolar(lat, lon, signal) {
-  const w = await getWeatherShared(lat, lon, signal);
+  const w = await getWeatherShared(lat, lon, signal, 'daily');
   return {
     value: w.solar?.value ?? Number(Number(w.allsky ?? 0).toFixed(1)),
   };
 }
 
 export async function loadGdd(lat, lon, signal) {
-  const w = await getWeatherShared(lat, lon, signal);
+  const w = await getWeatherShared(lat, lon, signal, 'daily');
   return {
     value: w.gdd?.value ?? 0,
   };
 }
 
 export async function loadMoisture(lat, lon, signal) {
-  const w = await getWeatherShared(lat, lon, signal);
+  const w = await getWeatherShared(lat, lon, signal, 'daily');
   return {
     surface: w.soilMoisture?.surface ?? w.gwettop ?? 0.55,
     rootZone: w.soilMoisture?.rootZone ?? w.gwetroot ?? 0.58,
@@ -207,7 +250,7 @@ export async function loadMoisture(lat, lon, signal) {
 }
 
 export async function loadEcostress(lat, lon, signal) {
-  const w = await getWeatherShared(lat, lon, signal);
+  const w = await getWeatherShared(lat, lon, signal, 'daily');
   return {
     evapotranspiration: w.ecostress?.evapotranspiration ?? w.evptrns ?? 3.2,
     surfaceTemp: w.ecostress?.surfaceTemp ?? w.ts ?? 16.0,
@@ -218,12 +261,7 @@ export async function loadEcostress(lat, lon, signal) {
 }
 
 export async function loadTerrain(lat, lon, signal) {
-  const w = await getWeatherShared(lat, lon, signal);
-  const terrain = w.terrain || {
-    elevation: w.elevation,
-    slope: w.slope,
-    terrainFallback: Boolean(w.terrainFallback),
-  };
+  const terrain = await getWeatherShared(lat, lon, signal, 'terrain');
   if (!Number.isFinite(terrain?.elevation) || !Number.isFinite(terrain?.slope)) {
     throw new Error('SRTM elevation unavailable');
   }
@@ -235,7 +273,7 @@ export async function loadTerrain(lat, lon, signal) {
 }
 
 export async function loadTempRange(lat, lon, signal) {
-  const w = await getWeatherShared(lat, lon, signal);
+  const w = await getWeatherShared(lat, lon, signal, 'daily');
   const seasonCfg = getSeasonConfig(lat);
   return {
     months: w.months || seasonCfg.months,
@@ -254,7 +292,7 @@ export async function loadTempRange(lat, lon, signal) {
 }
 
 export async function loadAtmosphere(lat, lon, signal) {
-  const w = await getWeatherShared(lat, lon, signal);
+  const w = await getWeatherShared(lat, lon, signal, 'daily');
   return {
     rh2m: Number(Number(w.atmosphere?.rh2m ?? w.rh2m ?? 60).toFixed(1)),
     ws2m: Number(Number(w.atmosphere?.ws2m ?? w.ws2m ?? 3).toFixed(2)),

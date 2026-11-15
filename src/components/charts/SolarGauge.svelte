@@ -52,8 +52,10 @@
     {/each}
     <path d={arc(optimalFrom, optimalTo, optimalRadius)} class="optimal-arc" />
     <circle cx={marker[0]} cy={marker[1]} r="3.2" class="marker" />
+    <text x={cx} y="58" text-anchor="middle" class="number">{numVal.toFixed(1)}</text>
     <text x="8" y="76" class="edge">0</text>
-    <text x="86" y="76" class="edge">25+</text>
+    <text x={cx} y="76" text-anchor="middle" class="edge">MJ/m²/day</text>
+    <text x="104" y="76" text-anchor="end" class="edge">25+</text>
   </svg>
   <div class="optimal">
     <div class="block">
@@ -102,11 +104,17 @@
     stroke-width: 1.5;
   }
 
+  .number {
+    fill: var(--color-tone-warn);
+    font-family: var(--font-display);
+    font-size: 16px;
+    font-weight: 600;
+  }
+
   .edge {
     fill: var(--color-card-dim);
     font-family: var(--font-body);
     font-size: 9px;
-    font-weight: 700;
   }
 
   .optimal {
