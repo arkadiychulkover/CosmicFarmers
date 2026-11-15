@@ -5,6 +5,7 @@
   import CropMiniCard from "../components/CropMiniCard.svelte";
   import StatusBanner from "../components/StatusBanner.svelte";
   import YearSlide from "../components/YearSlide.svelte";
+  import DataSourcesModal from "../components/DataSourcesModal.svelte";
   import { presets } from "../data/presets.js";
   import { cropImage } from "../data/crops.js";
   import { downloadPlan } from "../utils/downloadPlan.js";
@@ -17,6 +18,7 @@
   ];
 
   let showTimeline = $state(false);
+  let showSourcesModal = $state(false);
   let page = $state();
   let index = $state(0);
   let exporting = $state(false);
@@ -29,6 +31,10 @@
   const indicators = $derived(result?.indicators ?? []);
   const confidence = $derived(result?.confidence ?? null);
   const coverSummary = $derived(result?.coverSummary ?? null);
+  const landCover = $derived(result?.landCover ?? $session.nasaData?.landCover ?? null);
+  const precipSummary = $derived(result?.precipitationSummary ?? null);
+  const scenarioComparison = $derived(result?.scenarioComparison ?? null);
+  const scenarios = $derived(scenarioComparison?.scenarios ?? result?.scenarios ?? []);
   const top = $derived(recommendations[0] ?? null);
   const others = $derived(recommendations.slice(1));
   const years = $derived(result?.years ?? []);
@@ -267,11 +273,46 @@
 {:else if !showTimeline}
   <div class="results">
     <header>
-      <h2>Your Crop Strategy</h2>
+      <div class="header-top">
+        <h2>Your Crop Strategy</h2>
+        <button
+          type="button"
+          class="sources-btn"
+          onclick={() => (showSourcesModal = true)}
+        >
+          Data Sources &amp; NASA Missions
+        </button>
+      </div>
       <p>
-        {result.irrigationLabel || "Rainfed"} regime · {result.soilProfile?.soilLabel || "Loam"} (pH {result.soilProfile?.ph ?? $session.form.ph}) · Recommended next crop:
+        {result.irrigationLabel || "Rainfed"} regime · {result.soilProfile?.soilLabel || "Loam"} (pH {result.soilProfile?.ph ?? $session.form.ph})
+        {#if precipSummary} · 8-mo season {precipSummary.seasonPrecip8Mm} mm ({precipSummary.monthlyMeanSeasonMm} mm/mo) · 12-mo {precipSummary.annualPrecip12Mm} mm{/if}
       </p>
     </header>
+
+    {#if landCover}
+      {#if landCover.isArableSuitable === false}
+        <StatusBanner
+          compact
+          tone="warn"
+          title="Non-Arable Land Cover Override: {landCover.label}"
+          message="{landCover.warning} ({landCover.source}, {landCover.resolution})"
+        />
+      {:else}
+        <div class="lc-summary-pill">
+          <span class="lc-tag">{landCover.category}</span>
+          <span>{landCover.label} · {landCover.source} ({landCover.resolution})</span>
+        </div>
+      {/if}
+    {/if}
+
+    {#if result.terrainFallback}
+      <StatusBanner
+        compact
+        tone="warn"
+        title="SRTM Elevation Fallback Active"
+        message={result.terrainWarning || "Elevation lookup unavailable; strategy computed using 180m / 1.5° terrain baseline."}
+      />
+    {/if}
 
     {#if confidenceBanner}
       <StatusBanner
@@ -284,16 +325,66 @@
     {/if}
 
     {#if indicators.length}
-      <div class="indicators" aria-label="3-year rotation impact summary">
+      <div class="indicators" aria-label="3-year agronomic impact summary">
         {#each indicators as ind (ind.key)}
           <div class="ind-card">
             <span class="ind-label">{ind.label}</span>
             <strong class="ind-val">{ind.value}</strong>
             <div class="ind-bar"><span style:width="{ind.score}%"></span></div>
             <small class="ind-note">{ind.note}</small>
+            {#if ind.details && ind.key === "water"}
+              <small class="ind-sub">ETc {ind.details.cropEtc3YrMm} mm · Irrig {ind.details.irrigationDemand3YrMm} mm ({ind.details.irrigationDemand3YrM3Ha} m³/ha) · -{ind.details.waterSavedPct}% vs monocrop</small>
+            {:else if ind.details && ind.key === "soil"}
+              <small class="ind-sub">ΔSOC {ind.details.deltaSocGkg >= 0 ? "+" : ""}{ind.details.deltaSocGkg} g/kg · ΔN {ind.details.deltaNitrogenGkg >= 0 ? "+" : ""}{ind.details.deltaNitrogenGkg} g/kg · N-fix {ind.details.nFixingCrops}+{ind.details.nFixingCovers}</small>
+            {:else if ind.details && ind.key === "climate"}
+              <small class="ind-sub">{ind.details.reliabilityLabel} · Heat {ind.details.heatDays}d · Freeze-thaw {ind.details.freezeThawDays}d · {ind.details.frostFreeDays}d frost-free</small>
+            {/if}
           </div>
         {/each}
       </div>
+    {/if}
+
+    {#if scenarios.length}
+      <section class="scenario-panel" aria-label="Multi-scenario precipitation comparison">
+        <div class="scenario-head">
+          <h3>Multi-Scenario Precipitation Stress Test</h3>
+          {#if scenarioComparison?.varianceSource}
+            <span class="scenario-meta">{scenarioComparison.varianceSource}</span>
+          {/if}
+        </div>
+        <div class="scenario-table-scroll">
+          <table class="scenario-table">
+            <thead>
+              <tr>
+                <th>Scenario</th>
+                <th>Rain (8m / 12m)</th>
+                <th>Irrig. Need</th>
+                <th>Score</th>
+                <th>Risk</th>
+              </tr>
+            </thead>
+            <tbody>
+              {#each scenarios as sc (sc.key)}
+                {@const rainSign = sc.precipDeltaPct >= 0 ? "+" : ""}
+                {@const deltaSign = sc.suitabilityDeltaPct >= 0 ? "+" : ""}
+                <tr title={sc.note}>
+                  <td>
+                    <strong>{sc.label}</strong>
+                    <small>{rainSign}{sc.precipDeltaPct}%</small>
+                  </td>
+                  <td>{sc.seasonPrecip8Mm} / {sc.annualPrecip12Mm} mm</td>
+                  <td>{sc.irrigationDemand3YrMm} mm <small>({sc.irrigationDemand3YrM3Ha} m³/ha)</small></td>
+                  <td>
+                    <strong>{sc.overallScore}</strong>
+                    <small>({deltaSign}{sc.suitabilityDeltaPct}%)</small>
+                  </td>
+                  <td><span class="risk-pill {sc.riskLevel}">{sc.riskLevel}</span></td>
+                </tr>
+              {/each}
+            </tbody>
+          </table>
+        </div>
+      </section>
     {/if}
 
     {#if top}
@@ -311,13 +402,14 @@
           <h3>Multi-Year Calendar & Cover Windows</h3>
           <span class="cover-meta">
             {coverSummary.bareWindowsCount} bare/dark {coverSummary.bareWindowsCount === 1 ? "window" : "windows"} · {coverSummary.warmCoverMonths} warm cover mo · {coverSummary.frostFreeDays}d frost-free
+            {#if coverSummary.bareSoilSource} · {coverSummary.bareSoilSource}{#if coverSummary.meanNdvi !== null && coverSummary.meanNdvi !== undefined} (mean NDVI {Number(coverSummary.meanNdvi).toFixed(2)}){/if}{/if}
           </span>
         </div>
 
         {#if coverSummary.calendar12?.length === 12}
           <div class="cal-strip" role="list" aria-label="Year 1 12-month crop and cover calendar">
             {#each coverSummary.calendar12 as m (m.monthIndex)}
-              <div class="cal-cell {m.status}" role="listitem" title="{m.month}: {m.label} ({m.temp}°C, P−ET {m.waterBalance} mm)">
+              <div class="cal-cell {m.status}" role="listitem" title="{m.month}: {m.label} ({m.temp}°C, P−ET {m.waterBalance} mm{m.ndvi !== null && m.ndvi !== undefined ? `, NDVI ${Number(m.ndvi).toFixed(2)}` : ''})">
                 <span class="cal-mon">{m.month}</span>
                 <span class="cal-st">{m.status === 'cash-crop' ? 'grow' : m.status === 'cover-crop' ? 'cover' : m.status}</span>
               </div>
@@ -531,6 +623,8 @@
   </div>
 {/if}
 
+<DataSourcesModal open={showSourcesModal} onclose={() => (showSourcesModal = false)} />
+
 <style>
   .results {
     display: grid;
@@ -551,6 +645,36 @@
     display: grid;
     gap: 4px;
     margin-bottom: 2px;
+  }
+
+  .header-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .sources-btn {
+    padding: 3px 9px;
+    border-radius: 999px;
+    border: 1px solid var(--color-border-dim);
+    background: var(--color-panel);
+    color: var(--color-accent);
+    font-size: 9px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    cursor: pointer;
+    transition: border-color 0.15s ease, background 0.15s ease;
+  }
+
+  .sources-btn:hover {
+    border-color: var(--color-accent);
+  }
+
+  .sources-btn:focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
   }
 
   .results header h2 {
@@ -618,6 +742,139 @@
     font-size: 8px;
     line-height: 1.2;
     color: var(--color-text-dim);
+  }
+
+  .ind-sub {
+    font-size: 7.5px;
+    line-height: 1.25;
+    color: var(--color-card-dim);
+    border-top: 1px solid color-mix(in srgb, var(--color-border-dim) 45%, transparent);
+    padding-top: 3px;
+  }
+
+  .lc-summary-pill {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 10px;
+    border-radius: 7px;
+    border: 1px solid var(--color-status-good-border);
+    background: var(--color-status-good-bg);
+    font-size: 9px;
+    color: var(--color-text);
+  }
+
+  .lc-tag {
+    padding: 1px 6px;
+    border-radius: 999px;
+    background: var(--color-panel);
+    border: 1px solid var(--color-border-dim);
+    font-size: 8px;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: var(--color-accent);
+  }
+
+  .scenario-panel {
+    display: grid;
+    gap: 8px;
+    padding: 10px 12px;
+    border: 1px solid var(--color-border-dim);
+    border-radius: 10px;
+    background: var(--color-panel);
+  }
+
+  .scenario-head {
+    display: grid;
+    gap: 2px;
+  }
+
+  .scenario-head h3 {
+    margin: 0;
+    font-family: var(--font-display);
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--color-text);
+  }
+
+  .scenario-meta {
+    font-size: 8.5px;
+    color: var(--color-text-dim);
+  }
+
+  .scenario-table-scroll {
+    width: 100%;
+    overflow-x: auto;
+  }
+
+  .scenario-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 8.5px;
+    text-align: left;
+  }
+
+  .scenario-table th,
+  .scenario-table td {
+    padding: 5px 6px;
+    border-bottom: 1px solid color-mix(in srgb, var(--color-border-dim) 50%, transparent);
+    vertical-align: middle;
+  }
+
+  .scenario-table th {
+    font-size: 7.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: var(--color-text-dim);
+  }
+
+  .scenario-table td small {
+    display: block;
+    font-size: 7.5px;
+    color: var(--color-text-dim);
+  }
+
+  .risk-pill {
+    display: inline-block;
+    padding: 1px 6px;
+    border-radius: 999px;
+    font-size: 7.5px;
+    font-weight: 700;
+    text-transform: uppercase;
+    border: 1px solid var(--color-border-dim);
+    background: var(--color-field);
+    color: var(--color-text);
+  }
+
+  .risk-pill.low {
+    border-color: var(--color-status-good-border);
+    background: var(--color-status-good-bg);
+    color: var(--color-tone-good);
+  }
+
+  .risk-pill.moderate {
+    border-color: var(--color-status-warn-border);
+    background: var(--color-status-warn-bg);
+    color: var(--color-tone-warn);
+  }
+
+  .risk-pill.high {
+    border-color: var(--color-status-error-border);
+    background: var(--color-status-error-bg);
+    color: var(--color-tone-error);
+  }
+
+  @media (max-width: 480px) {
+    .indicators {
+      grid-template-columns: 1fr;
+    }
+
+    .minis {
+      grid-template-columns: 1fr;
+    }
   }
 
   .cover-panel {

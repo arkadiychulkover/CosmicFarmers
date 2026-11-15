@@ -1,7 +1,17 @@
 import FEATURE_ORDER from './features.json' with { type: 'json' };
 import CROP_CLASSES from './classes.json' with { type: 'json' };
+import { PREDECESSOR_TO_MODEL as BASE_PREDECESSOR_TO_MODEL } from './predecessors.js';
 
 export { FEATURE_ORDER, CROP_CLASSES };
+
+export const PREDECESSOR_TO_MODEL = {
+  ...BASE_PREDECESSOR_TO_MODEL,
+  alfalfa: BASE_PREDECESSOR_TO_MODEL.alfalfa ?? 'alfalfa',
+  sorghum: BASE_PREDECESSOR_TO_MODEL.sorghum ?? 'sorghum',
+  oats: BASE_PREDECESSOR_TO_MODEL.oats ?? 'oats',
+  millet: BASE_PREDECESSOR_TO_MODEL.millet ?? 'millet',
+  peanut: BASE_PREDECESSOR_TO_MODEL.peanut ?? 'peanut',
+};
 
 export const IRRIGATION_MAP = {
   rainfed: 0,

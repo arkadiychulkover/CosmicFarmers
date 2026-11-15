@@ -23,6 +23,63 @@
     }
   });
 
+  const MODEL_TO_FORM_CROP = {
+    maize: 'corn',
+    wheat: 'winter-wheat',
+    barley: 'spring-barley',
+  };
+
+  let lastAutoCdlKey = $state(null);
+
+  const landCover = $derived($session.nasaData?.landCover ?? null);
+  const currentCoordKey = $derived(
+    `${Number($session.form.lat).toFixed(4)},${Number($session.form.lon).toFixed(4)}`
+  );
+  const isNonArableAcked = $derived($session.nonArableAckCoord === currentCoordKey);
+  const isNonArableBlocked = $derived(
+    Boolean(landCover && landCover.isArableSuitable === false && !isNonArableAcked)
+  );
+
+  const detectedUsCdl = $derived.by(() => {
+    const cdl = landCover?.usCdlCrop;
+    if (!cdl?.cropId) return null;
+    const formValue = MODEL_TO_FORM_CROP[cdl.cropId] || cdl.cropId;
+    const matched = cropOptions.find((opt) => opt.value === formValue);
+    if (!matched) return null;
+    return {
+      formValue: matched.value,
+      formLabel: matched.label,
+      rawLabel: cdl.rawLabel || matched.label,
+      year: cdl.year,
+      applied: $session.form.predecessor === matched.value,
+    };
+  });
+
+  $effect(() => {
+    if (
+      detectedUsCdl &&
+      !$session.activePresetId &&
+      lastAutoCdlKey !== currentCoordKey
+    ) {
+      lastAutoCdlKey = currentCoordKey;
+      $session.form.predecessor = detectedUsCdl.formValue;
+    }
+  });
+
+  function applyUsCdlPredecessor() {
+    if (!detectedUsCdl) return;
+    $session.form.predecessor = detectedUsCdl.formValue;
+  }
+
+  const canProceed = $derived(
+    !$session.nasaLoading &&
+    !$session.nasaError &&
+    !isNonArableBlocked &&
+    Boolean($session.nasaData) &&
+    Math.abs(Number($session.nasaData.lat) - Number($session.form.lat)) < 0.001 &&
+    Math.abs(Number($session.nasaData.lon) - Number($session.form.lon)) < 0.001
+  );
+
   const liveOod = $derived.by(() => {
     if (!$session.nasaData || $session.nasaLoading) return null;
     return assessFieldOod({
@@ -72,28 +129,174 @@
     $session.customSoilEdited = true;
   }
 
-  function updateClay(value) {
-    const clay = Math.min(100, Math.max(0, Number(value) || 0));
-    let sand = Number($session.form.sand) || 0;
-    if (clay + sand > 100) {
-      sand = Math.max(0, Number((100 - clay).toFixed(1)));
-      $session.form.sand = sand;
-    }
-    $session.form.clay = Number(clay.toFixed(1));
-    $session.form.silt = Math.max(0, Number((100 - clay - sand).toFixed(1)));
+  function setTexture(clay, sand) {
+    const nextClay = Math.min(100, Math.max(0, Number(clay) || 0));
+    const nextSand = Math.min(100 - nextClay, Math.max(0, Number(sand) || 0));
+    $session.form.clay = Number(nextClay.toFixed(1));
+    $session.form.sand = Number(nextSand.toFixed(1));
+    $session.form.silt = Number((100 - $session.form.clay - $session.form.sand).toFixed(1));
     $session.customSoilEdited = true;
   }
 
-  function updateSand(value) {
-    const sand = Math.min(100, Math.max(0, Number(value) || 0));
-    let clay = Number($session.form.clay) || 0;
-    if (clay + sand > 100) {
-      clay = Math.max(0, Number((100 - sand).toFixed(1)));
-      $session.form.clay = clay;
+  let textureTrack = $state(null);
+  let labelSignature = '';
+  let labelLayout = $state({
+    clay: { mode: 'lane', left: 0 },
+    sand: { mode: 'lane', left: 50 },
+    silt: { mode: 'lane', left: 100 },
+  });
+  let textureDrag = null;
+
+  const textureLabels = $derived.by(() => {
+    const clay = Number($session.form.clay) || 0;
+    const sand = Number($session.form.sand) || 0;
+    const silt = Number($session.form.silt) || 0;
+    const satClay = Number($session.autoSoil.clay) || 0;
+    const satSand = Number($session.autoSoil.sand) || 0;
+    const satSilt = Number($session.autoSoil.silt) || 0;
+    return [
+      { key: 'clay', name: `Clay ${clay.toFixed(1)}%`, sat: `Satellite: ${satClay.toFixed(1)}%`, at: clay / 2, span: clay },
+      { key: 'sand', name: `Sand ${sand.toFixed(1)}%`, sat: `Satellite: ${satSand.toFixed(1)}%`, at: clay + sand / 2, span: sand },
+      { key: 'silt', name: `Silt ${silt.toFixed(1)}%`, sat: `Satellite: ${satSilt.toFixed(1)}%`, at: clay + sand + silt / 2, span: silt },
+    ];
+  });
+
+  const satClayPct = $derived(Math.min(100, Math.max(0, Number($session.autoSoil.clay) || 0)));
+  const satEdgePct = $derived(Math.min(100, Math.max(0, satClayPct + (Number($session.autoSoil.sand) || 0))));
+
+  function labelWidth(text) {
+    if (!labelWidth.ctx) labelWidth.ctx = document.createElement('canvas').getContext('2d');
+    labelWidth.ctx.font = '8.5px Roboto, system-ui, sans-serif';
+    return labelWidth.ctx.measureText(text).width;
+  }
+
+  $effect(() => {
+    const labels = textureLabels;
+    const track = textureTrack;
+    if (!track) return;
+    const measure = () => {
+      const width = track.clientWidth;
+      if (!width) return;
+      const gap = 2;
+      const oneLine = labels.map((label) => labelWidth(`${label.name} (${label.sat})`));
+      const twoLine = labels.map((label) => Math.max(labelWidth(label.name), labelWidth(label.sat)));
+      const segment = (label) => (label.span / 100) * width;
+      const next = {};
+      const upper = [];
+      const lower = [];
+      const previousModes = labelSignature ? labelSignature.split('|').map((part) => part.split(':')[0]) : [];
+      const hits = (row, x, textWidth) => row.some((other) => Math.abs(other.x - x) < (other.w + textWidth) / 2 + gap);
+      const clampX = (textWidth, at) => {
+        const half = textWidth / 2;
+        const minX = Math.min(width / 2, half + gap);
+        const maxX = Math.max(minX, width - half - gap);
+        return Math.min(maxX, Math.max(minX, (at / 100) * width));
+      };
+      const placeDown = (label, textWidth) => {
+        const x = clampX(textWidth, label.at);
+        lower.push({ x, w: textWidth });
+        next[label.key] = { mode: 'down', left: (x / width) * 100 };
+      };
+      labels.forEach((label, index) => {
+        const center = (label.at / 100) * width;
+        const wasStack = previousModes[index] === 'stack';
+        const laneLimit = segment(label) - (wasStack ? 8 : gap);
+        if (oneLine[index] <= laneLimit) {
+          next[label.key] = { mode: 'lane', left: label.at };
+          upper.push({ x: center, w: oneLine[index] });
+          return;
+        }
+        if (twoLine[index] + gap <= segment(label)) {
+          if (!hits(upper, center, twoLine[index])) {
+            next[label.key] = { mode: 'stack', left: label.at };
+            upper.push({ x: center, w: twoLine[index] });
+            return;
+          }
+          placeDown(label, oneLine[index]);
+          return;
+        }
+        const x = clampX(oneLine[index], label.at);
+        if (!hits(upper, x, oneLine[index]) && !hits(lower, x, oneLine[index])) {
+          next[label.key] = { mode: 'up', left: (x / width) * 100 };
+          upper.push({ x, w: oneLine[index] });
+          return;
+        }
+        placeDown(label, oneLine[index]);
+      });
+      const signature = labels.map((label) => {
+        const item = next[label.key];
+        return `${item.mode}:${item.left.toFixed(2)}`;
+      }).join('|');
+      if (signature === labelSignature) return;
+      labelSignature = signature;
+      labelLayout = next;
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(track);
+    return () => observer.disconnect();
+  });
+
+  function texturePercent(event) {
+    const rect = textureTrack?.getBoundingClientRect();
+    if (!rect?.width) return 0;
+    const x = Math.min(rect.right, Math.max(rect.left, event.clientX));
+    return ((x - rect.left) / rect.width) * 100;
+  }
+
+  function moveTexture(event) {
+    if (!textureDrag) return;
+    const point = texturePercent(event);
+    const shift = event.shiftKey;
+    if (shift !== textureDrag.shift) {
+      textureDrag = {
+        ...textureDrag,
+        clay: Number($session.form.clay) || 0,
+        edge: (Number($session.form.clay) || 0) + (Number($session.form.sand) || 0),
+        x: point,
+        shift,
+      };
     }
-    $session.form.sand = Number(sand.toFixed(1));
-    $session.form.silt = Math.max(0, Number((100 - clay - sand).toFixed(1)));
-    $session.customSoilEdited = true;
+    if (shift) {
+      const delta = point - textureDrag.x;
+      let clay = textureDrag.clay + delta;
+      let edge = textureDrag.edge + delta;
+      if (clay < 0) {
+        edge -= clay;
+        clay = 0;
+      }
+      if (edge > 100) {
+        clay -= edge - 100;
+        edge = 100;
+      }
+      clay = Math.max(0, Math.min(clay, edge));
+      edge = Math.max(clay, Math.min(100, edge));
+      setTexture(clay, edge - clay);
+      return;
+    }
+    if (textureDrag.which === 'clay') {
+      const edge = (Number($session.form.clay) || 0) + (Number($session.form.sand) || 0);
+      setTexture(Math.max(0, Math.min(edge, point)), edge - Math.max(0, Math.min(edge, point)));
+      return;
+    }
+    const clay = Number($session.form.clay) || 0;
+    const edge = Math.max(clay, Math.min(100, point));
+    setTexture(clay, edge - clay);
+  }
+
+  function endTexture() {
+    textureDrag = null;
+    window.removeEventListener('pointermove', moveTexture);
+    window.removeEventListener('pointerup', endTexture);
+  }
+
+  function startTexture(which, event) {
+    event.preventDefault();
+    const clay = Number($session.form.clay) || 0;
+    const sand = Number($session.form.sand) || 0;
+    textureDrag = { which, clay, edge: clay + sand, x: texturePercent(event), shift: event.shiftKey };
+    window.addEventListener('pointermove', moveTexture);
+    window.addEventListener('pointerup', endTexture);
   }
 
   function resetSoilToSatellite() {
@@ -135,6 +338,7 @@
 </script>
 
 <div class="screen">
+  <div class="screen-main">
   <h2>Calculate Optimal Rotation Strategy</h2>
 
   <Presets {presets} activeId={$session.activePresetId} onselect={applyPreset} />
@@ -159,8 +363,8 @@
     <button
       type="button"
       class="map-btn"
-      aria-label="Pick coordinates on Google Maps"
-      title="Pick coordinates on Google Maps"
+      aria-label="Pick coordinates on interactive map (Google Maps or OSM + GIBS)"
+      title="Pick coordinates on interactive map"
       onclick={openMap}
     >
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -180,13 +384,64 @@
       busy={$session.nasaLoading}
       onaction={retryLoad}
     />
-  {:else if oodBanner}
-    <StatusBanner
-      tone={oodBanner.tone}
-      title={oodBanner.title}
-      message={oodBanner.message}
-      items={oodBanner.items}
-    />
+  {:else}
+    {#if landCover}
+      {#if landCover.isArableSuitable === false}
+        <div class="landcover-alert">
+          <StatusBanner
+            tone="error"
+            title="Land Cover Mask: {landCover.label} ({landCover.category})"
+            message="{landCover.warning} Source: {landCover.source} ({landCover.resolution})."
+          />
+          <label class="override-check">
+            <input
+              type="checkbox"
+              checked={isNonArableAcked}
+              onchange={(e) => {
+                $session.nonArableAckCoord = e.currentTarget.checked ? currentCoordKey : null;
+              }}
+            />
+            <span>Acknowledge non-arable land-cover warning and override to run simulation anyway</span>
+          </label>
+        </div>
+      {:else}
+        <div class="landcover-pill" class:warn={Boolean(landCover.warning)}>
+          <span class="lc-badge">{landCover.category}</span>
+          <div class="lc-body">
+            <strong>Land Cover: {landCover.label}</strong>
+            <span>{landCover.source} ({landCover.resolution})</span>
+            {#if landCover.warning}
+              <small>{landCover.warning}</small>
+            {/if}
+          </div>
+        </div>
+      {/if}
+    {/if}
+
+    {#if detectedUsCdl}
+      <div class="cdl-chip" role="status">
+        <span>
+          USDA CropScape CDL ({detectedUsCdl.year}): Detected <strong>{detectedUsCdl.rawLabel}</strong>
+        </span>
+        <button
+          type="button"
+          class="cdl-apply"
+          disabled={detectedUsCdl.applied}
+          onclick={applyUsCdlPredecessor}
+        >
+          {detectedUsCdl.applied ? 'Selected as predecessor' : 'Apply as predecessor'}
+        </button>
+      </div>
+    {/if}
+
+    {#if oodBanner}
+      <StatusBanner
+        tone={oodBanner.tone}
+        title={oodBanner.title}
+        message={oodBanner.message}
+        items={oodBanner.items}
+      />
+    {/if}
   {/if}
 
   <SelectField
@@ -264,42 +519,61 @@
     mark={$session.autoSoil.nitrogen}
     bind:value={() => $session.form.nitrogen, (v) => updateSoilField('nitrogen', v)}
   />
+  </div>
 
-  <SliderField
-    label="Clay Content"
-    min={0}
-    max={100}
-    step={0.5}
-    unit="%"
-    mark={$session.autoSoil.clay}
-    bind:value={() => $session.form.clay, updateClay}
-  />
-
-  <SliderField
-    label="Sand Content"
-    min={0}
-    max={100}
-    step={0.5}
-    unit="%"
-    mark={$session.autoSoil.sand}
-    bind:value={() => $session.form.sand, updateSand}
-  />
-
-  <div class="silt-readout" aria-live="polite">
-    <div class="silt-row">
-      <span class="silt-label">Silt (auto-balanced: 100% − Clay − Sand)</span>
-      <strong class="silt-val">{Number($session.form.silt ?? 0).toFixed(1)}%</strong>
+  <div class="texture-block">
+    <div class="silt-readout" aria-live="polite">
+      <div class="silt-row">
+        <span class="silt-label">Silt (auto-balanced: 100% − Clay − Sand)</span>
+        <strong class="silt-val">{Number($session.form.silt ?? 0).toFixed(1)}%</strong>
+      </div>
+      <div class="track-wrap" bind:this={textureTrack}>
+        <span class="sat-tick" style:left="{satClayPct}%"></span>
+        <span class="sat-tick" style:left="{satEdgePct}%"></span>
+        <div class="silt-bar">
+          <span class="seg clay" style:width="{Math.min(100, Math.max(0, Number($session.form.clay) || 0))}%"></span>
+          <span class="seg sand" style:width="{Math.min(100, Math.max(0, Number($session.form.sand) || 0))}%"></span>
+          <span class="seg silt" style:width="{Math.min(100, Math.max(0, Number($session.form.silt) || 0))}%"></span>
+        </div>
+        <button
+          type="button"
+          class="split clay"
+          style:left="{Math.min(100, Math.max(0, Number($session.form.clay) || 0))}%"
+          aria-label="Clay and sand boundary"
+          onpointerdown={(event) => startTexture('clay', event)}
+        >
+          <span class="tri up"></span>
+          <span class="stem"></span>
+        </button>
+        <button
+          type="button"
+          class="split sand"
+          style:left="{Math.min(100, Math.max(0, (Number($session.form.clay) || 0) + (Number($session.form.sand) || 0)))}%"
+          aria-label="Sand and silt boundary"
+          onpointerdown={(event) => startTexture('sand', event)}
+        >
+          <span class="stem"></span>
+          <span class="tri down"></span>
+        </button>
+        {#each textureLabels as label (label.key)}
+          <span
+            class="lane-cap"
+            class:stack={labelLayout[label.key].mode === 'stack'}
+            class:up={labelLayout[label.key].mode === 'up'}
+            class:down={labelLayout[label.key].mode === 'down'}
+            style:left="{labelLayout[label.key].left}%"
+          >
+            {#if labelLayout[label.key].mode === 'stack'}
+              <span>{label.name}</span>
+              <span>{label.sat}</span>
+            {:else}
+              {label.name} ({label.sat})
+            {/if}
+          </span>
+        {/each}
+      </div>
     </div>
-    <div class="silt-bar">
-      <span class="seg clay" style:width="{Math.min(100, Math.max(0, Number($session.form.clay) || 0))}%"></span>
-      <span class="seg sand" style:width="{Math.min(100, Math.max(0, Number($session.form.sand) || 0))}%"></span>
-      <span class="seg silt" style:width="{Math.min(100, Math.max(0, Number($session.form.silt) || 0))}%"></span>
-    </div>
-    <div class="silt-legend">
-      <span>Clay {Number($session.form.clay ?? 0).toFixed(1)}%</span>
-      <span>Sand {Number($session.form.sand ?? 0).toFixed(1)}%</span>
-      <span>Silt {Number($session.form.silt ?? 0).toFixed(1)}% (Satellite: {Number($session.autoSoil.silt ?? 0).toFixed(1)}%)</span>
-    </div>
+    <p class="shift-hint">Hold Shift to move both sliders</p>
   </div>
 
   <div class="actions">
@@ -307,7 +581,7 @@
       variant="surface"
       onclick={() => goto('/telemetry')}
     >
-      Stress Test →
+      {$session.nasaLoading ? 'Loading NASA Data...' : isNonArableBlocked ? 'Acknowledge Land Cover Warning Above' : 'Stress Test →'}
     </ActionButton>
   </div>
 </div>
@@ -326,7 +600,17 @@
 <style>
   .screen {
     display: grid;
+    grid-template-columns: minmax(0, 1fr);
     gap: 22px;
+    width: 100%;
+    min-width: 0;
+  }
+
+  .screen-main {
+    display: grid;
+    gap: 22px;
+    width: 100%;
+    min-width: 0;
   }
 
   .coords {
@@ -433,8 +717,9 @@
   }
 
   .irr-card span {
+    display: block;
     font-size: 8.5px;
-    line-height: 1.3;
+    line-height: 11px;
     color: var(--color-text-dim);
   }
 
@@ -442,6 +727,7 @@
     display: grid;
     gap: 4px;
     text-align: center;
+    overflow-anchor: none;
   }
 
   .soil-head {
@@ -449,6 +735,7 @@
     align-items: center;
     justify-content: center;
     gap: 10px;
+    min-height: 22px;
   }
 
   .soil-warning h3 {
@@ -457,11 +744,12 @@
     font-size: 20px;
     font-weight: 600;
     letter-spacing: 0;
-    line-height: 1;
+    line-height: 20px;
     text-transform: uppercase;
   }
 
   .reset-soil {
+    flex: none;
     padding: 2px 8px;
     border: 1px solid var(--color-border-dim);
     border-radius: 999px;
@@ -469,6 +757,7 @@
     color: var(--color-accent);
     font-size: 9px;
     font-weight: 600;
+    line-height: 12px;
     cursor: pointer;
   }
 
@@ -480,13 +769,15 @@
     margin: 0;
     color: var(--color-text-dim);
     font-size: 9px;
-    line-height: 1.3;
+    line-height: 12px;
+    min-height: 24px;
   }
 
   .silt-readout {
     display: grid;
     gap: 6px;
     padding: 10px 12px;
+    overflow: clip;
     border: 1px solid var(--color-border-dim);
     border-radius: 6px;
     background: color-mix(in srgb, var(--color-panel) 55%, transparent);
@@ -511,12 +802,138 @@
     color: var(--color-accent);
   }
 
+  .texture-block {
+    display: grid;
+    gap: 4px;
+    width: 100%;
+    min-width: 0;
+    height: 196px;
+    overflow: clip;
+    overflow-anchor: none;
+  }
+
+  .track-wrap {
+    position: relative;
+    height: 6px;
+    margin: 58px 0 58px;
+  }
+
+  .sat-tick {
+    position: absolute;
+    z-index: 0;
+    top: 50%;
+    width: 2px;
+    height: 42px;
+    background: #6d7d99;
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+  }
+
   .silt-bar {
+    position: relative;
+    z-index: 1;
     display: flex;
     height: 6px;
     border-radius: 3px;
     overflow: hidden;
     background: var(--color-field);
+  }
+
+  .split {
+    position: absolute;
+    z-index: 4;
+    top: 0;
+    bottom: 0;
+    width: 20px;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    transform: translateX(-50%);
+    cursor: ew-resize;
+    touch-action: none;
+  }
+
+  .split.sand {
+    z-index: 3;
+  }
+
+  .stem {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 2px;
+    height: 30px;
+    background: #fff;
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+  }
+
+  .tri {
+    position: absolute;
+    left: 50%;
+    width: 0;
+    height: 0;
+    transform: translateX(-50%);
+  }
+
+  .tri.up {
+    bottom: calc(50% + 19px);
+    border-left: 4.5px solid transparent;
+    border-right: 4.5px solid transparent;
+    border-top: 7.8px solid var(--color-chart-orange);
+  }
+
+  .tri.down {
+    top: calc(50% + 19px);
+    border-left: 4.5px solid transparent;
+    border-right: 4.5px solid transparent;
+    border-bottom: 7.8px solid var(--color-chart-green);
+  }
+
+  .lane-cap {
+    position: absolute;
+    z-index: 1;
+    bottom: calc(50% + 22.9px);
+    font-size: 8.5px;
+    line-height: 1.15;
+    color: var(--color-text-dim);
+    white-space: nowrap;
+    text-align: center;
+    transform: translate(-50%, 50%);
+    pointer-events: none;
+  }
+
+  .lane-cap.stack {
+    display: block;
+    width: max-content;
+    max-width: none;
+    white-space: nowrap;
+  }
+
+  .lane-cap.stack span {
+    display: block;
+    width: max-content;
+    white-space: nowrap;
+  }
+
+  .lane-cap.up {
+    bottom: calc(50% + 36px);
+    z-index: 2;
+  }
+
+  .lane-cap.down {
+    bottom: auto;
+    top: calc(50% + 36px);
+    z-index: 2;
+    transform: translate(-50%, -50%);
+  }
+
+  .shift-hint {
+    margin: 0;
+    text-align: right;
+    font-size: 9px;
+    line-height: 1.2;
+    color: #9aa3b2;
   }
 
   .seg.clay {
@@ -531,12 +948,100 @@
     background: var(--color-chart-green);
   }
 
-  .silt-legend {
-    display: flex;
-    justify-content: space-between;
+  .landcover-alert {
+    display: grid;
     gap: 8px;
-    font-size: 8.5px;
+  }
+
+  .override-check {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 9px 12px;
+    border-radius: 8px;
+    border: 1px solid var(--color-status-warn-border);
+    background: var(--color-status-warn-bg);
+    color: var(--color-text);
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  .landcover-pill {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 9px 12px;
+    border-radius: 8px;
+    border: 1px solid var(--color-status-good-border);
+    background: var(--color-status-good-bg);
+    color: var(--color-text);
+  }
+
+  .landcover-pill.warn {
+    border-color: var(--color-status-warn-border);
+    background: var(--color-status-warn-bg);
+  }
+
+  .lc-badge {
+    flex-shrink: 0;
+    margin-top: 2px;
+    padding: 2px 7px;
+    border-radius: 999px;
+    border: 1px solid var(--color-border-dim);
+    background: var(--color-panel);
+    color: var(--color-accent);
+    font-size: 9px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  .lc-body {
+    display: grid;
+    gap: 2px;
+    font-size: 11px;
+    line-height: 1.35;
+  }
+
+  .lc-body span {
+    font-size: 10px;
     color: var(--color-text-dim);
+  }
+
+  .lc-body small {
+    font-size: 10px;
+    color: var(--color-text);
+  }
+
+  .cdl-chip {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    border-radius: 8px;
+    border: 1px solid var(--color-status-info-border);
+    background: var(--color-status-info-bg);
+    font-size: 11px;
+    color: var(--color-text);
+  }
+
+  .cdl-apply {
+    padding: 4px 10px;
+    border-radius: 999px;
+    border: 1px solid var(--color-border-dim);
+    background: var(--color-panel);
+    color: var(--color-accent);
+    font-size: 10px;
+    font-weight: 700;
+    cursor: pointer;
+  }
+
+  .cdl-apply:disabled {
+    opacity: 0.7;
+    cursor: default;
   }
 
   .actions {
@@ -548,6 +1053,11 @@
   @media (max-width: 600px) {
     .irrigation-grid {
       grid-template-columns: 1fr;
+    }
+
+    .actions {
+      width: 100%;
+      min-width: 0;
     }
   }
 </style>

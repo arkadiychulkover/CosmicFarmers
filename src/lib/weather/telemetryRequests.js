@@ -2,16 +2,21 @@ import { get } from 'svelte/store';
 import { session } from '../../stores/session.svelte.js';
 import {
   MONTHS_12,
+  applyNdviToWeather,
   getSeasonYear,
   getSeasonConfig,
   startWeatherRequests,
   parseWeatherResponse,
 } from './SoilData.js';
+import { fetchNdviProfile, computeFallbackNdviProfile } from './ndviService.js';
+import { fetchLandCoverMask } from './landCoverMask.js';
 import { fetchSoilGrids } from '../../utils/nasaApi.js';
 
 const inflightWeather = new Map();
 const parsedWeatherCache = new Map();
 const inflightSoil = new Map();
+const inflightLandCover = new Map();
+const landCoverCache = new Map();
 
 function coordKey(lat, lon) {
   return `${Number(lat).toFixed(4)},${Number(lon).toFixed(4)}`;
@@ -26,6 +31,7 @@ function cachedPayload(lat, lon) {
   const nasa = get(session).nasaData;
   if (!nasa?.weather || !samePoint(lat, lon, nasa.lat, nasa.lon)) return null;
   if (!Array.isArray(nasa.weather.months12) || nasa.weather.months12.length !== 12) return null;
+  if (!Array.isArray(nasa.weather.riskCalendarMonths) || nasa.weather.riskCalendarMonths.length !== 12) return null;
   return nasa;
 }
 
@@ -60,7 +66,7 @@ function rememberedWeather(lat, lon) {
   if (hasFullYearDaily(cached)) return cached;
   const key = coordKey(lat, lon);
   const memCached = parsedWeatherCache.get(key);
-  if (memCached && memCached.seasonYear === getSeasonYear() && hasFullYearDaily(memCached)) {
+  if (memCached && memCached.seasonYear === getSeasonYear(lat) && hasFullYearDaily(memCached)) {
     return memCached;
   }
   return null;
@@ -77,14 +83,26 @@ function weatherParts(lat, lon) {
       daily,
       monthly: null,
       srtm: null,
-      seasonYear: getSeasonYear(),
+      seasonYear: getSeasonYear(numLat),
       latitude: numLat,
       longitude: numLon,
     }));
-    const fullParsed = requests.full.then((raw) => {
+    const fullParsed = Promise.all([
+      requests.full,
+      fetchNdviProfile(numLat, numLon).catch(() => null),
+    ]).then(([raw, ndviRaw]) => {
       const parsed = parseWeatherResponse(raw);
-      parsedWeatherCache.set(key, parsed);
-      return parsed;
+      const ndviProfile =
+        ndviRaw && !ndviRaw.ndviFallback
+          ? ndviRaw
+          : computeFallbackNdviProfile({
+              monthlyTemp12: parsed.monthlyTemp12,
+              seasonKeys: getSeasonConfig(lat).monthKeys,
+              lat: numLat,
+            });
+      const enriched = applyNdviToWeather(parsed, ndviProfile);
+      parsedWeatherCache.set(key, enriched);
+      return enriched;
     });
     pending = {
       terrain: requests.srtm,
@@ -183,7 +201,12 @@ export async function loadPrecipitation(lat, lon, signal) {
     monthly: w.precipitation?.monthly || [],
     historicalAverage: w.precipitation?.historicalAverage ?? 0,
     anomalyPct: w.precipitation?.anomalyPct ?? 0,
-    total12: w.precipitation?.total12 ?? 0,
+    total12: w.totalPrecip12 ?? w.precipitation?.total12 ?? 0,
+    totalPrecip12: w.totalPrecip12 ?? w.precipitation?.total12 ?? 0,
+    prectotcorr: w.prectotcorr ?? 0,
+    percentiles12: w.precipitation?.percentiles12 ?? w.precipPercentiles ?? null,
+    percentilesSeason: w.precipitation?.percentilesSeason ?? w.precipPercentilesSeason ?? null,
+    precipPercentiles: w.precipPercentiles ?? w.precipitation?.percentiles12 ?? null,
     monthly12: w.precipitation?.monthly12 || w.monthlyPrecip12 || [],
     historicalAverage12: w.precipitation?.historicalAverage12 ?? 0,
     anomalyPct12: w.precipitation?.anomalyPct12 ?? 0,
@@ -193,6 +216,10 @@ export async function loadPrecipitation(lat, lon, signal) {
     monthlyWaterBalance12: w.precipitation?.monthlyWaterBalance12 || w.monthlyWaterBalance12 || [],
     seasonWaterBalance: w.precipitation?.seasonWaterBalance ?? 0,
     stormDays: w.stress?.stormDays ?? w.stormDays ?? 0,
+    daily_precip_12: w.daily_precip_12 || [],
+    seasonDailyPrecip: w.seasonDailyPrecip || [],
+    riskCalendarMonths: w.riskCalendarMonths || [],
+    seasonYear: w.seasonYear,
     seasonLabel: w.seasonLabel || seasonCfg.label,
     isSouthernHemisphere: Boolean(w.isSouthernHemisphere ?? seasonCfg.isSouthern),
   };
@@ -220,6 +247,11 @@ export async function loadTemperature(lat, lon, signal) {
     lastSpringFrost: w.stress?.lastSpringFrost ?? w.lastSpringFrost ?? null,
     firstAutumnFrost: w.stress?.firstAutumnFrost ?? w.firstAutumnFrost ?? null,
     frostFreeDays: w.stress?.frostFreeDays ?? w.frostFreeDays ?? 365,
+    freezeThawDays: w.stress?.freezeThawDays ?? w.freezeThawDays ?? 0,
+    daily_t2m_max_12: w.daily_t2m_max_12 || [],
+    seasonDailyT2mMax: w.seasonDailyT2mMax || [],
+    riskCalendarMonths: w.riskCalendarMonths || [],
+    seasonYear: w.seasonYear,
     seasonLabel: w.seasonLabel || seasonCfg.label,
     isSouthernHemisphere: Boolean(w.isSouthernHemisphere ?? seasonCfg.isSouthern),
   };
@@ -265,10 +297,16 @@ export async function loadTerrain(lat, lon, signal) {
   if (!Number.isFinite(terrain?.elevation) || !Number.isFinite(terrain?.slope)) {
     throw new Error('SRTM elevation unavailable');
   }
+  const terrainFallback = Boolean(terrain.terrainFallback);
   return {
     elevation: Number(terrain.elevation),
     slope: Number(terrain.slope),
-    terrainFallback: Boolean(terrain.terrainFallback),
+    terrainFallback,
+    terrainWarning: terrain.terrainWarning || (
+      terrainFallback
+        ? 'Terrain lookup failed (Open-Meteo elevation API unavailable); using fallback defaults (180m elevation, 1.5° slope).'
+        : null
+    ),
   };
 }
 
@@ -288,6 +326,8 @@ export async function loadTempRange(lat, lon, signal) {
     lastSpringFrost: w.stress?.lastSpringFrost ?? w.lastSpringFrost ?? null,
     firstAutumnFrost: w.stress?.firstAutumnFrost ?? w.firstAutumnFrost ?? null,
     frostFreeDays: w.stress?.frostFreeDays ?? w.frostFreeDays ?? 365,
+    daily_t2m_max_12: w.daily_t2m_max_12 || [],
+    seasonDailyT2mMax: w.seasonDailyT2mMax || [],
   };
 }
 
@@ -385,4 +425,55 @@ export async function loadSoilSource(lat, lon, signal) {
     depths: '0–5 cm & 5–15 cm',
     layers: ['phh2o', 'soc', 'nitrogen', 'clay', 'sand', 'silt'],
   };
+}
+
+/**
+ * Loads the 12-month MODIS satellite NDVI profile and bare-soil mask (NDVI < 0.25).
+ * @param {number} lat
+ * @param {number} lon
+ * @param {AbortSignal} [signal]
+ * @returns {Promise<object>}
+ */
+export async function loadNdvi(lat, lon, signal) {
+  const w = await getWeatherShared(lat, lon, signal);
+  if (w?.ndviProfile) return w.ndviProfile;
+  return fetchNdviProfile(Number(lat), Number(lon), {
+    monthlyTemp12: w?.monthlyTemp12 || [],
+    seasonKeys: getSeasonConfig(lat).monthKeys,
+    signal,
+  });
+}
+
+/**
+ * Loads the fused US NLCD/USDA + global Sentinel-2 land-use / land-cover suitability mask.
+ * @param {number} lat
+ * @param {number} lon
+ * @param {AbortSignal} [signal]
+ * @returns {Promise<object>}
+ */
+export async function loadLandCover(lat, lon, signal) {
+  const cached = cachedPayload(lat, lon);
+  if (cached?.landCover) return cached.landCover;
+
+  const key = coordKey(lat, lon);
+  const mem = landCoverCache.get(key);
+  if (mem) return mem;
+
+  let pending = inflightLandCover.get(key);
+  if (!pending) {
+    const cachedTerrain = cached?.weather?.elevation ?? parsedWeatherCache.get(key)?.elevation;
+    pending = fetchLandCoverMask(Number(lat), Number(lon), {
+      elevation: Number.isFinite(Number(cachedTerrain)) ? Number(cachedTerrain) : undefined,
+    })
+      .then((mask) => {
+        landCoverCache.set(key, mask);
+        return mask;
+      })
+      .finally(() => {
+        inflightLandCover.delete(key);
+      });
+    inflightLandCover.set(key, pending);
+  }
+
+  return awaitWithSignal(pending, signal);
 }
