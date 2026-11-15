@@ -2,8 +2,29 @@ import { toFeatureVector, irrigationToFeature } from './features.js';
 import { topIndices, toSuitabilityPercents, assessFieldOod } from './scoring.js';
 import { getGoalMultipliers, getTelemetryMultipliers } from './goalData.js';
 import { isPerennialCrop, applySoilCarryover } from './rotationData.js';
+import { estimateTransitionCoverWindow } from './coverCropWindows.js';
 
 const TOP_N = 3;
+
+function formatCarryover(carryover) {
+  return {
+    nitrogen: carryover.nextParams.nitrogen,
+    soc: carryover.nextParams.soc,
+    deltaNitrogen: carryover.deltaNitrogen,
+    deltaSoc: carryover.deltaSoc,
+    coverCrop: carryover.coverCrop,
+    note: carryover.note,
+  };
+}
+
+function coverSignatureChanged(a, b) {
+  if (!a && !b) return false;
+  return (
+    a?.coverCropId !== b?.coverCropId ||
+    Boolean(a?.hasBareWindow) !== Boolean(b?.hasBareWindow) ||
+    Number(a?.warmCoverMonths ?? 0) !== Number(b?.warmCoverMonths ?? 0)
+  );
+}
 
 export class CropRecommendationService {
   #model;
@@ -47,8 +68,22 @@ export class CropRecommendationService {
 
     const goal = raw.goal ?? this.#goal ?? 'regeneration';
     const rotated = this.applyRotation(raw.probabilities, raw.previousCrop, goal, raw.params);
-    const plan = await this.buildThreeYearPlan(raw.probabilities, raw.previousCrop, 3, rotated, goal, raw.params);
-    this.#repository.saveLast({ params: raw.params, previousCrop: raw.previousCrop, goal, plan });
+    const plan = await this.buildThreeYearPlan(
+      raw.probabilities,
+      raw.previousCrop,
+      3,
+      rotated,
+      goal,
+      raw.params,
+      raw.coverContext ?? null,
+    );
+    this.#repository.saveLast({
+      params: raw.params,
+      previousCrop: raw.previousCrop,
+      goal,
+      coverContext: raw.coverContext ?? null,
+      plan,
+    });
     return plan;
   }
 
@@ -57,12 +92,13 @@ export class CropRecommendationService {
     if (!last) return null;
     const previousCrop = last.previousCrop ?? null;
     const goal = last.goal ?? this.#goal ?? 'regeneration';
+    const coverContext = last.coverContext ?? null;
     if (last.plan) {
-      return { params: last.params, previousCrop, goal, probabilities: null, cachedPlan: last.plan };
+      return { params: last.params, previousCrop, goal, coverContext, probabilities: null, cachedPlan: last.plan };
     }
 
     const probabilities = await this.predictProbabilities(last.params);
-    return { params: last.params, previousCrop, goal, probabilities, cachedPlan: null };
+    return { params: last.params, previousCrop, goal, coverContext, probabilities, cachedPlan: null };
   }
 
   applyRotation(probabilities, previousCrop = null, goal = this.#goal ?? 'regeneration', params = null) {
@@ -77,6 +113,7 @@ export class CropRecommendationService {
     firstYear = null,
     goal = this.#goal ?? 'regeneration',
     params = null,
+    coverContext = null,
   ) {
     // Anchor OOD assessment on initial field conditions so N/SOC cycling never falsifies climate OOD
     const baseOodAssessment = assessFieldOod(params, probabilities);
@@ -93,9 +130,34 @@ export class CropRecommendationService {
 
       if (year > 1) {
         if (isPerennialCrop(winner)) {
-          // Perennials (orchards/vineyards) stay established across Year 2 and Year 3
-          const ranked = this.#rank(probabilities, winner, null, goal, yearParams, baseOodAssessment);
-          const sameEntry = ranked.recommendations.find((r) => r.crop === winner);
+          // Perennials (orchards/vineyards/alfalfa stand) stay established across Year 2 and Year 3
+          if (yearParams) {
+            const alleyCover = coverContext
+              ? estimateTransitionCoverWindow(winner, winner, coverContext)
+              : winner === 'alfalfa'
+                ? { isAlleyCover: false, hasBareWindow: false }
+                : { coverCropId: 'crimson-clover', coverCrop: 'Crimson Clover', isAlleyCover: true, hasBareWindow: false };
+            const carryover = applySoilCarryover(yearParams, winner, alleyCover);
+            yearParams = carryover.nextParams;
+            soilCarryover = formatCarryover(carryover);
+          }
+
+          const yearProbs = yearParams
+            ? await this.predictProbabilities(yearParams)
+            : probabilities;
+          const ranked = this.#rank(yearProbs, winner, null, goal, yearParams, baseOodAssessment);
+          let sameEntry = ranked.recommendations.find((r) => r.crop === winner);
+          if (!sameEntry && this.#index.has(winner)) {
+            const single = this.#rank(
+              yearProbs,
+              winner,
+              (i) => i === this.#index.get(winner),
+              goal,
+              yearParams,
+              baseOodAssessment,
+            );
+            sameEntry = single.recommendations[0];
+          }
           const firstOptions = current.options || current.recommendations || [];
           const fallbackEntry = firstOptions.find((r) => r.crop === winner) || ranked.recommendations[0];
           const kept = sameEntry || fallbackEntry;
@@ -104,27 +166,9 @@ export class CropRecommendationService {
             previousCrop: winner,
             recommendations: kept ? [kept, ...rest] : ranked.recommendations,
           };
-          soilCarryover = yearParams
-            ? { nitrogen: yearParams.nitrogen, soc: yearParams.soc, deltaNitrogen: 0, deltaSoc: 0, note: 'Perennial stand equilibrium' }
-            : null;
         } else {
-          // Annual rotation: update soil nitrogen & SOC after previous winner and re-run ONNX
+          // Annual rotation: update soil nitrogen & SOC (crop + off-season cover crop) and re-run ONNX
           const prevWinner = winner;
-          let yearProbs = probabilities;
-
-          if (yearParams) {
-            const carryover = applySoilCarryover(yearParams, prevWinner);
-            yearParams = carryover.nextParams;
-            soilCarryover = {
-              nitrogen: yearParams.nitrogen,
-              soc: yearParams.soc,
-              deltaNitrogen: carryover.deltaNitrogen,
-              deltaSoc: carryover.deltaSoc,
-              note: carryover.note,
-            };
-            yearProbs = await this.predictProbabilities(yearParams);
-          }
-
           const priorCycleCrops = new Set(history);
           const diversityPenalties = new Float32Array(this.#classes.length).fill(1.0);
           for (const prevC of priorCycleCrops) {
@@ -134,16 +178,68 @@ export class CropRecommendationService {
             }
           }
 
-          current = this.#rank(
-            yearProbs,
-            prevWinner,
-            (i) => this.#classes[i] !== prevWinner,
-            goal,
-            yearParams,
-            baseOodAssessment,
-            diversityPenalties,
-          );
-          winner = current.recommendations[0].crop;
+          const allowedAnnual = (i) => this.#classes[i] !== prevWinner;
+
+          if (yearParams) {
+            const prelimCarry = applySoilCarryover(yearParams, prevWinner, null);
+            const prelimRanked = this.#rank(
+              probabilities,
+              prevWinner,
+              allowedAnnual,
+              goal,
+              prelimCarry.nextParams,
+              baseOodAssessment,
+              diversityPenalties,
+            );
+            const prelimNext = prelimRanked.recommendations[0]?.crop ?? null;
+            let activeCover = coverContext && prelimNext
+              ? estimateTransitionCoverWindow(prevWinner, prelimNext, coverContext)
+              : null;
+
+            let step = await this.#evalAnnualStep(
+              prevWinner,
+              allowedAnnual,
+              goal,
+              yearParams,
+              baseOodAssessment,
+              diversityPenalties,
+              activeCover,
+            );
+
+            // Refine once if the cover-crop N/SOC shift changed the winning crop and its cover pairing
+            if (coverContext && step.winner !== prelimNext) {
+              for (let pass = 0; pass < 2; pass++) {
+                const nextCover = estimateTransitionCoverWindow(prevWinner, step.winner, coverContext);
+                if (!coverSignatureChanged(nextCover, activeCover)) break;
+                activeCover = nextCover;
+                step = await this.#evalAnnualStep(
+                  prevWinner,
+                  allowedAnnual,
+                  goal,
+                  yearParams,
+                  baseOodAssessment,
+                  diversityPenalties,
+                  activeCover,
+                );
+              }
+            }
+
+            current = step.ranked;
+            winner = step.winner;
+            yearParams = step.carryover.nextParams;
+            soilCarryover = formatCarryover(step.carryover);
+          } else {
+            current = this.#rank(
+              probabilities,
+              prevWinner,
+              allowedAnnual,
+              goal,
+              yearParams,
+              baseOodAssessment,
+              diversityPenalties,
+            );
+            winner = current.recommendations[0].crop;
+          }
         }
       }
 
@@ -163,6 +259,33 @@ export class CropRecommendationService {
       candidates,
       years: plan,
       confidence: baseOodAssessment,
+    };
+  }
+
+  async #evalAnnualStep(
+    prevWinner,
+    allowedAnnual,
+    goal,
+    baseParams,
+    baseOodAssessment,
+    diversityPenalties,
+    coverWindow,
+  ) {
+    const carryover = applySoilCarryover(baseParams, prevWinner, coverWindow);
+    const yearProbs = await this.predictProbabilities(carryover.nextParams);
+    const ranked = this.#rank(
+      yearProbs,
+      prevWinner,
+      allowedAnnual,
+      goal,
+      carryover.nextParams,
+      baseOodAssessment,
+      diversityPenalties,
+    );
+    return {
+      carryover,
+      ranked,
+      winner: ranked.recommendations[0].crop,
     };
   }
 

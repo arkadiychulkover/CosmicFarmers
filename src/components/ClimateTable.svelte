@@ -21,6 +21,7 @@
   }
 </script>
 
+<div class="table-scroll">
 <table>
   <thead>
     <tr>
@@ -64,8 +65,14 @@
     </tr>
   </tbody>
 </table>
+</div>
 
 <style>
+  .table-scroll {
+    width: 100%;
+    overflow-x: auto;
+  }
+
   table {
     width: 100%;
     border-collapse: separate;
