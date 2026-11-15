@@ -29,6 +29,7 @@
   }
 
   .card {
+    position: relative;
     display: flex;
     flex-direction: column;
     gap: 2px;
@@ -55,6 +56,11 @@
 
   input {
     position: absolute;
+    top: 0;
+    left: 0;
+    width: 0;
+    height: 0;
+    margin: 0;
     opacity: 0;
     pointer-events: none;
   }
