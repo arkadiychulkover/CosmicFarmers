@@ -14,13 +14,15 @@
   let drafts = $state({});
 
   function deltaFor(column) {
+    const { min: colMin, max: colMax } = boundsFor(column);
+    const clamp = (n) => Math.min(colMax, Math.max(colMin, n));
     const raw = drafts[column.key];
     if (raw !== undefined && raw !== '' && raw !== '-' && raw !== '+') {
       const typed = Number(raw);
-      if (Number.isFinite(typed)) return typed;
+      if (Number.isFinite(typed)) return clamp(typed);
     }
     const stored = Number(anomalies?.[column.key] ?? 0);
-    return Number.isFinite(stored) ? stored : 0;
+    return Number.isFinite(stored) ? clamp(stored) : 0;
   }
 
   function commit(column, event) {

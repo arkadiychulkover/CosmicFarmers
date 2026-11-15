@@ -568,10 +568,13 @@
   />
   </div>
 
-  <div class="texture-block">
+  <div class="texture-anchor">
+    <div class="texture-slot"></div>
+    <div class="texture-ghost">
+    <div class="texture-block">
     <div class="silt-readout" aria-live="polite">
       <div class="silt-row">
-        <span class="silt-label">Silt (auto-balanced: 100% − Clay − Sand)</span>
+        <span class="silt-label">Clay − Sand − Silt</span>
         <strong class="silt-val">{Number($session.form.silt ?? 0).toFixed(1)}%</strong>
       </div>
       <div class="track-wrap" bind:this={textureTrack}>
@@ -619,6 +622,8 @@
           </span>
         {/each}
       </div>
+    </div>
+    </div>
     </div>
     <p class="shift-hint">Hold Shift to move both sliders</p>
   </div>
@@ -826,10 +831,13 @@
   }
 
   .silt-readout {
-    display: grid;
-    gap: 6px;
+    position: relative;
+    box-sizing: border-box;
+    height: 174px;
+    min-height: 174px;
+    max-height: 174px;
     padding: 10px 12px;
-    overflow: clip;
+    overflow: hidden;
     border: 1px solid var(--color-border-dim);
     border-radius: 6px;
     background: color-mix(in srgb, var(--color-panel) 55%, transparent);
@@ -838,8 +846,12 @@
   .silt-row {
     display: flex;
     justify-content: space-between;
-    align-items: baseline;
+    align-items: center;
     gap: 8px;
+    height: 21px;
+    min-height: 21px;
+    max-height: 21px;
+    overflow: hidden;
   }
 
   .silt-label {
@@ -867,20 +879,47 @@
     pointer-events: none;
   }
 
-  .texture-block {
-    display: grid;
-    gap: 4px;
+  .texture-anchor {
+    position: relative;
     width: 100%;
     min-width: 0;
     height: 196px;
-    overflow: clip;
+    min-height: 196px;
+    max-height: 196px;
+    overflow: hidden;
+  }
+
+  .texture-slot {
+    height: 196px;
+  }
+
+  .texture-ghost {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 0;
+    overflow: visible;
+    pointer-events: none;
+  }
+
+  .texture-block {
+    position: relative;
+    width: 100%;
+    min-width: 0;
+    height: 196px;
+    overflow: hidden;
     overflow-anchor: none;
+    pointer-events: auto;
   }
 
   .track-wrap {
-    position: relative;
+    position: absolute;
+    top: 96px;
+    right: 12px;
+    left: 12px;
     height: 6px;
-    margin: 58px 0 58px;
+    margin: 0;
   }
 
   .sat-tick {
@@ -959,13 +998,13 @@
   .lane-cap {
     position: absolute;
     z-index: 1;
-    bottom: calc(50% + 22.9px);
+    bottom: calc(50% + 18px);
     font-size: 8.5px;
     line-height: 1.15;
     color: var(--color-text-dim);
     white-space: nowrap;
     text-align: center;
-    transform: translate(-50%, 50%);
+    transform: translate(-50%, 0);
     pointer-events: none;
   }
 
@@ -995,11 +1034,17 @@
   }
 
   .shift-hint {
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    z-index: 3;
+    height: 11px;
     margin: 0;
     text-align: right;
     font-size: 9px;
-    line-height: 1.2;
+    line-height: 11px;
     color: #9aa3b2;
+    pointer-events: none;
   }
 
   .seg.clay {
