@@ -1,5 +1,6 @@
 {
   "name": "cosmic-farmers",
+  "description": "CosmicValley (Field Shift) — NASA Space Apps 2026 crop rotation & cover-crop decision-support platform. Software and documentation developed by the team with Super Intelligence (SI) assistance for debugging, refactoring, formula cross-checks, and English proofreading.",
   "private": true,
   "version": "0.0.1",
   "type": "module",

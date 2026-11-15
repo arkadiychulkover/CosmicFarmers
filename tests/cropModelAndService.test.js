@@ -102,7 +102,6 @@ describe('Real ONNX Crop Classifier & CropRecommendationService', () => {
     expect(srcClasses).toEqual(mlClasses);
     expect(CROP_CLASSES).toEqual(srcClasses);
 
-    // Verify expanded classes include alfalfa, sorghum, oats, millet, peanut
     for (const expectedCrop of ['alfalfa', 'sorghum', 'oats', 'millet', 'peanut']) {
       expect(srcClasses, `Missing expanded crop class "${expectedCrop}"`).toContain(expectedCrop);
     }
@@ -222,7 +221,6 @@ describe('Real ONNX Crop Classifier & CropRecommendationService', () => {
         async predict(features) {
           predictCalls.push(Float32Array.from(features));
           const probs = await realModel.predict(features);
-          // Strongly bias perennialCrop so Year 1 is guaranteed to choose it
           const boosted = new Float32Array(probs.length).fill(0.004);
           boosted[perennialIdx] = 0.9;
           const total = boosted.reduce((a, b) => a + b, 0);
@@ -265,7 +263,6 @@ describe('Real ONNX Crop Classifier & CropRecommendationService', () => {
       expect(plan.years[1].isPerennialContinuation).toBe(true);
       expect(plan.years[2].isPerennialContinuation).toBe(true);
 
-      // Must re-run ONNX inference in Year 1, Year 2, and Year 3 (>= 3 calls) with updated SOC/N carryover
       expect(predictCalls.length).toBeGreaterThanOrEqual(3);
       const socIdx = FEATURE_ORDER.indexOf('soc');
       expect(predictCalls[1][socIdx]).toBeGreaterThan(predictCalls[0][socIdx]);
@@ -296,7 +293,6 @@ describe('Real ONNX Crop Classifier & CropRecommendationService', () => {
       params: BASE_TEMPERATE_PARAMS,
       weather: {
         ...baseWeather,
-        // Oct, Nov, Dec, Jan, Feb show bare-soil NDVI < 0.25
         monthlyNdvi12: [0.16, 0.18, 0.28, 0.42, 0.58, 0.74, 0.78, 0.72, 0.52, 0.21, 0.17, 0.15],
         bareSoilMonths: ['Jan', 'Feb', 'Oct', 'Nov', 'Dec'],
         bareSoilSource: 'MODIS_Terra_NDVI_8Day',
@@ -315,7 +311,6 @@ describe('Real ONNX Crop Classifier & CropRecommendationService', () => {
     expect(withBareNdvi.yearWindows[0].coverWindow.satelliteGrounded).toBe(true);
     expect(withBareNdvi.yearWindows[0].coverWindow.satelliteBareMonths).toBeGreaterThan(0);
 
-    // Alfalfa perennial forage stand has continuous living canopy without alley clover or bare gap
     const alfalfaPlan = computePlanCoverWindows(
       [{ year: 1, crop: 'alfalfa' }, { year: 2, crop: 'alfalfa' }, { year: 3, crop: 'alfalfa' }],
       { lat: 42.0, soil: 'loam', clay: 25, irrigation: 'rainfed', params: BASE_TEMPERATE_PARAMS, weather: baseWeather },
@@ -323,5 +318,83 @@ describe('Real ONNX Crop Classifier & CropRecommendationService', () => {
     expect(alfalfaPlan.yearWindows[0].isPerennial).toBe(true);
     expect(alfalfaPlan.yearWindows[0].coverWindow.isAlleyCover).toBe(false);
     expect(alfalfaPlan.yearWindows[0].coverWindow.hasBareWindow).toBe(false);
+  });
+});
+
+describe('OnnxCropModel concurrency & recovery', () => {
+  it('serializes concurrent predict calls so WASM session never overlaps', async () => {
+    const { OnnxCropModel } = await import('../src/lib/crop/OnnxCropModel.js');
+    const { FEATURE_ORDER } = await import('../src/lib/crop/features.js');
+
+    let loadCalls = 0;
+    let inFlight = 0;
+    let maxConcurrent = 0;
+    let failNextRun = false;
+    const sharedWasmBuffer = new Float32Array([0, 0]);
+
+    const fakeSession = {
+      inputNames: ['input'],
+      async run(feeds) {
+        if (inFlight > 0) {
+          throw new Error('Session already started');
+        }
+        inFlight += 1;
+        maxConcurrent = Math.max(maxConcurrent, inFlight);
+        try {
+          await new Promise((resolve) => setTimeout(resolve, 10));
+          if (failNextRun) {
+            failNextRun = false;
+            throw new Error('Transient inference error');
+          }
+          const marker = feeds.input.data[0];
+          sharedWasmBuffer[0] = marker;
+          sharedWasmBuffer[1] = 1 - marker;
+          return { probabilities: { data: sharedWasmBuffer } };
+        } finally {
+          inFlight -= 1;
+        }
+      },
+    };
+
+    const model = new OnnxCropModel('/fake.onnx', async () => {
+      loadCalls += 1;
+      await new Promise((resolve) => setTimeout(resolve, 5));
+      return fakeSession;
+    });
+
+    const inputs = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6].map((firstVal) => {
+      const vec = new Float32Array(FEATURE_ORDER.length);
+      vec[0] = firstVal;
+      return vec;
+    });
+
+    const results = await Promise.all(inputs.map((vec) => model.predict(vec)));
+    expect(loadCalls).toBe(1);
+    expect(maxConcurrent).toBe(1);
+    results.forEach((probs, idx) => {
+      expect(probs).toBeInstanceOf(Float32Array);
+      expect(probs[0]).toBeCloseTo(inputs[idx][0], 5);
+    });
+
+    // Queue remains usable after a failed inference.
+    failNextRun = true;
+    await expect(model.predict(inputs[0])).rejects.toThrow('Transient inference error');
+    const recovered = await model.predict(inputs[1]);
+    expect(recovered[0]).toBeCloseTo(0.2, 5);
+  });
+
+  it('retries session creation after a transient load failure', async () => {
+    const { OnnxCropModel } = await import('../src/lib/crop/OnnxCropModel.js');
+    let attempt = 0;
+    const model = new OnnxCropModel('/flaky.onnx', async () => {
+      attempt += 1;
+      if (attempt === 1) throw new Error('Network timeout');
+      return { inputNames: ['input'], run: async () => ({ probabilities: { data: new Float32Array([1]) } }) };
+    });
+
+    await expect(model.load()).rejects.toThrow('Network timeout');
+    const session = await model.load();
+    expect(session.inputNames).toEqual(['input']);
+    expect(attempt).toBe(2);
   });
 });
