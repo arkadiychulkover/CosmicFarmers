@@ -53,7 +53,7 @@
   }
 
   small {
-    font-size: 9px;
+    font-size: 12px;
     font-weight: 700;
     letter-spacing: 0.1em;
     text-transform: uppercase;

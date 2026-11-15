@@ -11,9 +11,11 @@
   import SoilSourceChart from '../components/charts/SoilSourceChart.svelte';
   import SolarGauge from '../components/charts/SolarGauge.svelte';
   import GddBar from '../components/charts/GddBar.svelte';
+  import RiskCalendar from '../components/charts/RiskCalendar.svelte';
   import { get } from 'svelte/store';
   import { session } from '../stores/session.svelte.js';
   import { goalOptions } from '../data/options.js';
+  import { findOutOfDistribution } from '../lib/crop/confidence.js';
   import {
     peekTelemetryCard,
     rememberTelemetryCard,
@@ -28,6 +30,7 @@
     loadSoilTexture,
     loadSoilSoc,
     loadSoilSource,
+    loadRiskCalendar,
   } from '../lib/weather/telemetryRequests.js';
 
   const loaders = {
@@ -42,6 +45,7 @@
     texture: loadSoilTexture,
     soc: loadSoilSoc,
     source: loadSoilSource,
+    risk: loadRiskCalendar,
   };
 
   function cardState(id, lat, lon) {
@@ -62,6 +66,7 @@
     texture: cardState('texture', initialPoint.lat, initialPoint.lon),
     soc: cardState('soc', initialPoint.lat, initialPoint.lon),
     source: cardState('source', initialPoint.lat, initialPoint.lon),
+    risk: cardState('risk', initialPoint.lat, initialPoint.lon),
   });
 
   const lat = $derived($session.form.lat);
@@ -103,16 +108,22 @@
     {
       key: 'temperature',
       label: 'Temperature, °C',
+      anomalyUnit: '°C',
+      min: -10,
+      max: 10,
+      step: 0.5,
       value: cards.temp.status === 'ready' ? cards.temp.data.mean : '—',
     },
     {
       key: 'precipitation',
       label: 'Precipitation, mm',
+      anomalyUnit: '%',
       value: cards.precip.status === 'ready' ? cards.precip.data.total : '—',
     },
     {
       key: 'solar',
       label: 'Solar Irradiance, MJ/m²/day',
+      anomalyUnit: '%',
       value: cards.solar.status === 'ready' ? cards.solar.data.value : '—',
     },
   ]);
@@ -170,10 +181,36 @@
     };
   }
 
+  const seasonRange = $derived.by(() => {
+    const months = cards.precip.data?.months;
+    return months?.length ? `${months[0]}–${months[months.length - 1]}` : Number(lat) < 0 ? 'Sep–Apr' : 'Mar–Oct';
+  });
+
   const goalTitle = $derived(goalOptions.find((goal) => goal.value === $session.form.goal)?.title || 'Water Conservation');
 
   const isTelemetryLoading = $derived(
     $session.nasaLoading || Object.values(cards).some((card) => card.status === 'loading')
+  );
+
+  const oodReady = $derived($session.nasaData !== null);
+  const ood = $derived(
+    $session.nasaData
+      ? findOutOfDistribution({
+          ph: $session.form.ph,
+          N: $session.form.n,
+          P: $session.form.p,
+          K: $session.form.k,
+          T2M: cards.temp.data?.mean,
+          PRECTOTCORR: cards.precip.data ? cards.precip.data.total / 8 : undefined,
+          ALLSKY_SFC_SW_DWN: cards.solar.data?.value,
+          GDD: cards.gdd.data?.value,
+          RH2M: cards.atmosphere.data?.rh2m,
+          WS2M: cards.atmosphere.data?.ws2m,
+          GWETROOT: cards.moisture.data?.rootZone,
+          ELEVATION: cards.terrain.data?.elevation,
+          SLOPE: cards.terrain.data?.slope,
+        })
+      : []
   );
 
   function calculate() {
@@ -213,7 +250,7 @@
     </TelemetryCard>
 
     <TelemetryCard
-      source="PRECTOTCORR · Apr–Oct · mm"
+      source="PRECTOTCORR · {seasonRange} · mm"
       state={cards.precip.status}
       error={cards.precip.error}
       title="Growing Season Precipitation"
@@ -259,7 +296,7 @@
       {/if}
     </TelemetryCard>
 
-    <TelemetryCard source="SMAP / GLDAS" state={cards.moisture.status} error={cards.moisture.error}>
+    <TelemetryCard source="NASA POWER · GWETTOP / GWETROOT · ~50 km model proxy" state={cards.moisture.status} error={cards.moisture.error}>
       {#if cards.moisture.data}
         {@const surface = Math.round(cards.moisture.data.surface * 100)}
         {@const root = Math.round(cards.moisture.data.rootZone * 100)}
@@ -287,7 +324,7 @@
       {/if}
     </TelemetryCard>
 
-    <TelemetryCard source="ECOSTRESS" state={cards.ecostress.status} error={cards.ecostress.error}>
+    <TelemetryCard source="NASA POWER · EVPTRNS / TS · ~50 km model proxy" state={cards.ecostress.status} error={cards.ecostress.error}>
       {#if cards.ecostress.data}
         <div class="metric">
           <h3>Evapotranspiration & Surface Temp</h3>
@@ -299,7 +336,7 @@
             <span>Land surface temperature</span>
             <strong class="warm">{cards.ecostress.data.surfaceTemp} °C</strong>
           </div>
-          <p class="fine">Daily water loss and observed land surface temperature — not air temperature.</p>
+          <p class="fine">Daily water loss and land surface skin temperature from the NASA POWER model (~50 km cell), not a direct ECOSTRESS (70 m) or SMAP (9 km) scene — not air temperature.</p>
         </div>
       {/if}
     </TelemetryCard>
@@ -436,6 +473,52 @@
     </TelemetryCard>
   </div>
 
+  <h2>12-Month Risk Calendar</h2>
+  <TelemetryCard
+    wide
+    source="NASA POWER daily · T2M_MIN, PRECTOTCORR, EVPTRNS · {cards.risk.data?.year ?? ''}"
+    state={cards.risk.status}
+    error={cards.risk.error}
+    note="Frost, heavy-rain and bare-soil windows help time sowing, cover crops and harvest. P − ET below zero means irrigation or moisture retention is needed."
+  >
+    {#if cards.risk.data}
+      <RiskCalendar months={cards.risk.data.months} year={cards.risk.data.year} />
+    {/if}
+  </TelemetryCard>
+
+  <h2>Data Scale & Model Confidence</h2>
+  <div class="scale">
+    <div class="scale-row">
+      <div>
+        <strong>~50 km</strong>
+        <span>NASA POWER climate cell: temperature, rain, sun, wind, moisture proxies. One value covers a whole district, so field-level microclimate may differ.</span>
+      </div>
+      <div>
+        <strong>250 m</strong>
+        <span>ISRIC SoilGrids: pH, organic carbon, clay, sand, silt. Modelled from samples, not measured on your field.</span>
+      </div>
+      <div>
+        <strong>~90 m</strong>
+        <span>SRTM terrain: elevation and slope for runoff and erosion risk.</span>
+      </div>
+    </div>
+    <div class="glossary">
+      <p><b>Satellite / model data</b> describes an area from orbit or reanalysis and is the same for neighbouring fields.</p>
+      <p><b>Soil test</b> is a lab measurement of your own field. When you have one, enter it on the first screen: it always beats the satellite estimate.</p>
+    </div>
+    {#if ood.length}
+      <div class="ood warn-box">
+        <p class="warn">Out-of-distribution inputs ({ood.length})</p>
+        <p>These values lie outside the range the crop model was trained on, so the recommendation is less reliable: {ood.join(', ')}.</p>
+      </div>
+    {:else if oodReady}
+      <div class="ood">
+        <p class="good">Inputs within training range</p>
+        <p>Climate and soil values fall inside the range the crop model has seen, so its confidence is not reduced by unfamiliar conditions.</p>
+      </div>
+    {/if}
+  </div>
+
   <h2>Climate Risk Simulator</h2>
   <ClimateTable {columns} bind:anomalies={$session.climate} />
 
@@ -505,7 +588,7 @@
 
   .fine {
     margin: 0;
-    font-size: 9px;
+    font-size: 11px;
     font-weight: 700;
   }
 
@@ -553,6 +636,74 @@
 
   .warn {
     color: var(--color-tone-warn);
+  }
+
+  .scale {
+    display: grid;
+    gap: 12px;
+    padding: 12px 16px;
+    border-radius: 8px;
+    background: var(--color-card);
+    color: var(--color-card-text);
+  }
+
+  .scale-row {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+  }
+
+  .scale-row div {
+    display: grid;
+    gap: 4px;
+    align-content: start;
+    padding: 8px 12px;
+    border-radius: 4px;
+    background: var(--color-panel);
+  }
+
+  .scale-row strong {
+    font-family: var(--font-display);
+    font-size: 20px;
+  }
+
+  .scale-row span,
+  .glossary p,
+  .ood p {
+    margin: 0;
+    color: var(--color-card-dim);
+    font-size: 12px;
+    line-height: 1.4;
+  }
+
+  .glossary {
+    display: grid;
+    gap: 4px;
+  }
+
+  .glossary b {
+    color: var(--color-card-text);
+  }
+
+  .ood {
+    display: grid;
+    gap: 4px;
+    padding: 8px 16px;
+    border-radius: 4px;
+    background: var(--color-panel);
+  }
+
+  .ood .warn,
+  .ood .good {
+    font-weight: 700;
+    font-size: 14px;
+  }
+
+  @media (max-width: 900px) {
+    .grid,
+    .scale-row {
+      grid-template-columns: minmax(0, 1fr);
+    }
   }
 
   .actions {

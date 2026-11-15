@@ -44,13 +44,13 @@
   }
 
   .badge strong {
-    font-size: 10px;
+    font-size: 11px;
     font-weight: 500;
     color: var(--color-text);
   }
 
   .badge span {
-    font-size: 9px;
+    font-size: 12px;
     font-weight: 700;
     color: var(--color-text-dim);
   }

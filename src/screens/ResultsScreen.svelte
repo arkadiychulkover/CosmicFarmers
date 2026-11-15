@@ -81,10 +81,11 @@
   }
 
   $effect(() => {
-    if (!page) return;
-    page.focus();
+    const el = page;
+    if (!el) return;
+    el.focus();
     updateScrollProgress();
-    page.addEventListener("scroll", handleTimelineScroll, { passive: true });
+    el.addEventListener("scroll", handleTimelineScroll, { passive: true });
     window.addEventListener("resize", handleTimelineScroll, { passive: true });
 
     return () => {
@@ -92,7 +93,7 @@
         cancelAnimationFrame(scrollRaf);
         scrollRaf = null;
       }
-      page.removeEventListener("scroll", handleTimelineScroll);
+      el.removeEventListener("scroll", handleTimelineScroll);
       window.removeEventListener("resize", handleTimelineScroll);
     };
   });
@@ -158,6 +159,21 @@
 
     {#if top}
       <CropFeatureCard item={top} />
+    {/if}
+
+    {#if result.confidence}
+      <section class="confidence" aria-label="Model confidence">
+        <p class="conf-head">
+          <b>Model confidence: {result.confidence.level}</b>
+          <span>top-crop probability {Math.round(result.confidence.topProbability * 100)}%</span>
+        </p>
+        {#if result.confidence.flagged?.length}
+          <p>Out-of-distribution inputs lower reliability: {result.confidence.flagged.join(', ')}.</p>
+        {:else}
+          <p>All inputs lie inside the range the model was trained on.</p>
+        {/if}
+        <p class="scales">Data scale: climate ~50 km (NASA POWER) · soil 250 m (SoilGrids) · terrain ~90 m (SRTM). Satellite values are estimates; your own soil test overrides them.</p>
+      </section>
     {/if}
 
     <div class="minis">
@@ -335,10 +351,34 @@
 
   .results header p {
     margin: 0;
-    font-size: 9px;
+    font-size: 12px;
     font-weight: 700;
     line-height: 1.4;
     color: var(--color-text-dim);
+  }
+
+  .confidence {
+    display: grid;
+    gap: 4px;
+    padding: 10px 14px;
+    border-radius: 12px;
+    background: var(--color-result-card);
+    color: var(--color-result-text);
+  }
+
+  .confidence p {
+    margin: 0;
+    font-size: 12px;
+    line-height: 1.4;
+    color: var(--color-result-dim);
+  }
+
+  .confidence .conf-head {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 8px;
+    color: var(--color-result-text);
   }
 
   .minis {
@@ -419,7 +459,7 @@
 
   .intro p {
     margin: 6px 0 0;
-    font-size: 9px;
+    font-size: 12px;
     font-weight: 700;
     color: var(--color-text-dim);
   }
@@ -435,13 +475,13 @@
   }
 
   .place b {
-    font-size: 10px;
+    font-size: 11px;
     font-weight: 500;
     letter-spacing: 0.08em;
   }
 
   .place small {
-    font-size: 9px;
+    font-size: 12px;
     font-weight: 700;
     color: var(--color-text-dim);
   }
@@ -513,7 +553,7 @@
     align-self: end;
     max-width: 240px;
     margin-bottom: 24px;
-    font-size: 9px;
+    font-size: 12px;
     font-weight: 700;
     line-height: 1.5;
     color: var(--color-text-dim);
@@ -567,14 +607,14 @@
     margin: 0;
     min-height: 30px;
     align-content: center;
-    font-size: 9px;
+    font-size: 12px;
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.06em;
   }
 
   .label small {
-    font-size: 9px;
+    font-size: 12px;
     font-weight: 700;
     color: var(--color-text-dim);
   }
@@ -624,7 +664,7 @@
 
   .note strong {
     display: block;
-    font-size: 9px;
+    font-size: 12px;
     font-weight: 700;
     color: var(--color-text);
   }
@@ -662,7 +702,7 @@
     padding: 0 22px;
     border-radius: 999px;
     font-family: inherit;
-    font-size: 10px;
+    font-size: 11px;
     font-weight: 600;
     letter-spacing: 0.08em;
     text-transform: uppercase;
@@ -779,7 +819,21 @@
       margin-left: 0;
     }
 
-    .note, .curve {
+    .curve {
+      display: none;
+    }
+
+    .note, .left .note, .right .note {
+      grid-column: 1;
+      grid-row: auto;
+      justify-self: stretch;
+      max-width: none;
+      margin: 8px 0 0;
+      padding: 0 0 0 4px;
+      text-align: left;
+    }
+
+    .note::before {
       display: none;
     }
 

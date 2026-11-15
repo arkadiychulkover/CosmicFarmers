@@ -4,6 +4,7 @@ import { PREDECESSOR_TO_MODEL } from './predecessors.js';
 import { cropOptions, soilOptions } from '../../data/options.js';
 import { ROTATION_MATRIX } from './rotationData.js';
 import { goalNote } from './goalData.js';
+import { findOutOfDistribution, describeConfidence } from './confidence.js';
 
 const MIN_CALC_MS = 1800;
 const SEASON_MONTHS = 8;
@@ -23,6 +24,12 @@ function sleep(ms, signal) {
 const label = (options, value) =>
   options.find((o) => o.value === value)?.label.split(' (')[0] ?? (value ? String(value) : '');
 
+const IRRIGATION_EFFECT = {
+  rainfed: { water: 1, floor: 0 },
+  supplemental: { water: 1.25, floor: 0.45 },
+  irrigated: { water: 1.6, floor: 0.6 },
+};
+
 export function toModelParams(input) {
   const climate = input.nasaClimate;
   if (!climate) throw new Error('NASA climate data is not loaded');
@@ -36,8 +43,9 @@ export function toModelParams(input) {
   const precipMultiplier = Math.max(0, 1 + precipAnomaly / 100);
   const solarMultiplier = Math.max(0, 1 + solarAnomaly / 100);
 
+  const irrigation = IRRIGATION_EFFECT[input.irrigation] ?? IRRIGATION_EFFECT.rainfed;
   const basePrectotcorr = Number(climate.PRECTOTCORR ?? climate.prectotcorr ?? 50);
-  const adjustedPrecip = Math.max(0, basePrectotcorr * precipMultiplier);
+  const adjustedPrecip = Math.max(0, basePrectotcorr * precipMultiplier * irrigation.water);
 
   const baseT2m = Number(climate.T2M ?? climate.t2m ?? 15);
   const baseT2mMax = Number(climate.T2M_MAX ?? climate.t2m_max ?? 25);
@@ -67,8 +75,8 @@ export function toModelParams(input) {
   const baseGwettop = Number(climate.GWETTOP ?? climate.weather?.gwettop ?? 0.55);
   const baseGwetroot = Number(climate.GWETROOT ?? climate.weather?.gwetroot ?? 0.58);
   const moistureShift = 1 + (precipAnomaly / 100) * 0.5 - (deltaT / 30);
-  const adjustedGwettop = Math.min(1.0, Math.max(0.05, baseGwettop * moistureShift));
-  const adjustedGwetroot = Math.min(1.0, Math.max(0.05, baseGwetroot * moistureShift));
+  const adjustedGwettop = Math.min(1.0, Math.max(0.05, baseGwettop * moistureShift, irrigation.floor));
+  const adjustedGwetroot = Math.min(1.0, Math.max(0.05, baseGwetroot * moistureShift, irrigation.floor));
 
   const baseTs = Number(climate.TS ?? climate.weather?.ts ?? (baseT2m + 1.0));
   const adjustedTs = baseTs + deltaT;
@@ -183,8 +191,13 @@ function toViewModel(plan, input, params) {
     };
   });
 
+  const topProbability = Math.max(0, ...firstYearOptions.map((o) => Number(o.probability) || 0));
+  const flagged = findOutOfDistribution(params);
+
   return {
     version: 2,
+    irrigation: input.irrigation || 'rainfed',
+    confidence: describeConfidence(topProbability, flagged),
     goal: input.goal || 'regeneration',
     previousName: label(cropOptions, input.predecessor),
     candidates: plan.candidates || [],

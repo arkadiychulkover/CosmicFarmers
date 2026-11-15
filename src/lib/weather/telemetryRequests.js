@@ -472,3 +472,71 @@ export async function loadSoilSource(lat, lon, signal) {
     phosphorusPotassium: isSg ? `${src} · Pedotransfer` : src,
   };
 }
+const MONTH_LABELS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const HEAVY_RAIN_MM = 20;
+const BARE_SOIL_GDD = 60;
+
+export async function loadRiskCalendar(lat, lon, signal) {
+  const year = Math.min(new Date().getFullYear() - 1, 2024);
+  const url = 'https://power.larc.nasa.gov/api/temporal/daily/point?' + new URLSearchParams({
+    parameters: 'T2M,T2M_MIN,PRECTOTCORR,EVPTRNS',
+    community: 'AG',
+    longitude: String(lon),
+    latitude: String(lat),
+    start: `${year}0101`,
+    end: `${year}1231`,
+    format: 'JSON',
+  });
+  const res = await fetch(url, { signal });
+  if (!res.ok) throw new Error(`NASA POWER ${res.status}`);
+  const json = await res.json();
+  const fill = json?.header?.fill_value ?? FILL;
+  const block = json?.properties?.parameter;
+  if (!block) throw new Error('NASA POWER returned no parameters');
+
+  const months = MONTH_LABELS.map((label) => ({
+    label,
+    frostDays: 0,
+    heavyRainDays: 0,
+    precip: 0,
+    et: 0,
+    gdd: 0,
+  }));
+  const valid = (v) => v !== fill && Number.isFinite(v);
+
+  for (const [date, value] of Object.entries(block.PRECTOTCORR || {})) {
+    if (!valid(value)) continue;
+    const m = months[Number(date.slice(4, 6)) - 1];
+    if (!m) continue;
+    m.precip += value;
+    if (value >= HEAVY_RAIN_MM) m.heavyRainDays += 1;
+  }
+  for (const [date, value] of Object.entries(block.T2M_MIN || {})) {
+    if (!valid(value)) continue;
+    const m = months[Number(date.slice(4, 6)) - 1];
+    if (m && value <= 0) m.frostDays += 1;
+  }
+  for (const [date, value] of Object.entries(block.EVPTRNS || {})) {
+    if (!valid(value)) continue;
+    const m = months[Number(date.slice(4, 6)) - 1];
+    if (m) m.et += Math.max(0, value);
+  }
+  for (const [date, value] of Object.entries(block.T2M || {})) {
+    if (!valid(value)) continue;
+    const m = months[Number(date.slice(4, 6)) - 1];
+    if (m) m.gdd += Math.max(0, value - 10);
+  }
+
+  return {
+    year,
+    months: months.map((m) => ({
+      label: m.label,
+      frostDays: m.frostDays,
+      heavyRainDays: m.heavyRainDays,
+      precip: Math.round(m.precip),
+      et: Math.round(m.et),
+      balance: Math.round(m.precip - m.et),
+      bareSoil: m.gdd < BARE_SOIL_GDD,
+    })),
+  };
+}
