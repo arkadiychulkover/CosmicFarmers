@@ -1,7 +1,6 @@
 <script>
   let {
     ph = 6.5,
-    socGkg = 18,
     nitrogenGkg = 1.6,
     clayPct = 24,
     sandPct = 42,
@@ -19,62 +18,63 @@
   const plotH = axisY - top;
   const plotW = width - padL - padR;
 
+  function phTone(value) {
+    const n = Number(value);
+    if (!Number.isFinite(n) || n < 5) return 'ph-orange';
+    if (n < 6) return 'ph-yellow';
+    if (n <= 8) return 'ph-green';
+    return 'ph-blue';
+  }
+
   const bars = $derived([
     {
       key: 'pH',
       sub: 'H₂O',
       val: `${Number(ph || 6.5).toFixed(1)}`,
       pct: Math.min(1, Math.max(0.08, ((Number(ph) || 6.5) - 3.5) / 5.5)),
-      tone: 'chem',
-    },
-    {
-      key: 'SOC',
-      sub: 'g/kg',
-      val: `${Number(socGkg || 0).toFixed(1)}`,
-      pct: Math.min(1, Math.max(0.08, (Number(socGkg) || 0) / 50)),
-      tone: 'chem',
+      tone: phTone(ph),
     },
     {
       key: 'Total N',
       sub: 'g/kg',
       val: `${Number(nitrogenGkg || 0).toFixed(2)}`,
       pct: Math.min(1, Math.max(0.08, (Number(nitrogenGkg) || 0) / 5)),
-      tone: 'chem',
+      tone: 'nitrogen',
     },
     {
       key: 'Clay',
       sub: '%',
       val: `${Number(clayPct || 0).toFixed(0)}%`,
       pct: Math.min(1, Math.max(0.08, (Number(clayPct) || 0) / 100)),
-      tone: 'tex',
+      tone: 'clay',
     },
     {
       key: 'Sand',
       sub: '%',
       val: `${Number(sandPct || 0).toFixed(0)}%`,
       pct: Math.min(1, Math.max(0.08, (Number(sandPct) || 0) / 100)),
-      tone: 'tex',
+      tone: 'sand',
     },
     {
       key: 'Silt',
       sub: '%',
       val: `${Number(siltPct || 0).toFixed(0)}%`,
       pct: Math.min(1, Math.max(0.08, (Number(siltPct) || 0) / 100)),
-      tone: 'tex',
+      tone: 'silt',
     },
   ]);
 
-  const slotW = plotW / 6;
+  const slotW = plotW / 5;
   const barW = 42;
-  const splitX = padL + slotW * 3;
+  const splitX = padL + slotW * 2;
 </script>
 
 <div class="soil-legend" role="list" aria-label="Soil chart legend">
   <span class="group-pill" role="listitem">
-    <span class="dot dot-chem" aria-hidden="true"></span>
-    <span>{customEdited ? 'User-calibrated' : soilSource} · Chemistry (pH, SOC, Total N)</span>
+    <span class="dot dot-chem {phTone(ph)}" aria-hidden="true"></span>
+    <span>{customEdited ? 'User-calibrated' : soilSource} · Chemistry (pH, Total N)</span>
   </span>
-  <span class="group-pill" role="listitem">
+  <span class="group-pill tex" role="listitem">
     <span class="dot dot-tex" aria-hidden="true"></span>
     <span>0–15 cm Texture Fractions (Clay, Sand, Silt)</span>
   </span>
@@ -114,9 +114,14 @@
   .soil-legend {
     display: flex;
     flex-wrap: wrap;
+    justify-content: space-between;
     gap: 6px 8px;
     align-items: center;
     margin-bottom: 8px;
+  }
+
+  .group-pill.tex {
+    margin-left: auto;
   }
 
   .group-pill {
@@ -142,11 +147,27 @@
   }
 
   .dot-chem {
-    background: var(--color-chart-green);
+    background: linear-gradient(90deg, var(--ph-color, var(--color-chart-green)) 0 50%, var(--color-chart-blue) 50% 100%);
+  }
+
+  .dot-chem.ph-green {
+    --ph-color: var(--color-chart-green);
+  }
+
+  .dot-chem.ph-blue {
+    --ph-color: var(--color-chart-blue);
+  }
+
+  .dot-chem.ph-yellow {
+    --ph-color: var(--color-heat-fill);
+  }
+
+  .dot-chem.ph-orange {
+    --ph-color: var(--color-chart-orange);
   }
 
   .dot-tex {
-    background: var(--color-chart-blue);
+    background: linear-gradient(90deg, var(--color-water-soft) 0 33%, var(--color-heat-fill) 33% 66%, var(--color-accent) 66% 100%);
   }
 
   svg {
@@ -155,12 +176,34 @@
     height: auto;
   }
 
-  .bar.chem {
+  .bar.chem,
+  .bar.ph-green {
     fill: var(--color-chart-green);
   }
 
-  .bar.tex {
+  .bar.nitrogen,
+  .bar.ph-blue {
     fill: var(--color-chart-blue);
+  }
+
+  .bar.ph-yellow {
+    fill: var(--color-heat-fill);
+  }
+
+  .bar.ph-orange {
+    fill: var(--color-chart-orange);
+  }
+
+  .bar.clay {
+    fill: var(--color-water-soft);
+  }
+
+  .bar.sand {
+    fill: var(--color-heat-fill);
+  }
+
+  .bar.silt {
+    fill: var(--color-accent);
   }
 
   .grid-line {

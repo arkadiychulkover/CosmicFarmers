@@ -99,6 +99,7 @@
   .tab + .tab {
     margin-top: calc(var(--tab-radius) * -1);
     padding-top: calc(26px + var(--tab-radius));
+    padding-bottom: 26px;
   }
 
   .tab:hover:not(.active) {

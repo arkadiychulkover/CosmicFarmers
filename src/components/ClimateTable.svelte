@@ -11,13 +11,66 @@
     };
   }
 
+  let drafts = $state({});
+
+  function deltaFor(column) {
+    const { min: colMin, max: colMax } = boundsFor(column);
+    const clamp = (n) => Math.min(colMax, Math.max(colMin, n));
+    const raw = drafts[column.key];
+    if (raw !== undefined && raw !== '' && raw !== '-' && raw !== '+') {
+      const typed = Number(raw);
+      if (Number.isFinite(typed)) return clamp(typed);
+    }
+    const stored = Number(anomalies?.[column.key] ?? 0);
+    return Number.isFinite(stored) ? clamp(stored) : 0;
+  }
+
   function commit(column, event) {
     const { min: colMin, max: colMax } = boundsFor(column);
     let n = Number(event.currentTarget.value);
     if (Number.isNaN(n)) n = 0;
     n = Math.min(colMax, Math.max(colMin, n));
-    anomalies[column.key] = n;
+    anomalies = { ...anomalies, [column.key]: n };
+    drafts = { ...drafts, [column.key]: String(n) };
     event.currentTarget.value = n;
+  }
+
+  let anomalyLabel = $state(null);
+  let lineCell = $state(null);
+  let lineInset = $state(0);
+
+  $effect(() => {
+    const label = anomalyLabel;
+    const cell = lineCell;
+    if (!label || !cell) return;
+
+    const measure = () => {
+      const start = label.getBoundingClientRect().left - cell.getBoundingClientRect().left;
+      lineInset = Math.max(0, start);
+    };
+
+    measure();
+    document.fonts?.ready?.then(measure);
+    const observer = new ResizeObserver(measure);
+    observer.observe(label);
+    observer.observe(cell);
+    window.addEventListener('resize', measure);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener('resize', measure);
+    };
+  });
+
+  function resultText(column) {
+    const base = Number(column.value);
+    if (!Number.isFinite(base)) return '—';
+    const delta = deltaFor(column);
+    const celsius = column.key === 'temperature' || column.unit === 'Δ °C';
+    const next = celsius ? base + delta : base * (1 + delta / 100);
+    if (!Number.isFinite(next)) return '—';
+    const text = String(column.value);
+    const decimals = text.includes('.') ? text.split('.')[1].length : (celsius ? 1 : 0);
+    return next.toFixed(decimals);
   }
 </script>
 
@@ -43,7 +96,7 @@
       {/each}
     </tr>
     <tr>
-      <th class="row" scope="row">Anomaly</th>
+      <th class="row" scope="row"><span bind:this={anomalyLabel}>Anomaly %</span></th>
       {#each columns as column (column.key)}
         {@const cfg = boundsFor(column)}
         <td>
@@ -54,13 +107,27 @@
               min={cfg.min}
               max={cfg.max}
               step={cfg.step}
-              value={anomalies[column.key]}
+              value={drafts[column.key] ?? anomalies[column.key]}
+              oninput={(event) => {
+                drafts = { ...drafts, [column.key]: event.currentTarget.value };
+              }}
               onchange={(event) => commit(column, event)}
               aria-label="{column.label} anomaly ({cfg.unit})"
             />
             <span class="unit">{cfg.unit}</span>
           </div>
         </td>
+      {/each}
+    </tr>
+    <tr class="separator" aria-hidden="true">
+      <td colspan={columns.length + 1} bind:this={lineCell}>
+        <div class="separator-line" style:margin-left="{lineInset}px" style:width="calc(100% - {lineInset}px)"></div>
+      </td>
+    </tr>
+    <tr>
+      <th class="row" scope="row">Result</th>
+      {#each columns as column (column.key)}
+        <td><output class="cell result">{resultText(column)}</output></td>
       {/each}
     </tr>
   </tbody>
@@ -80,6 +147,11 @@
     text-align: center;
   }
 
+  th,
+  td {
+    padding: 0;
+  }
+
   th {
     font-size: 8px;
     font-weight: 500;
@@ -91,6 +163,9 @@
   }
 
   .row {
+    font-family: 'Roboto', var(--font-body);
+    font-size: 16px;
+    font-weight: 600;
     white-space: nowrap;
     text-align: right;
   }
@@ -106,7 +181,8 @@
   }
 
   .value {
-    border: 1px solid var(--color-text-dim);
+    border: 1px solid transparent;
+    background: var(--color-option);
   }
 
   .input-wrap {
@@ -116,8 +192,8 @@
   }
 
   .anomaly {
-    border: 1px solid transparent;
-    background: var(--color-option);
+    border: 1px solid var(--color-text-dim);
+    background: transparent;
     padding-right: 34px;
     appearance: textfield;
     -moz-appearance: textfield;
@@ -146,5 +222,20 @@
     border-color: var(--color-border-strong);
     outline: 2px solid var(--color-accent);
     outline-offset: 1px;
+  }
+
+  .separator td {
+    line-height: 0;
+    font-size: 0;
+  }
+
+  .separator-line {
+    height: 2px;
+    background: var(--color-option);
+  }
+
+  .result {
+    border: 1px solid transparent;
+    background: var(--color-option);
   }
 </style>

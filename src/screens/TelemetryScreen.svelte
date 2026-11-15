@@ -7,8 +7,6 @@
   import DataSourcesModal from '../components/DataSourcesModal.svelte';
   import PrecipitationChart from '../components/charts/PrecipitationChart.svelte';
   import TemperatureChart from '../components/charts/TemperatureChart.svelte';
-  import TempRangeChart from '../components/charts/TempRangeChart.svelte';
-  import SoilTextureHistogram from '../components/charts/SoilTextureHistogram.svelte';
   import HumidityGauge from '../components/charts/HumidityGauge.svelte';
   import MetricBar from '../components/charts/MetricBar.svelte';
   import SoilSourceChart from '../components/charts/SoilSourceChart.svelte';
@@ -20,7 +18,6 @@
   import {
     loadPrecipitation,
     loadTemperature,
-    loadTempRange,
     loadAtmosphere,
     loadSolar,
     loadGdd,
@@ -37,7 +34,6 @@
   const loaders = {
     precip: loadPrecipitation,
     temp: loadTemperature,
-    tempRange: loadTempRange,
     atmosphere: loadAtmosphere,
     solar: loadSolar,
     gdd: loadGdd,
@@ -54,7 +50,6 @@
   let cards = $state({
     precip: { status: 'loading' },
     temp: { status: 'loading' },
-    tempRange: { status: 'loading' },
     atmosphere: { status: 'loading' },
     solar: { status: 'loading' },
     gdd: { status: 'loading' },
@@ -138,6 +133,15 @@
     return 'Thermal Maturity Window: Short-season cultivars only';
   }
 
+  function mixHex(from, to, t) {
+    const parse = (hex) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
+    const [a, b] = [parse(from), parse(to)];
+    const channel = a.map((part, i) => Math.round(part + (b[i] - part) * t));
+    return `#${channel.map((part) => part.toString(16).padStart(2, '0')).join('')}`;
+  }
+
+  const windCenterYellow = mixHex('#FFB26B', '#B2FF9E', 0.5);
+
   function windNote(ws) {
     if (ws >= 5.5) return 'Wind Level: High · elevated evapotranspiration & lodging risk';
     if (ws >= 2.5) return 'Wind Level: Moderate · normal canopy gas exchange';
@@ -164,6 +168,13 @@
     const m = Number(parts[1]) - 1;
     const d = Number(parts[2]);
     return `${monthNames[m] ?? parts[1]} ${d}`;
+  }
+
+  function frostDateParts(iso) {
+    const formatted = formatFrostDate(iso);
+    const match = formatted.match(/^(.*?)(\d+)$/);
+    if (!match)     return [{ text: formatted, val: true }];
+  return [{ text: match[1], val: true }, { text: match[2], num: true }];
   }
 
   function runoff(slope) {
@@ -201,11 +212,6 @@
       ? cards.ndvi.data.bareSoilMonths.join(', ')
       : ($session.nasaData?.bareSoilMonths?.length ? $session.nasaData.bareSoilMonths.join(', ') : 'None (< 0.25)')
   );
-
-  function precipPercentilesLabel(p) {
-    if (!p || !Number.isFinite(Number(p.p25))) return null;
-    return `Dry p25 ${Math.round(p.p25)} mm · Med ${Math.round(p.median ?? p.p50)} mm · Wet p75 ${Math.round(p.p75)} mm (${p.yearsCount || 10}-yr)`;
-  }
 
   const telemetryAlert = $derived.by(() => {
     const failed = Object.entries(cards)
@@ -349,19 +355,74 @@
 
   <div class="grid">
     <TelemetryCard
+      wide
+      minHeight={357}
+      source={cards.temp.data ? `NASA POWER · T2M / T2M_MAX / T2M_MIN · 12-mo · ${cards.temp.data.seasonLabel}` : 'NASA POWER · T2M / T2M_MAX / T2M_MIN · 12-mo'}
+      resolution="~50 km grid"
+      state={cards.temp.status}
+      error={cards.temp.error}
+      title="Temperature, Heat & Frost"
+      valueParts={cards.temp.data ? [
+        { text: '12-Mo/season mean ' },
+        { text: String(cards.temp.data.mean12), num: true },
+        { text: '°C(', val: true },
+        { text: String(cards.temp.data.mean), num: true },
+        { text: '°C)', val: true },
+      ] : []}
+      inlineRows
+      rows={cards.temp.data ? [
+        {
+          key: 'frost-dates',
+          parts: [
+            { text: 'last spring/first autumn ' },
+            ...frostDateParts(cards.temp.data.lastSpringFrost),
+            { text: ' / ', val: true },
+            ...frostDateParts(cards.temp.data.firstAutumnFrost),
+          ],
+        },
+        {
+          key: 'frost-free',
+          parts: [
+            { text: 'Frost-free window ' },
+            { text: String(cards.temp.data.frostFreeDays), num: true },
+            { text: ' days'},
+          ],
+        },
+        {
+          key: 'heat-frost',
+          parts: [
+            { text: 'Heat(>32°C) / Frost(≤0°C) ' },
+            { text: String(cards.temp.data.heatDays), num: true },
+            { text: ' d heat · '},
+            { text: String(cards.temp.data.frostDays), num: true },
+            { text: ' d frost'},
+          ],
+        },
+      ] : []}
+    >
+      {#if cards.temp.data}
+        <TemperatureChart
+          values={cards.temp.data.daily?.length ? cards.temp.data.daily : cards.temp.data.monthly}
+          minValues={cards.temp.data.dailyMin?.length ? cards.temp.data.dailyMin : cards.temp.data.monthlyMin}
+          maxValues={cards.temp.data.dailyMax?.length ? cards.temp.data.dailyMax : cards.temp.data.monthlyMax}
+          dates={cards.temp.data.dates}
+          months={cards.temp.data.months}
+          heatDays={cards.temp.data.heatDays}
+        />
+      {/if}
+    </TelemetryCard>
+
+    <TelemetryCard
+      wide
+      minHeight={330}
+      valueGap="5.67px"
       source={cards.precip.data ? `NASA POWER · PRECTOTCORR & EVPTRNS · 12-mo · ${cards.precip.data.seasonLabel}` : 'NASA POWER · PRECTOTCORR & EVPTRNS · 12-mo'}
       resolution="~50 km grid"
       state={cards.precip.status}
       error={cards.precip.error}
-      title="12-Month & 8-Month Precipitation"
+      title="12-Month Precipitation & P−ET"
       value={cards.precip.data ? cards.precip.data.total12 : ''}
-      unit="mm/yr"
-      rows={cards.precip.data ? [
-        { label: '8-Mo Growing Season Total', value: `${Math.round(cards.precip.data.total)} mm (${Math.round(cards.precip.data.prectotcorr)} mm/mo mean)` },
-        ...(precipPercentilesLabel(cards.precip.data.percentiles12)
-          ? [{ label: '10-Yr Annual Range', value: precipPercentilesLabel(cards.precip.data.percentiles12) }]
-          : []),
-      ] : []}
+      unit="mm"
       note={cards.precip.data ? precipitationNote(cards.precip.data.anomalyPct12, cards.precip.data.waterBalanceTotal12, cards.precip.data.stormDays) : ''}
     >
       {#if cards.precip.data}
@@ -377,31 +438,7 @@
     </TelemetryCard>
 
     <TelemetryCard
-      source={cards.temp.data ? `NASA POWER · T2M / T2M_MAX / T2M_MIN · 12-mo · ${cards.temp.data.seasonLabel}` : 'NASA POWER · T2M / T2M_MAX / T2M_MIN · 12-mo'}
-      resolution="~50 km grid"
-      state={cards.temp.status}
-      error={cards.temp.error}
-      title="Temperature, Heat & Frost"
-      rows={cards.temp.data ? [
-        { label: '12-Mo / Season Mean', value: `${cards.temp.data.mean12} °C (${cards.temp.data.mean} °C)` },
-        { label: 'Heat (>32°C) / Frost (≤0°C)', value: `${cards.temp.data.heatDays}d heat · ${cards.temp.data.frostDays}d frost` },
-        { label: 'Freeze–Thaw Transitions (0°C)', value: `${cards.temp.data.freezeThawDays ?? 0} days` },
-        { label: 'Frost-Free Window', value: `${cards.temp.data.frostFreeDays} days` },
-        { label: 'Last Spring / First Autumn', value: `${formatFrostDate(cards.temp.data.lastSpringFrost)} / ${formatFrostDate(cards.temp.data.firstAutumnFrost)}` },
-      ] : []}
-    >
-      {#if cards.temp.data}
-        <TemperatureChart
-          values={cards.temp.data.monthly12}
-          months={cards.temp.data.months12}
-          heatDays={cards.temp.data.heatDays}
-          frostDays={cards.temp.data.frostDays}
-          totalDays={365}
-        />
-      {/if}
-    </TelemetryCard>
-
-    <TelemetryCard
+      minHeight={243}
       source="NASA POWER / CERES · ALLSKY_SFC_SW_DWN"
       resolution="~50 km–1° grid"
       state={cards.solar.status}
@@ -417,6 +454,7 @@
     </TelemetryCard>
 
     <TelemetryCard
+      minHeight={243}
       source="NASA POWER · Thermal budget (base 10°C)"
       resolution="~50 km grid"
       state={cards.gdd.status}
@@ -432,6 +470,7 @@
     </TelemetryCard>
 
     <TelemetryCard
+      minHeight={206}
       source="NASA POWER (SMAP / MERRA-2)"
       resolution="~50 km grid"
       state={cards.moisture.status}
@@ -451,7 +490,7 @@
             <div class="track"><span style:width="{Math.min(root, 100)}%"></span></div>
           </div>
           <div class="inset">
-            <p class="good">{goalTitle}</p>
+            <p class="goal">{goalTitle}</p>
             <p>
               {#if cards.moisture.data.rootZone < 0.35}
                 GWETROOT indicates a moisture deficit — drought-tolerant or irrigated crops prioritized.
@@ -465,6 +504,7 @@
     </TelemetryCard>
 
     <TelemetryCard
+      minHeight={206}
       source="NASA POWER (ECOSTRESS Proxy)"
       resolution="~50 km grid"
       state={cards.ecostress.status}
@@ -474,19 +514,20 @@
         <div class="metric">
           <h3>Evapotranspiration & Surface Temp</h3>
           <div class="inset">
-            <span>Evapotranspiration (EVPTRNS)</span>
+            <span class="label">Evapotranspiration (EVPTRNS)</span>
             <strong class="good">{cards.ecostress.data.evapotranspiration} mm/day</strong>
           </div>
           <div class="inset">
-            <span>Land surface skin temp (TS)</span>
+            <span class="label">Land surface skin temp (TS)</span>
             <strong class="warm">{cards.ecostress.data.surfaceTemp} °C</strong>
           </div>
-          <p class="fine">NASA POWER / MERRA-2 energy-balance proxy (~50 km) — not raw 70 m ISS ECOSTRESS thermal scenes.</p>
+          <p class="fine">Daily water loss and observed land surface temperature — not air temperature. NASA POWER / MERRA-2 energy-balance proxy (~50 km) — not raw 70 m ISS ECOSTRESS thermal scenes.</p>
         </div>
       {/if}
     </TelemetryCard>
 
     <TelemetryCard
+      minHeight={217}
       source={cards.terrain.data?.terrainFallback ? 'SRTM / Open-Meteo (Fallback)' : 'SRTM / Open-Meteo'}
       resolution={cards.terrain.data?.terrainFallback ? 'Fallback Estimate' : '~30–90 m'}
       state={cards.terrain.status}
@@ -507,7 +548,7 @@
             </div>
           </div>
           <div class="inset">
-            <p class="warn">{risk.title}</p>
+            <p class="warn" class:risk-high={cards.terrain.data.slope > 8}>{risk.title}</p>
             <p>{risk.text}</p>
             <p class="fine">Slope &gt;5%: warning · &gt;8%: high risk</p>
           </div>
@@ -522,26 +563,7 @@
     </TelemetryCard>
 
     <TelemetryCard
-      source="NASA POWER · T2M_MAX / T2M_MIN · 12-mo · °C"
-      resolution="~50 km grid"
-      state={cards.tempRange.status}
-      error={cards.tempRange.error}
-      title="Seasonal Temp Extremes"
-      rows={cards.tempRange.data ? [
-        { label: 'Season Mean Max (T2M_MAX)', value: `${cards.tempRange.data.maxMean} °C` },
-        { label: 'Season Mean Min (T2M_MIN)', value: `${cards.tempRange.data.minMean} °C` },
-      ] : []}
-    >
-      {#if cards.tempRange.data}
-        <TempRangeChart
-          maxValues={cards.tempRange.data.monthlyMax12}
-          minValues={cards.tempRange.data.monthlyMin12}
-          months={cards.tempRange.data.months12}
-        />
-      {/if}
-    </TelemetryCard>
-
-    <TelemetryCard
+      minHeight={217}
       source="NASA POWER · RH2M · 2m Relative Humidity"
       resolution="~50 km grid"
       state={cards.atmosphere.status}
@@ -557,6 +579,7 @@
     </TelemetryCard>
 
     <TelemetryCard
+      minHeight={243}
       source="NASA POWER · WS2M · 2m Wind Speed"
       resolution="~50 km grid"
       state={cards.atmosphere.status}
@@ -572,6 +595,13 @@
           max={8}
           unit="m/s"
           gradId="ws2m-fill"
+          stops={[
+            { at: 0, color: windCenterYellow },
+            { at: 2, color: '#B2FF9E' },
+            { at: 3.25, color: '#7BBF69' },
+            { at: 4.5, color: '#B2FF9E' },
+            { at: 8, color: '#FFB26B' },
+          ]}
           milestones={[
             '0–2.0 · Calm canopy',
             '2.0–4.5 · Optimal exchange',
@@ -583,23 +613,7 @@
     </TelemetryCard>
 
     <TelemetryCard
-      source={cards.texture.data?.soilSource || 'ISRIC SoilGrids v2.0 · 0–15 cm'}
-      resolution={soilResolution(cards.texture.data?.soilSource)}
-      state={cards.texture.status}
-      error={cards.texture.error}
-      title="Soil Texture Composition"
-      note={cards.texture.data ? `Clay ${cards.texture.data.clayPct}% · Sand ${cards.texture.data.sandPct}% · Silt ${cards.texture.data.siltPct}%` : ''}
-    >
-      {#if cards.texture.data}
-        <SoilTextureHistogram
-          clayPct={$session.customSoilEdited ? $session.form.clay : cards.texture.data.clayPct}
-          sandPct={$session.customSoilEdited ? $session.form.sand : cards.texture.data.sandPct}
-          siltPct={$session.customSoilEdited ? $session.form.silt : cards.texture.data.siltPct}
-        />
-      {/if}
-    </TelemetryCard>
-
-    <TelemetryCard
+      minHeight={243}
       source={cards.soc.data?.soilSource ? `${cards.soc.data.soilSource} · SOC` : 'ISRIC SoilGrids v2.0 · SOC'}
       resolution={soilResolution(cards.soc.data?.soilSource)}
       state={cards.soc.status}
@@ -615,6 +629,11 @@
           max={60}
           unit="g/kg"
           gradId="soc-fill"
+          stops={[
+            { at: 0, color: '#FFB26B' },
+            { at: 35, color: '#B2FF9E' },
+            { at: 60, color: '#97DF84' },
+          ]}
           milestones={[
             '<12 · Low organic carbon',
             '12–22 · Typical loam',
@@ -679,6 +698,7 @@
 
     <TelemetryCard
       wide
+      minHeight={341}
       source="Soil inputs · provenance"
       resolution={soilResolution(cards.source.data?.soilSource)}
       state={cards.source.status}
@@ -686,14 +706,13 @@
       title="Raw SoilGrids Profile & Provenance"
       rows={cards.source.data ? [
         { label: 'Soil Source', value: $session.customSoilEdited ? `${cards.source.data.soilSource} (User Edited)` : cards.source.data.soilSource },
-        { label: 'Sampled Depths & Layers', value: `${cards.source.data.depths || '0–15 cm'} · pH, SOC, Total N, Clay/Sand/Silt` },
+        { label: 'Sampled Depths & Layers', value: `${cards.source.data.depths || '0–15 cm'} · pH, Total N, Clay/Sand/Silt` },
       ] : []}
       note="Direct ISRIC SoilGrids v2.0 250m raster layers (0–5 cm & 5–15 cm weighted average) in physical units — zero pedotransfer N/P/K assumptions."
     >
       {#if cards.source.data}
         <SoilSourceChart
           ph={$session.form.ph}
-          socGkg={$session.customSoilEdited ? $session.form.soc : (cards.soc.data?.socGkg ?? $session.form.soc ?? 18)}
           nitrogenGkg={$session.customSoilEdited ? $session.form.nitrogen : (cards.soc.data?.totalNGkg ?? $session.form.nitrogen ?? 1.6)}
           clayPct={$session.customSoilEdited ? $session.form.clay : (cards.texture.data?.clayPct ?? $session.form.clay ?? 24)}
           sandPct={$session.customSoilEdited ? $session.form.sand : (cards.texture.data?.sandPct ?? $session.form.sand ?? 42)}
@@ -764,6 +783,57 @@
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 12px;
+  }
+
+  .cal-strip {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 4px;
+    width: 100%;
+  }
+
+  .cal-cell {
+    display: grid;
+    justify-items: center;
+    gap: 3px;
+    padding: 6px 2px;
+    border-radius: 5px;
+    border: 1px solid transparent;
+    background: var(--color-panel);
+    color: var(--color-text);
+  }
+
+  .cal-cell.grow {
+    background: var(--color-status-good-bg);
+    border-color: var(--color-status-good-border);
+  }
+
+  .cal-cell.cover {
+    background: var(--color-status-warn-bg);
+    border-color: var(--color-status-warn-border);
+  }
+
+  .cal-cell.drought {
+    background: var(--color-status-warn-bg);
+    border-color: var(--color-status-warn-border);
+  }
+
+  .cal-cell.frost {
+    background: color-mix(in srgb, var(--color-chart-orange) 14%, transparent);
+    border-color: color-mix(in srgb, var(--color-chart-orange) 55%, transparent);
+  }
+
+  .cal-mon {
+    font-size: 9px;
+    font-weight: 700;
+  }
+
+  .cal-tag {
+    font-size: 7.5px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+    color: var(--color-text-dim);
   }
 
   .landcover-pill {
@@ -880,6 +950,7 @@
     font-family: var(--font-display);
     font-size: 16px;
     font-weight: 600;
+    color: var(--color-panel);
   }
 
   .bar-label,
@@ -940,6 +1011,10 @@
     background: var(--color-panel);
   }
 
+  .inset span.label {
+    color: #fff;
+  }
+
   .inset p {
     margin: 0;
     color: var(--color-text-dim);
@@ -948,6 +1023,18 @@
 
   .good {
     color: var(--color-accent);
+  }
+
+  .inset p.goal {
+    color: #b2ff9e;
+    font-family: var(--font-display);
+    font-size: 16px;
+    font-weight: 600;
+  }
+
+  .inset p.risk-high {
+    color: #f3e474;
+    font-weight: 700;
   }
 
   .warm {
