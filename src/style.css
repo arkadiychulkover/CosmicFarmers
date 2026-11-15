@@ -13,7 +13,7 @@
   --color-option: #6d7d99;
   --color-option-active: #293751;
   --color-tab: #6d7d99;
-  --color-tab-hover: #0b1524;
+  --color-tab-hover: #506488;
   --color-tab-text: #0b1524;
   --color-tab-active: var(--color-panel);
   --color-text: #f1edea;
@@ -46,6 +46,13 @@
   --color-result-match: #b2ff9e;
   --color-tone-good: #b2ff9e;
   --color-tone-warn: #f3e474;
+  --color-heat: #db9a5c;
+  --color-heat-fill: #f3e474;
+  --color-chart-dim: #cbc9c7;
+  --color-chart-strong: #f1edea;
+  --color-water: #7dd3fc;
+  --color-water-soft: #ffb26b;
+  --color-frost: #7dd3fc;
 
   --color-status-good-bg: rgba(178, 255, 158, 0.12);
   --color-status-good-border: rgba(178, 255, 158, 0.45);
@@ -57,13 +64,13 @@
   --color-status-info-border: rgba(124, 196, 255, 0.45);
 
   --header-height: 124px;
-  --panel-width: 860px;
+  --panel-width: min(860px, calc(100vw - var(--rail-width)));
   --panel-collapsed-width: 36px;
   --rail-width: 51px;
   --tab-radius: 28px;
   --content-left: 152px;
   --results-offset: 118px;
-  --results-width: 387px;
+  --results-width: min(387px, calc(100vw - 96px));
 }
 
 :root[data-theme='light'] {
@@ -97,6 +104,13 @@
   --color-chart-red: #a81c1c;
   --color-chart-green: #166534;
   --color-chart-track: #9fb0cf;
+  --color-heat: #8f3f06;
+  --color-heat-fill: #b8860b;
+  --color-chart-dim: #33425f;
+  --color-chart-strong: #14203a;
+  --color-water: #075985;
+  --color-water-soft: #8f3f06;
+  --color-frost: #075985;
 
   --color-result-card: #d5dfef;
   --color-result-text: #101b33;
@@ -119,6 +133,14 @@
 *::before,
 *::after {
   box-sizing: border-box;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+*::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
 }
 
 body {
