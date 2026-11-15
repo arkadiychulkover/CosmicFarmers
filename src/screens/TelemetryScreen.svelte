@@ -287,8 +287,11 @@
     $session.nasaLoading || Object.values(cards).some((card) => card.status === 'loading')
   );
 
+  let navigatingToCalc = $state(false);
+
   function calculate() {
-    if (isTelemetryLoading || isNonArableBlocked) return;
+    if (navigatingToCalc || isTelemetryLoading || isNonArableBlocked) return;
+    navigatingToCalc = true;
     $session.result = null;
     $session.collapsed = false;
     goto('/calculating');

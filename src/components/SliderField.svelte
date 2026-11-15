@@ -10,6 +10,7 @@
     maxLabel = '',
     showRange = false,
     mark = null,
+    disabled = false,
   } = $props();
 
   const percent = $derived(((value - min) / (max - min)) * 100);
@@ -20,6 +21,7 @@
   );
 
   function clampInput(event) {
+    if (disabled) return;
     let n = Number(event.currentTarget.value);
     if (Number.isNaN(n)) n = min;
     n = Math.min(max, Math.max(min, n));
@@ -28,7 +30,7 @@
   }
 </script>
 
-<div class="field">
+<div class="field" class:disabled>
   <div class="top">
     <label for="slider-{label}">{label}</label>
     <div class="value-box">
@@ -39,6 +41,7 @@
         {max}
         {step}
         {value}
+        {disabled}
         onchange={clampInput}
         aria-label="{label} value"
       />
@@ -66,6 +69,7 @@
       {min}
       {max}
       {step}
+      {disabled}
       bind:value
       style:--fill="{percent}%"
     />
@@ -82,6 +86,15 @@
     display: flex;
     flex-direction: column;
     gap: 6px;
+  }
+
+  .field.disabled {
+    opacity: 0.55;
+  }
+
+  .number:disabled,
+  .range:disabled {
+    cursor: not-allowed;
   }
 
   .top {

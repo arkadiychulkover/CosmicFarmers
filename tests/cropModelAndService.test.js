@@ -397,4 +397,41 @@ describe('OnnxCropModel concurrency & recovery', () => {
     expect(session.inputNames).toEqual(['input']);
     expect(attempt).toBe(2);
   });
+
+  it('serializes across separate OnnxCropModel instances and retries transient Session already started', async () => {
+    const { OnnxCropModel } = await import('../src/lib/crop/OnnxCropModel.js');
+    const { FEATURE_ORDER } = await import('../src/lib/crop/features.js');
+
+    let globalInFlight = 0;
+    let maxGlobalConcurrent = 0;
+    let transientBusyOnce = true;
+
+    const makeModel = (marker) => new OnnxCropModel(`/m-${marker}.onnx`, async () => ({
+      inputNames: ['input'],
+      async run() {
+        if (globalInFlight > 0) throw new Error('Session already started');
+        globalInFlight += 1;
+        maxGlobalConcurrent = Math.max(maxGlobalConcurrent, globalInFlight);
+        try {
+          await new Promise((r) => setTimeout(r, 8));
+          if (transientBusyOnce) {
+            transientBusyOnce = false;
+            throw new Error('Session already started');
+          }
+          return { probabilities: { data: new Float32Array([marker, 1 - marker]) } };
+        } finally {
+          globalInFlight -= 1;
+        }
+      },
+    }));
+
+    const m1 = makeModel(0.25);
+    const m2 = makeModel(0.75);
+    const vec = new Float32Array(FEATURE_ORDER.length);
+    const [r1, r2] = await Promise.all([m1.predict(vec), m2.predict(vec)]);
+
+    expect(maxGlobalConcurrent).toBe(1);
+    expect(r1[0]).toBeCloseTo(0.25, 5);
+    expect(r2[0]).toBeCloseTo(0.75, 5);
+  });
 });
