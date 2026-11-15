@@ -303,6 +303,7 @@
     min-height: calc(100vh - var(--header-height) - 56px);
     position: relative;
     overflow: hidden;
+    overflow: clip;
   }
 
   .panel {
@@ -310,7 +311,9 @@
     flex-shrink: 0;
     width: var(--panel-width);
     max-width: calc(100vw - var(--rail-width));
+    height: calc(100vh - var(--header-height) - 56px);
     min-height: calc(100vh - var(--header-height) - 56px);
+    max-height: calc(100vh - var(--header-height) - 56px);
     background: var(--color-panel);
     border-right: 1px solid var(--color-border);
     transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -329,6 +332,7 @@
   }
 
   .content {
+    position: relative;
     flex: 1;
     min-width: 0;
     padding: 32px clamp(16px, 4vw, 36px);
