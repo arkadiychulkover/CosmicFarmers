@@ -5,6 +5,7 @@
   import CropMiniCard from "../components/CropMiniCard.svelte";
   import StatusBanner from "../components/StatusBanner.svelte";
   import YearSlide from "../components/YearSlide.svelte";
+  import DataSourcesModal from "../components/DataSourcesModal.svelte";
   import { presets } from "../data/presets.js";
   import { cropImage } from "../data/crops.js";
   import { downloadPlan } from "../utils/downloadPlan.js";
@@ -17,6 +18,7 @@
   ];
 
   let showTimeline = $state(false);
+  let showSourcesModal = $state(false);
   let page = $state();
   let index = $state(0);
   let exporting = $state(false);
@@ -267,7 +269,16 @@
 {:else if !showTimeline}
   <div class="results">
     <header>
-      <h2>Your Crop Strategy</h2>
+      <div class="header-top">
+        <h2>Your Crop Strategy</h2>
+        <button
+          type="button"
+          class="sources-btn"
+          onclick={() => (showSourcesModal = true)}
+        >
+          Data Sources &amp; NASA Missions
+        </button>
+      </div>
       <p>
         {result.irrigationLabel || "Rainfed"} regime · {result.soilProfile?.soilLabel || "Loam"} (pH {result.soilProfile?.ph ?? $session.form.ph}) · Recommended next crop:
       </p>
@@ -531,6 +542,8 @@
   </div>
 {/if}
 
+<DataSourcesModal open={showSourcesModal} onclose={() => (showSourcesModal = false)} />
+
 <style>
   .results {
     display: grid;
@@ -551,6 +564,36 @@
     display: grid;
     gap: 4px;
     margin-bottom: 2px;
+  }
+
+  .header-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .sources-btn {
+    padding: 3px 9px;
+    border-radius: 999px;
+    border: 1px solid var(--color-border-dim);
+    background: var(--color-panel);
+    color: var(--color-accent);
+    font-size: 9px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    cursor: pointer;
+    transition: border-color 0.15s ease, background 0.15s ease;
+  }
+
+  .sources-btn:hover {
+    border-color: var(--color-accent);
+  }
+
+  .sources-btn:focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
   }
 
   .results header h2 {

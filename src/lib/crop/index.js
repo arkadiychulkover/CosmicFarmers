@@ -9,7 +9,7 @@ export { CropRecommendationService } from './CropRecommendationService.js';
 export { RotationMatrix } from './RotationMatrix.js';
 export { FEATURE_ORDER, CROP_CLASSES, IRRIGATION_MAP, irrigationToFeature, toFeatureVector } from './features.js';
 export { GOAL_WEIGHTS, CROP_WATER_DEMAND, getWaterDemandTier, getGoalMultipliers, getTelemetryMultipliers, goalNote, telemetryNote } from './goalData.js';
-export { PERENNIAL_CROPS, isPerennialCrop, ROTATION_MATRIX } from './rotationData.js';
+export { PERENNIAL_CROPS, isPerennialCrop, ROTATION_MATRIX, applySoilCarryover } from './rotationData.js';
 export { assessFieldOod, computeSuitabilityPercent, toSuitabilityPercents } from './scoring.js';
 export { computePlanCoverWindows } from './coverCropWindows.js';
 

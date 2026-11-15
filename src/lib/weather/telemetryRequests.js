@@ -26,6 +26,7 @@ function cachedPayload(lat, lon) {
   const nasa = get(session).nasaData;
   if (!nasa?.weather || !samePoint(lat, lon, nasa.lat, nasa.lon)) return null;
   if (!Array.isArray(nasa.weather.months12) || nasa.weather.months12.length !== 12) return null;
+  if (!Array.isArray(nasa.weather.riskCalendarMonths) || nasa.weather.riskCalendarMonths.length !== 12) return null;
   return nasa;
 }
 
@@ -157,6 +158,10 @@ export async function loadPrecipitation(lat, lon, signal) {
     monthlyWaterBalance12: w.precipitation?.monthlyWaterBalance12 || w.monthlyWaterBalance12 || [],
     seasonWaterBalance: w.precipitation?.seasonWaterBalance ?? 0,
     stormDays: w.stress?.stormDays ?? w.stormDays ?? 0,
+    daily_precip_12: w.daily_precip_12 || [],
+    seasonDailyPrecip: w.seasonDailyPrecip || [],
+    riskCalendarMonths: w.riskCalendarMonths || [],
+    seasonYear: w.seasonYear,
     seasonLabel: w.seasonLabel || seasonCfg.label,
     isSouthernHemisphere: Boolean(w.isSouthernHemisphere ?? seasonCfg.isSouthern),
   };
@@ -177,6 +182,10 @@ export async function loadTemperature(lat, lon, signal) {
     lastSpringFrost: w.stress?.lastSpringFrost ?? w.lastSpringFrost ?? null,
     firstAutumnFrost: w.stress?.firstAutumnFrost ?? w.firstAutumnFrost ?? null,
     frostFreeDays: w.stress?.frostFreeDays ?? w.frostFreeDays ?? 365,
+    daily_t2m_max_12: w.daily_t2m_max_12 || [],
+    seasonDailyT2mMax: w.seasonDailyT2mMax || [],
+    riskCalendarMonths: w.riskCalendarMonths || [],
+    seasonYear: w.seasonYear,
     seasonLabel: w.seasonLabel || seasonCfg.label,
     isSouthernHemisphere: Boolean(w.isSouthernHemisphere ?? seasonCfg.isSouthern),
   };
@@ -250,6 +259,8 @@ export async function loadTempRange(lat, lon, signal) {
     lastSpringFrost: w.stress?.lastSpringFrost ?? w.lastSpringFrost ?? null,
     firstAutumnFrost: w.stress?.firstAutumnFrost ?? w.firstAutumnFrost ?? null,
     frostFreeDays: w.stress?.frostFreeDays ?? w.frostFreeDays ?? 365,
+    daily_t2m_max_12: w.daily_t2m_max_12 || [],
+    seasonDailyT2mMax: w.seasonDailyT2mMax || [],
   };
 }
 

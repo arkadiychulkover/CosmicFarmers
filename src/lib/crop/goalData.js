@@ -112,6 +112,43 @@ const ROW_EROSION_RISK_CROPS = new Set([
   'potato',
 ]);
 
+// Heat stress sensitivity (>32°C days)
+const HEAT_SENSITIVE_CROPS = new Set([
+  'potato',
+  'lentil',
+  'rapeseed',
+  'wheat',
+  'barley',
+  'apple',
+]);
+
+const HEAT_TOLERANT_CROPS = new Set([
+  'cotton',
+  'watermelon',
+  'chickpea',
+  'rice',
+  'orange',
+  'grapes',
+  'sunflower',
+]);
+
+// Waterlogging / lodging / heavy storm (>=25mm/day) sensitivity
+const STORM_SENSITIVE_CROPS = new Set([
+  'lentil',
+  'chickpea',
+  'kidneybeans',
+  'potato',
+  'watermelon',
+  'rapeseed',
+  'grapes',
+]);
+
+const STORM_RESILIENT_CROPS = new Set([
+  'rice',
+  'apple',
+  'orange',
+]);
+
 export function computeWaterBalanceMm(params) {
   if (!params) return null;
   if (Number.isFinite(Number(params.waterBalance))) {
@@ -133,6 +170,8 @@ export function getTelemetryMultipliers(goal, params, classes) {
 
   const gwetroot = Number(params.GWETROOT);
   const slope = Number(params.SLOPE);
+  const heatDays = Number(params.heatDays);
+  const stormDays = Number(params.stormDays);
   const irrigationVal = irrigationToFeature(params.IRRIGATION ?? params.irrigation ?? 0);
   const pMinusEt = computeWaterBalanceMm(params);
 
@@ -143,6 +182,12 @@ export function getTelemetryMultipliers(goal, params, classes) {
 
   const highSlope = Number.isFinite(slope) && slope > 8;
   const elevatedSlope = !highSlope && Number.isFinite(slope) && slope > 5;
+
+  const severeHeat = Number.isFinite(heatDays) && heatDays >= 30;
+  const elevatedHeat = !severeHeat && Number.isFinite(heatDays) && heatDays >= 15;
+
+  const severeStorm = Number.isFinite(stormDays) && stormDays >= 15;
+  const elevatedStorm = !severeStorm && Number.isFinite(stormDays) && stormDays >= 8;
 
   for (let i = 0; i < n; i++) {
     const crop = classes[i];
@@ -158,18 +203,44 @@ export function getTelemetryMultipliers(goal, params, classes) {
         else if (demand === 'moderate-high') mult *= severeDeficit ? 0.62 : 0.74;
         else if (demand === 'moderate') mult *= severeDeficit ? 0.82 : 0.90;
         else if (demand === 'low') mult *= 1.15;
-      } else if (irrigationVal < 0.8) {
-        // Supplemental irrigation eases deficit for annuals, still penalizes flooded rice
-        if (demand === 'very-high') mult *= 0.50;
-        else if (demand === 'high') mult *= 0.85;
-        else if (demand === 'low') mult *= 1.05;
+      } else if (irrigationVal < 0.9) {
+        // Smooth supplemental irrigation transition between rainfed and full irrigation
+        if (demand === 'very-high') mult *= severeDeficit ? 0.45 : 0.55;
+        else if (demand === 'high') mult *= severeDeficit ? 0.80 : 0.88;
+        else if (demand === 'moderate-high') mult *= 0.92;
+        else if (demand === 'moderate') mult *= 0.96;
+        else if (demand === 'low') mult *= 1.06;
       }
     }
 
     // Extra priority when user explicitly picks Water Conservation goal
     if (goal === 'water' && hasWaterDeficit) {
       if (demand === 'low') mult *= 1.18;
-      else if ((demand === 'very-high' || demand === 'high') && irrigationVal < 0.8) mult *= 0.82;
+      else if ((demand === 'very-high' || demand === 'high') && irrigationVal < 0.9) mult *= 0.82;
+    }
+
+    // Extreme heat days (>= 32°C)
+    if (severeHeat) {
+      if (HEAT_SENSITIVE_CROPS.has(crop)) {
+        mult *= crop === 'potato' || crop === 'lentil' || crop === 'rapeseed' ? 0.72 : 0.78;
+      } else if (HEAT_TOLERANT_CROPS.has(crop)) {
+        mult *= 1.14;
+      }
+    } else if (elevatedHeat) {
+      if (HEAT_SENSITIVE_CROPS.has(crop)) {
+        mult *= crop === 'potato' || crop === 'lentil' || crop === 'rapeseed' ? 0.86 : 0.90;
+      } else if (HEAT_TOLERANT_CROPS.has(crop)) {
+        mult *= 1.07;
+      }
+    }
+
+    // Intense storm / waterlogging days (>= 25mm/day)
+    if (severeStorm) {
+      if (STORM_SENSITIVE_CROPS.has(crop)) mult *= 0.78;
+      else if (STORM_RESILIENT_CROPS.has(crop)) mult *= 1.12;
+    } else if (elevatedStorm) {
+      if (STORM_SENSITIVE_CROPS.has(crop)) mult *= 0.90;
+      else if (STORM_RESILIENT_CROPS.has(crop)) mult *= 1.06;
     }
 
     if (highSlope) {
@@ -190,6 +261,8 @@ export function telemetryNote(goal, params, cropId) {
   const notes = [];
   const gwetroot = Number(params.GWETROOT);
   const slope = Number(params.SLOPE);
+  const heatDays = Number(params.heatDays);
+  const stormDays = Number(params.stormDays);
   const irrigationVal = irrigationToFeature(params.IRRIGATION ?? params.irrigation ?? 0);
   const pMinusEt = computeWaterBalanceMm(params);
   const demand = CROP_WATER_DEMAND[cropId] ?? 'moderate';
@@ -210,13 +283,31 @@ export function telemetryNote(goal, params, cropId) {
       } else if (demand === 'very-high' || demand === 'high' || demand === 'moderate-high') {
         notes.push(`Rainfed water deficit (${deficitLabel}): penalized due to ${demand.replace('-', ' ')} crop water demand.`);
       }
-    } else if (irrigationVal >= 0.8 && (demand === 'very-high' || demand === 'high')) {
+    } else if (irrigationVal >= 0.9 && (demand === 'very-high' || demand === 'high')) {
       notes.push(`Full irrigation selected: offsets seasonal moisture deficit (${deficitLabel}).`);
     } else if (demand === 'very-high') {
       notes.push(`Supplemental irrigation only (${deficitLabel}): paddy/flooded demand remains penalized.`);
+    } else if (demand === 'high') {
+      notes.push(`Supplemental irrigation (${deficitLabel}): partially buffers peak moisture stress.`);
     }
   } else if (goal === 'water' && demand === 'low') {
     notes.push('Water conservation alignment: low seasonal evapotranspiration footprint.');
+  }
+
+  if (Number.isFinite(heatDays) && heatDays >= 15) {
+    if (HEAT_SENSITIVE_CROPS.has(cropId)) {
+      notes.push(`Heat stress risk (${Math.round(heatDays)} days >=32°C): cool-season flowering/tuber quality penalized.`);
+    } else if (HEAT_TOLERANT_CROPS.has(cropId)) {
+      notes.push(`Heat resilience (${Math.round(heatDays)} days >=32°C): adapted to high summer temperatures.`);
+    }
+  }
+
+  if (Number.isFinite(stormDays) && stormDays >= 8) {
+    if (STORM_SENSITIVE_CROPS.has(cropId)) {
+      notes.push(`Heavy storm risk (${Math.round(stormDays)} days >=25mm): raised beds/drainage needed to avoid root rot.`);
+    } else if (STORM_RESILIENT_CROPS.has(cropId)) {
+      notes.push(`Storm tolerance (${Math.round(stormDays)} days >=25mm): withstands intense rainfall events.`);
+    }
   }
 
   if (Number.isFinite(slope) && slope > 5) {
