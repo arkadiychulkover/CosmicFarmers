@@ -10,13 +10,17 @@
 
   void waterBalance;
 
-  const width = 260;
   const padL = 22;
-  const padR = 8;
   const top = 18;
-  const axisY = 78;
+  const axisY = top + (78 - top) * 2 * 0.65;
+  let hostWidth = $state(0);
+  const unitPx = 356 / 260;
+  const width = $derived(hostWidth > 0 ? hostWidth / unitPx : 490);
+  const padR = $derived(width * (8 / 250));
   const labelGap = 7;
-  const fontSize = 9;
+  const valueFont = (8 * 260) / 356;
+  const diffFont = (12 * 260) / 356;
+  const monthFont = valueFont;
   const P_COLOR = '#7DD3FC';
   const ET_COLOR = '#F3E474';
 
@@ -32,7 +36,8 @@
     safeValues.map((value, index) => {
       const pVal = Number(value) || 0;
       const etVal = hasEt ? Number(safeEt[index]) || 0 : null;
-      const x = padL + (index / Math.max(1, safeValues.length - 1)) * (width - padL - padR);
+      const slot = (width - padL - padR) / Math.max(1, safeValues.length);
+      const x = padL + slot / 2 + index * slot;
       const yOf = (v) => axisY - (Math.max(0, v) / max) * (axisY - top);
       return {
         x,
@@ -70,6 +75,13 @@
     };
   }
 
+  function segmentList(pts, yKey) {
+    if (pts.length < 2) return [];
+    const segments = [];
+    for (let i = 0; i < pts.length - 1; i += 1) segments.push(bezierControls(pts, i, yKey));
+    return segments;
+  }
+
   function smoothPath(pts, yKey) {
     if (!pts.length) return '';
     if (pts.length === 1) return `M ${pts[0].x} ${pts[0][yKey]}`;
@@ -88,8 +100,21 @@
       etY: point.etY === null ? null : point.etY + 3,
     })),
   );
-  const line = $derived(smoothPath(drawn, 'y'));
-  const etLine = $derived(hasEt ? smoothPath(drawn, 'etY') : '');
+  const curved = $derived.by(() => {
+    if (drawn.length < 2) return drawn;
+    const slot = (drawn[1].x - drawn[0].x) / 2;
+    const first = drawn[0];
+    const last = drawn[drawn.length - 1];
+    const midY = (first.y + last.y) / 2;
+    const midEt = first.etY === null || last.etY === null ? null : (first.etY + last.etY) / 2;
+    return [
+      { x: first.x - slot, y: midY, etY: midEt },
+      ...drawn,
+      { x: last.x + slot, y: midY, etY: midEt },
+    ];
+  });
+  const line = $derived(smoothPath(curved, 'y'));
+  const etLine = $derived(hasEt ? smoothPath(curved, 'etY') : '');
   const area = $derived(
     !hasEt && points.length
       ? `${smoothPath(points, 'y')} L ${points[points.length - 1].x} ${axisY} L ${points[0].x} ${axisY} Z`
@@ -97,17 +122,17 @@
   );
 
   const fills = $derived.by(() => {
-    if (!hasEt || drawn.length < 2) return [];
+    if (!hasEt || curved.length < 2) return [];
+    const pSegs = segmentList(curved, 'y');
+    const eSegs = segmentList(curved, 'etY');
     const steps = 8;
     const samples = [];
-    for (let i = 0; i < drawn.length - 1; i += 1) {
-      const segP = bezierControls(drawn, i, 'y');
-      const segE = bezierControls(drawn, i, 'etY');
-      const count = i === drawn.length - 2 ? steps : steps - 1;
+    for (let i = 0; i < pSegs.length; i += 1) {
+      const count = i === pSegs.length - 1 ? steps : steps - 1;
       for (let s = 0; s <= count; s += 1) {
         const t = s / steps;
-        const p = bezierPoint(segP, t);
-        const e = bezierPoint(segE, t);
+        const p = bezierPoint(pSegs[i], t);
+        const e = bezierPoint(eSegs[i], t);
         samples.push({ x: p.x, pY: p.y, etY: e.y });
       }
     }
@@ -173,13 +198,8 @@
       const etDrawn = point.etY + 3;
       const pIsUpper = pDrawn <= etDrawn;
       const lowerY = Math.max(pDrawn, etDrawn);
-      const upperY = Math.min(pDrawn, etDrawn);
-      const fits = lowerY - upperY >= fontSize + 3;
       const diff = Math.round(point.value - point.et);
       const lowerTextY = lowerY + labelGap;
-      const diffAnchor = fits ? 'central' : 'hanging';
-      const diffY = fits ? (upperY + lowerY) / 2 : lowerTextY + 2 * labelGap;
-      const diffBottom = diffAnchor === 'central' ? diffY + fontSize / 2 : diffY + fontSize;
 
       return {
         ...base,
@@ -190,32 +210,36 @@
         etTextY: pIsUpper ? etDrawn + labelGap : etDrawn - labelGap,
         etAnchor: pIsUpper ? 'hanging' : 'auto',
         diffText: `${diff > 0 ? '+' : ''}${diff}`,
-        diffY,
-        diffAnchor,
         positive: diff >= 0,
         showEt: true,
-        bottom: Math.max(lowerTextY + fontSize, diffBottom),
+        showDiff: true,
+        bottom: lowerTextY + valueFont,
       };
     }),
   );
 
   const labelBottom = $derived(Math.max(axisY, ...markers.map((marker) => marker.bottom)));
-  const monthsY = $derived(Math.max(axisY + 12, labelBottom + 12));
-  const seasonY = $derived(monthsY + 14);
+  const rowGap = 6;
+  const monthsY = $derived(labelBottom + rowGap);
+  const diffY = $derived(monthsY + monthFont + rowGap);
+  const seasonY = $derived(hasEt ? diffY + diffFont + 12 : monthsY + monthFont + 12);
   const barH = 4;
+  const barRadius = barH / 2;
   const markerH = barH * 3;
   const barY = $derived(seasonY + 8);
   const height = $derived(barY + barH + 8);
 
   const season = $derived(Number(total) || safeValues.reduce((sum, value) => sum + value, 0));
   const base = $derived(Number(baseline) || 0);
-  const trackWidth = width - padL - padR;
-  const scale = $derived(Math.max(season * 1.05, base, 1));
-  const oldSeasonWidth = $derived((trackWidth * season) / scale);
-  const seasonWidth = $derived(Math.min(trackWidth, oldSeasonWidth * 1.05));
-  const hundredX = $derived(padL + oldSeasonWidth);
+  const chartLeft = padL;
+  const chartRight = $derived(width - padR);
+  const trackWidth = $derived(Math.max(0, chartRight - chartLeft));
+  const barScale = $derived(base > 0 ? base * 1.05 : Math.max(season, 1));
+  const seasonWidth = $derived(Math.min(trackWidth, (trackWidth * season) / barScale));
+  const hundredX = $derived(chartLeft + trackWidth / 1.05);
 </script>
 
+<div class="plot" bind:clientWidth={hostWidth}>
 <svg
   viewBox="0 0 {width} {height}"
   role="img"
@@ -259,20 +283,22 @@
         dominant-baseline={marker.etAnchor}
         class="et-value"
       >{marker.etLabel}</text>
+    {/if}
+    <text x={marker.x} y={monthsY} text-anchor="middle" dominant-baseline="hanging" class="month">{marker.month}</text>
+    {#if marker.showDiff}
       <text
         x={marker.x}
-        y={marker.diffY}
+        y={diffY}
         text-anchor="middle"
-        dominant-baseline={marker.diffAnchor}
+        dominant-baseline="hanging"
         class={marker.positive ? 'diff-pos' : 'diff-neg'}
       >{marker.diffText}</text>
     {/if}
-    <text x={marker.x} y={monthsY} text-anchor="middle" class="month">{marker.month}</text>
   {/each}
   <text x={padL} y={seasonY} class="season">Season {Math.round(season)} mm</text>
   <text x={width - padR} y={seasonY} text-anchor="end" class="baseline-label">10-yr baseline {Math.round(base)} mm</text>
-  <rect x={padL} y={barY} width={trackWidth} height={barH} rx="2" class="track" />
-  <rect x={padL} y={barY} width={seasonWidth} height={barH} rx="2" class="fill" />
+  <rect x={chartLeft} y={barY} width={trackWidth} height={barH} rx={barRadius} class="track" />
+  <rect x={chartLeft} y={barY} width={seasonWidth} height={barH} rx={barRadius} class="fill" />
   <line
     x1={hundredX}
     y1={barY + barH / 2 - markerH / 2}
@@ -281,8 +307,13 @@
     class="hundred"
   />
 </svg>
+</div>
 
 <style>
+  .plot {
+    width: 100%;
+  }
+
   svg {
     display: block;
     width: 100%;
@@ -336,9 +367,17 @@
 
   .value,
   .et-value,
+  .month {
+    font-size: calc(8px * 260 / 356);
+    font-weight: 700;
+  }
+
   .diff-pos,
-  .diff-neg,
-  .month,
+  .diff-neg {
+    font-size: calc(12px * 260 / 356);
+    font-weight: 700;
+  }
+
   .season,
   .baseline-label,
   .axis {

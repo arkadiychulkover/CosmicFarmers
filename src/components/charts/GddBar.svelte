@@ -33,6 +33,22 @@
   const ballR = $derived(px(3));
   const gap = $derived(px(4));
 
+  function keepLabelsInside(svg) {
+    const limit = 248;
+    for (const text of svg.querySelectorAll('text')) {
+      text.removeAttribute('transform');
+      const width = text.getComputedTextLength();
+      if (!width) continue;
+      const x = Number(text.getAttribute('x')) || 0;
+      const anchor = text.getAttribute('text-anchor') || 'start';
+      const left = anchor === 'middle' ? x - width / 2 : anchor === 'end' ? x - width : x;
+      let dx = 0;
+      if (left < 0) dx = -left;
+      if (left + width + dx > limit) dx = limit - (left + width);
+      if (dx) text.setAttribute('transform', `translate(${dx} 0)`);
+    }
+  }
+
   $effect(() => {
     const node = host;
     if (!node) return;
@@ -43,6 +59,14 @@
     const observer = new ResizeObserver(read);
     observer.observe(node);
     return () => observer.disconnect();
+  });
+
+  $effect(() => {
+    const node = host;
+    numVal;
+    cssWidth;
+    if (!node) return;
+    keepLabelsInside(node);
   });
 
   function mix(from, to, t) {
@@ -111,8 +135,8 @@
   <circle cx={markerX} cy={pinTop} r={ballR} fill={pinColor} />
   <text x={markerX} y={pinTop - ballR - px(6)} text-anchor="middle" class="value">{numVal.toLocaleString('en-US')} GDD</text>
 
-  <text x={barX} y="54" class="edge">0</text>
-  <text x={barX + barWidth} y="54" text-anchor="end" class="edge">{max.toLocaleString('en-US')}</text>
+  <text x={barX} y={54 + px(4)} class="edge">0</text>
+  <text x={barX + barWidth} y={54 + px(4)} text-anchor="end" class="edge">{max.toLocaleString('en-US')}</text>
 
   {#each crops as crop (crop.value)}
     <text x={crop.x} y={crop.y} class="mile {cropTone(crop.value)}">{crop.label}</text>

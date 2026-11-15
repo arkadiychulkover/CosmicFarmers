@@ -23,14 +23,6 @@
     }
   });
 
-  const canProceed = $derived(
-    !$session.nasaLoading &&
-    !$session.nasaError &&
-    Boolean($session.nasaData) &&
-    Math.abs(Number($session.nasaData.lat) - Number($session.form.lat)) < 0.001 &&
-    Math.abs(Number($session.nasaData.lon) - Number($session.form.lon)) < 0.001
-  );
-
   const liveOod = $derived.by(() => {
     if (!$session.nasaData || $session.nasaLoading) return null;
     return assessFieldOod({
@@ -313,11 +305,9 @@
   <div class="actions">
     <ActionButton
       variant="surface"
-      loading={$session.nasaLoading}
-      disabled={!canProceed}
       onclick={() => goto('/telemetry')}
     >
-      {$session.nasaLoading ? 'Loading NASA Data...' : 'Stress Test →'}
+      Stress Test →
     </ActionButton>
   </div>
 </div>

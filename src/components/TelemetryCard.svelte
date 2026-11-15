@@ -2,6 +2,7 @@
   let {
     title = '',
     value = '',
+    valueParts = [],
     unit = '',
     rows = [],
     note = '',
@@ -10,11 +11,13 @@
     error = '',
     wide = false,
     inlineRows = false,
+    valueGap = '',
+    minHeight = 0,
     children,
   } = $props();
 </script>
 
-<article class="card" class:wide class:pending={state !== 'ready'}>
+<article class="card" class:wide class:pending={state !== 'ready'} style:min-height={minHeight ? `${minHeight}px` : undefined}>
   {#if source}<p class="source">{source}</p>{/if}
 
   {#if state === 'loading'}
@@ -32,23 +35,35 @@
       <div class="visual">{@render children()}</div>
     {/if}
 
-    {#if title || value !== '' || rows.length || note}
+    {#if title || value !== '' || valueParts.length || rows.length || note}
       <div class="info">
-        {#if title || value !== ''}
-          <div class="head">
+        {#if title || value !== '' || valueParts.length}
+          <div class="head" class:beside={!!valueGap} style:gap={valueGap || undefined}>
             {#if title}<h3>{title}</h3>{/if}
-            {#if value !== ''}
-              <span class="value">{value} <small>{unit}</small></span>
+            {#if valueParts.length}
+              <span class="stat">
+                {#each valueParts as part, index (`${index}-${part.text}`)}
+                  {#if part.num}<strong>{part.text}</strong>{:else}<span class:val={part.val}>{part.text}</span>{/if}
+                {/each}
+              </span>
+            {:else if value !== ''}
+              <span class="value">{value}{#if unit} <small>{unit}</small>{/if}</span>
             {/if}
           </div>
         {/if}
 
         {#if rows.length}
           <div class="rows" class:inline={inlineRows}>
-            {#each rows as row (row.label)}
-              <div class="row">
-                <span>{row.label}</span>
-                <strong>{row.value}</strong>
+            {#each rows as row (row.key || row.label)}
+              <div class="row" class:phrase={row.parts}>
+                {#if row.parts}
+                  {#each row.parts as part, index (`${index}-${part.text}`)}
+                    {#if part.num}<strong>{part.text}</strong>{:else}<span class:val={part.val}>{part.text}</span>{/if}
+                  {/each}
+                {:else}
+                  <span>{row.label}</span>
+                  {#if row.value}<strong>{row.value}</strong>{/if}
+                {/if}
               </div>
             {/each}
           </div>
@@ -85,7 +100,7 @@
 
   .source {
     margin: 0;
-    color: var(--color-card-dim);
+    color: var(--color-panel);
     font-size: 9px;
     font-weight: 600;
     letter-spacing: 0.02em;
@@ -158,6 +173,10 @@
     gap: 8px;
   }
 
+  .head.beside {
+    justify-content: flex-start;
+  }
+
   h3 {
     margin: 0;
     font-family: var(--font-display);
@@ -179,11 +198,47 @@
     font-weight: 400;
   }
 
+  .stat {
+    font-size: 12px;
+    font-weight: 400;
+    color: var(--color-card-dim);
+    white-space: nowrap;
+  }
+
+  .stat span,
+  .row.phrase span {
+    white-space: pre;
+  }
+
+  .stat span.val,
+  .row.phrase span.val {
+    color: var(--color-card-text);
+  }
+
+  .stat strong {
+    font-family: var(--font-display);
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--color-card-text);
+  }
+
   .rows.inline {
+    position: relative;
     flex-direction: row;
     justify-content: space-between;
     align-items: baseline;
     gap: 16px;
+  }
+
+  .rows.inline .row {
+    white-space: nowrap;
+  }
+
+  .rows.inline .row:nth-child(2):nth-last-child(2) {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    white-space: nowrap;
   }
 
   .rows {
@@ -202,11 +257,8 @@
     color: var(--color-card-dim);
   }
 
-  .rows.inline .row strong {
-    font-family: inherit;
-    font-size: 12px;
-    font-weight: 400;
-    color: var(--color-card-text);
+  .row.phrase {
+    gap: 0;
   }
 
   .row strong {
