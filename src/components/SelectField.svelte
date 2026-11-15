@@ -1,4 +1,4 @@
-<script>  let { label = '', hint = '', options, value = $bindable(), ariaLabel = label } = $props();
+<script>  let { label = '', hint = '', options, value = $bindable(), disabled = false, ariaLabel = label } = $props();
 
   let open = $state(false);
   let highlighted = $state(0);
@@ -6,17 +6,24 @@
 
   const selected = $derived(options.find((o) => o.value === value));
 
+  $effect(() => {
+    if (disabled) open = false;
+  });
+
   function toggle() {
+    if (disabled) return;
     open = !open;
     if (open) highlighted = Math.max(0, options.findIndex((o) => o.value === value));
   }
 
   function choose(option) {
+    if (disabled) return;
     value = option.value;
     open = false;
   }
 
   function onKeydown(event) {
+    if (disabled) return;
     if (event.key === 'Escape') {
       open = false;
       return;
@@ -46,7 +53,7 @@
 
 <svelte:window onclick={onWindowClick} />
 
-<div class="field" bind:this={root}>
+<div class="field" class:disabled bind:this={root}>
   {#if label}
     <div class="heading">
       <span class="label">{label}</span>
@@ -58,6 +65,7 @@
     <button
       type="button"
       class="trigger"
+      {disabled}
       aria-haspopup="listbox"
       aria-expanded={open}
       aria-label={ariaLabel}
@@ -138,6 +146,15 @@
     font-size: 12px;
     text-align: left;
     cursor: pointer;
+  }
+
+  .field.disabled {
+    opacity: 0.55;
+  }
+
+  .trigger:disabled {
+    border-color: var(--color-border-dim);
+    cursor: not-allowed;
   }
 
   .trigger:focus-visible {

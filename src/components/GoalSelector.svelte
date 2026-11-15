@@ -1,11 +1,11 @@
-<script>  let { label, options, name = 'goal', value = $bindable() } = $props();
+<script>  let { label, options, name = 'goal', value = $bindable(), disabled = false } = $props();
 </script>
 
-<fieldset>
+<fieldset {disabled}>
   <legend>{label}</legend>
   {#each options as option (option.value)}
     <label class="card" class:active={option.value === value}>
-      <input type="radio" {name} value={option.value} bind:group={value} />
+      <input type="radio" {name} value={option.value} {disabled} bind:group={value} />
       <strong>{option.title}</strong>
       <span>{option.description}</span>
     </label>
@@ -42,6 +42,15 @@
 
   .card:hover {
     border-color: var(--color-border-strong);
+  }
+
+  fieldset:disabled .card {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
+
+  fieldset:disabled .card:hover {
+    border-color: var(--color-border-dim);
   }
 
   .card.active {
