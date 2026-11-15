@@ -2,7 +2,8 @@ import { writable, get } from 'svelte/store';
 import { resolvePreset } from '../data/presets.js';
 import { fetchNasaDataForCoords, deriveSoilAndNutrients } from '../utils/nasaApi.js';
 
-const SESSION_KEY = 'field-shift-session';
+const LEGACY_SESSION_KEY = 'field-shift-session';
+const SESSION_KEY = 'field-shift-session-v2';
 
 const defaults = {
   activePresetId: null,
@@ -25,17 +26,22 @@ const defaults = {
     lon: -93.6319,
     predecessor: 'corn',
     goal: 'regeneration',
+    irrigation: 'rainfed',
     soil: 'loam',
     ph: 6.2,
-    n: 45,
-    p: 60,
-    k: 155,
+    soc: 24.0,
+    nitrogen: 2.1,
+    clay: 25.0,
+    sand: 32.0,
+    silt: 43.0,
   },
   autoSoil: {
     ph: 6.2,
-    n: 45,
-    p: 60,
-    k: 155,
+    soc: 24.0,
+    nitrogen: 2.1,
+    clay: 25.0,
+    sand: 32.0,
+    silt: 43.0,
   },
 };
 
@@ -48,12 +54,34 @@ function safeParse(raw) {
   }
 }
 
+function stripLegacyNpk(obj) {
+  if (!obj || typeof obj !== 'object') return obj;
+  const copy = { ...obj };
+  delete copy.n;
+  delete copy.p;
+  delete copy.k;
+  delete copy.N;
+  delete copy.P;
+  delete copy.K;
+  return copy;
+}
+
 function hasValidForecast(data) {
-  return Boolean(data?.result?.years?.[0]?.options && data?.result?.recommendations);
+  return Boolean(
+    data?.result?.version >= 3 &&
+    data?.result?.years?.[0]?.options &&
+    data?.result?.recommendations,
+  );
 }
 
 function readSavedSession() {
   if (typeof localStorage === 'undefined') return null;
+  // Remove obsolete v1 N/P/K session cache if present
+  try {
+    if (localStorage.getItem(LEGACY_SESSION_KEY)) {
+      localStorage.removeItem(LEGACY_SESSION_KEY);
+    }
+  } catch {}
   const saved = safeParse(localStorage.getItem(SESSION_KEY));
   return hasValidForecast(saved) ? saved : null;
 }
@@ -64,22 +92,29 @@ function load() {
   if (!saved) return fresh;
 
   const savedClimate = saved.climate && typeof saved.climate === 'object' ? saved.climate : {};
-  const savedAuto = saved.autoSoil && typeof saved.autoSoil === 'object'
+  const rawAuto = saved.autoSoil && typeof saved.autoSoil === 'object'
     ? saved.autoSoil
     : saved.nasaData;
   const isResultsRoute =
     typeof window !== 'undefined' && window.location.pathname === '/results';
+
+  const cleanForm = stripLegacyNpk(saved.form);
+  const cleanAuto = stripLegacyNpk(rawAuto);
+
   const merged = {
     ...fresh,
     ...saved,
-    form: { ...fresh.form, ...saved.form },
-    autoSoil: { ...fresh.autoSoil, ...savedAuto },
+    form: { ...fresh.form, ...cleanForm },
+    autoSoil: { ...fresh.autoSoil, ...cleanAuto },
     climate: { ...fresh.climate, ...savedClimate },
     nasaLoading: false,
     nasaError: null,
     collapsed: isResultsRoute,
   };
 
+  if (!['rainfed', 'supplemental', 'irrigated'].includes(merged.form.irrigation)) {
+    merged.form.irrigation = 'rainfed';
+  }
   if (typeof saved.climate === 'number') {
     merged.climate.precipitation = saved.climate;
   }
@@ -92,9 +127,8 @@ function load() {
       merged.form.lon,
     );
     merged.nasaData = {
-      ...merged.nasaData,
-      soilSource: upgraded.soilSource,
-      soilMeta: upgraded.soilMeta,
+      ...stripLegacyNpk(merged.nasaData),
+      ...upgraded,
     };
   }
 
@@ -108,6 +142,8 @@ export function saveCompletedSession(snapshot = get(session)) {
   if (typeof localStorage === 'undefined' || !hasValidForecast(snapshot)) return;
   const payload = {
     ...snapshot,
+    form: stripLegacyNpk(snapshot.form),
+    autoSoil: stripLegacyNpk(snapshot.autoSoil),
     nasaLoading: false,
     nasaError: null,
     savedAt: new Date().toISOString(),
@@ -124,6 +160,7 @@ export function clearSavedSession() {
   if (typeof localStorage === 'undefined') return;
   try {
     localStorage.removeItem(SESSION_KEY);
+    localStorage.removeItem(LEGACY_SESSION_KEY);
     savedSession.set(null);
   } catch {}
 }
@@ -146,22 +183,34 @@ let coordRequestSeq = 0;
 
 export function applyNasaPayloadToForm(payload) {
   if (!payload) return;
+  const meta = payload.soilMeta || {};
+  const ph = Number(payload.ph ?? 6.5);
+  const soc = Number(payload.soc ?? meta.socGkg ?? defaults.form.soc);
+  const nitrogen = Number(payload.nitrogen ?? meta.totalNGkg ?? defaults.form.nitrogen);
+  const clay = Number(payload.clay ?? meta.clayPct ?? defaults.form.clay);
+  const sand = Number(payload.sand ?? meta.sandPct ?? defaults.form.sand);
+  const silt = Number(payload.silt ?? meta.siltPct ?? Math.max(0, Number((100 - clay - sand).toFixed(1))));
+
   session.update((s) => ({
     ...s,
     nasaData: payload,
     form: {
-      ...s.form,
-      ph: payload.ph,
-      soil: payload.soil,
-      n: payload.n,
-      p: payload.p,
-      k: payload.k,
+      ...stripLegacyNpk(s.form),
+      ph,
+      soil: payload.soil || s.form.soil || 'loam',
+      soc,
+      nitrogen,
+      clay,
+      sand,
+      silt,
     },
     autoSoil: {
-      ph: payload.ph,
-      n: payload.n,
-      p: payload.p,
-      k: payload.k,
+      ph,
+      soc,
+      nitrogen,
+      clay,
+      sand,
+      silt,
     },
   }));
 }

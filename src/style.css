@@ -32,11 +32,13 @@
   --color-switch-thumb: #f1edea;
   --color-switch-dots: #0b1524;
 
-  --color-danger: #bd4e4e;
-  --color-chart-blue: #6d7d99;
+  --color-danger: #ff7b7b;
+  --color-info: #7cc4ff;
+  --color-chart-blue: #7cc4ff;
   --color-chart-orange: #ffb26b;
-  --color-chart-red: #bd4e4e;
+  --color-chart-red: #ff7b7b;
   --color-chart-green: #b2ff9e;
+  --color-chart-track: #1b263b;
 
   --color-result-card: #293751;
   --color-result-text: #f1edea;
@@ -44,6 +46,15 @@
   --color-result-match: #b2ff9e;
   --color-tone-good: #b2ff9e;
   --color-tone-warn: #f3e474;
+
+  --color-status-good-bg: rgba(178, 255, 158, 0.12);
+  --color-status-good-border: rgba(178, 255, 158, 0.45);
+  --color-status-warn-bg: rgba(243, 228, 116, 0.12);
+  --color-status-warn-border: rgba(243, 228, 116, 0.5);
+  --color-status-error-bg: rgba(255, 123, 123, 0.14);
+  --color-status-error-border: rgba(255, 123, 123, 0.55);
+  --color-status-info-bg: rgba(124, 196, 255, 0.12);
+  --color-status-info-border: rgba(124, 196, 255, 0.45);
 
   --header-height: 124px;
   --panel-width: 860px;
@@ -59,32 +70,49 @@
   color-scheme: light;
 
   --color-bg: #e8edf5;
-  --color-panel: #c9d3e6;
-  --color-card: #aebbd6;
-  --color-card-text: #14203a;
-  --color-card-dim: #33425f;
-  --color-field: #dbe3f1;
-  --color-option: #aebbd6;
-  --color-option-active: #8e9bb8;
-  --color-tab: #8e9bb8;
-  --color-tab-hover: #7d8bab;
-  --color-tab-text: #14203a;
-  --color-text: #14203a;
-  --color-text-dim: #4a5873;
-  --color-border-dim: #7d8bab;
-  --color-border-strong: #14203a;
-  --color-accent: #b2ff9e;
+  --color-panel: #d5dfef;
+  --color-card: #c1cee6;
+  --color-card-text: #101b33;
+  --color-card-dim: #2b3a58;
+  --color-field: #e2e9f5;
+  --color-option: #b8c6e0;
+  --color-option-active: #96a8cb;
+  --color-tab: #96a8cb;
+  --color-tab-hover: #7d90b8;
+  --color-tab-text: #101b33;
+  --color-text: #101b33;
+  --color-text-dim: #334361;
+  --color-border-dim: #6f81a6;
+  --color-border-strong: #101b33;
+  --color-accent: #166534;
 
   --color-switch-track: #aab6cf;
-  --color-switch-thumb: #14203a;
+  --color-switch-thumb: #101b33;
   --color-switch-dots: #aab6cf;
 
-  --color-result-card: #c9d3e6;
-  --color-result-text: #14203a;
-  --color-result-dim: #33425f;
-  --color-result-match: #b2ff9e;
-  --color-tone-good: #b2ff9e;
-  --color-tone-warn: #f3e474;
+  --color-danger: #a81c1c;
+  --color-info: #124e96;
+  --color-chart-blue: #1d4ed8;
+  --color-chart-orange: #b44b00;
+  --color-chart-red: #a81c1c;
+  --color-chart-green: #166534;
+  --color-chart-track: #9fb0cf;
+
+  --color-result-card: #d5dfef;
+  --color-result-text: #101b33;
+  --color-result-dim: #2b3a58;
+  --color-result-match: #166534;
+  --color-tone-good: #166534;
+  --color-tone-warn: #8a4b00;
+
+  --color-status-good-bg: rgba(22, 101, 52, 0.12);
+  --color-status-good-border: rgba(22, 101, 52, 0.45);
+  --color-status-warn-bg: rgba(138, 75, 0, 0.11);
+  --color-status-warn-border: rgba(138, 75, 0, 0.45);
+  --color-status-error-bg: rgba(168, 28, 28, 0.11);
+  --color-status-error-border: rgba(168, 28, 28, 0.48);
+  --color-status-info-bg: rgba(18, 78, 150, 0.1);
+  --color-status-info-border: rgba(18, 78, 150, 0.42);
 }
 
 *,

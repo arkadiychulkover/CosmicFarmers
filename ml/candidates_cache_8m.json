@@ -1,1794 +1,4397 @@
-[
-  {
-    "lat": 51.28075,
-    "lon": 32.51112,
-    "year": 2021,
-    "label": "maize",
-    "region": "UKRAINE",
-    "source": "ESA_RDM:2021_glo_ewocval_poly_111"
-  },
-  {
-    "lat": 51.26469,
-    "lon": 32.47091,
-    "year": 2021,
-    "label": "wheat",
-    "region": "UKRAINE",
-    "source": "ESA_RDM:2021_glo_ewocval_poly_111"
-  },
-  {
-    "lat": 51.24795,
-    "lon": 32.46301,
-    "year": 2021,
-    "label": "maize",
-    "region": "UKRAINE",
-    "source": "ESA_RDM:2021_glo_ewocval_poly_111"
-  },
-  {
-    "lat": 55.04508,
-    "lon": 82.41621,
-    "year": 2021,
-    "label": "wheat",
-    "region": "RUSSIA",
-    "source": "ESA_RDM:2021_glo_ewocval_poly_111"
-  },
-  {
-    "lat": 55.04406,
-    "lon": 82.41415,
-    "year": 2021,
-    "label": "wheat",
-    "region": "RUSSIA",
-    "source": "ESA_RDM:2021_glo_ewocval_poly_111"
-  },
-  {
-    "lat": 55.04345,
-    "lon": 82.41361,
-    "year": 2021,
-    "label": "wheat",
-    "region": "RUSSIA",
-    "source": "ESA_RDM:2021_glo_ewocval_poly_111"
-  },
-  {
-    "lat": 55.04684,
-    "lon": 82.4225,
-    "year": 2021,
-    "label": "wheat",
-    "region": "RUSSIA",
-    "source": "ESA_RDM:2021_glo_ewocval_poly_111"
-  },
-  {
-    "lat": -33.8166,
-    "lon": 18.82922,
-    "year": 2021,
-    "label": "grapes",
-    "region": "GLOBAL",
-    "source": "ESA_RDM:2021_glo_ewocval_poly_111"
-  },
-  {
-    "lat": -33.92581,
-    "lon": 18.93265,
-    "year": 2021,
-    "label": "grapes",
-    "region": "GLOBAL",
-    "source": "ESA_RDM:2021_glo_ewocval_poly_111"
-  },
-  {
-    "lat": -33.1909,
-    "lon": 18.59388,
-    "year": 2021,
-    "label": "rapeseed",
-    "region": "GLOBAL",
-    "source": "ESA_RDM:2021_glo_ewocval_poly_111"
-  },
-  {
-    "lat": -33.18628,
-    "lon": 18.59468,
-    "year": 2021,
-    "label": "rapeseed",
-    "region": "GLOBAL",
-    "source": "ESA_RDM:2021_glo_ewocval_poly_111"
-  },
-  {
-    "lat": -33.65401,
-    "lon": 19.61811,
-    "year": 2021,
-    "label": "grapes",
-    "region": "GLOBAL",
-    "source": "ESA_RDM:2021_glo_ewocval_poly_111"
-  },
-  {
-    "lat": -33.65451,
-    "lon": 19.61633,
-    "year": 2021,
-    "label": "grapes",
-    "region": "GLOBAL",
-    "source": "ESA_RDM:2021_glo_ewocval_poly_111"
-  },
-  {
-    "lat": -33.33156,
-    "lon": 19.60819,
-    "year": 2021,
-    "label": "grapes",
-    "region": "GLOBAL",
-    "source": "ESA_RDM:2021_glo_ewocval_poly_111"
-  },
-  {
-    "lat": -33.28058,
-    "lon": 19.72912,
-    "year": 2021,
-    "label": "grapes",
-    "region": "GLOBAL",
-    "source": "ESA_RDM:2021_glo_ewocval_poly_111"
-  },
-  {
-    "lat": 37.52803,
-    "lon": -5.28229,
-    "year": 2021,
-    "label": "grapes",
-    "region": "EUROPE",
-    "source": "ESA_RDM:2021_glo_ewocval_poly_111"
-  },
-  {
-    "lat": 51.26389,
-    "lon": 32.47338,
-    "year": 2021,
-    "label": "sunflower",
-    "region": "UKRAINE",
-    "source": "ESA_RDM:2021_glo_ewocval_poly_111"
-  },
-  {
-    "lat": 51.2247,
-    "lon": 32.39329,
-    "year": 2021,
-    "label": "maize",
-    "region": "UKRAINE",
-    "source": "ESA_RDM:2021_glo_ewocval_poly_111"
-  },
-  {
-    "lat": 51.23215,
-    "lon": 32.38102,
-    "year": 2021,
-    "label": "wheat",
-    "region": "UKRAINE",
-    "source": "ESA_RDM:2021_glo_ewocval_poly_111"
-  },
-  {
-    "lat": 51.22654,
-    "lon": 32.37108,
-    "year": 2021,
-    "label": "wheat",
-    "region": "UKRAINE",
-    "source": "ESA_RDM:2021_glo_ewocval_poly_111"
-  },
-  {
-    "lat": 51.23562,
-    "lon": 32.34926,
-    "year": 2021,
-    "label": "maize",
-    "region": "UKRAINE",
-    "source": "ESA_RDM:2021_glo_ewocval_poly_111"
-  },
-  {
-    "lat": 50.76969,
-    "lon": 31.04265,
-    "year": 2021,
-    "label": "maize",
-    "region": "UKRAINE",
-    "source": "ESA_RDM:2021_glo_ewocval_poly_111"
-  },
-  {
-    "lat": 50.78051,
-    "lon": 31.00188,
-    "year": 2021,
-    "label": "maize",
-    "region": "UKRAINE",
-    "source": "ESA_RDM:2021_glo_ewocval_poly_111"
-  },
-  {
-    "lat": 50.77737,
-    "lon": 31.01353,
-    "year": 2021,
-    "label": "maize",
-    "region": "UKRAINE",
-    "source": "ESA_RDM:2021_glo_ewocval_poly_111"
-  },
-  {
-    "lat": 50.77784,
-    "lon": 31.01217,
-    "year": 2021,
-    "label": "maize",
-    "region": "UKRAINE",
-    "source": "ESA_RDM:2021_glo_ewocval_poly_111"
-  },
-  {
-    "lat": 50.77024,
-    "lon": 31.0435,
-    "year": 2021,
-    "label": "maize",
-    "region": "UKRAINE",
-    "source": "ESA_RDM:2021_glo_ewocval_poly_111"
-  },
-  {
-    "lat": 50.75063,
-    "lon": 30.99706,
-    "year": 2021,
-    "label": "maize",
-    "region": "UKRAINE",
-    "source": "ESA_RDM:2021_glo_ewocval_poly_111"
-  },
-  {
-    "lat": 50.65071,
-    "lon": 31.01479,
-    "year": 2021,
-    "label": "sunflower",
-    "region": "UKRAINE",
-    "source": "ESA_RDM:2021_glo_ewocval_poly_111"
-  },
-  {
-    "lat": 50.64974,
-    "lon": 31.02134,
-    "year": 2021,
-    "label": "sunflower",
-    "region": "UKRAINE",
-    "source": "ESA_RDM:2021_glo_ewocval_poly_111"
-  },
-  {
-    "lat": 50.65118,
-    "lon": 31.00826,
-    "year": 2021,
-    "label": "sunflower",
-    "region": "UKRAINE",
-    "source": "ESA_RDM:2021_glo_ewocval_poly_111"
-  },
-  {
-    "lat": 50.63053,
-    "lon": 30.98452,
-    "year": 2021,
-    "label": "sunflower",
-    "region": "UKRAINE",
-    "source": "ESA_RDM:2021_glo_ewocval_poly_111"
-  },
-  {
-    "lat": 50.62886,
-    "lon": 30.96913,
-    "year": 2021,
-    "label": "sunflower",
-    "region": "UKRAINE",
-    "source": "ESA_RDM:2021_glo_ewocval_poly_111"
-  },
-  {
-    "lat": 50.62676,
-    "lon": 30.96178,
-    "year": 2021,
-    "label": "sunflower",
-    "region": "UKRAINE",
-    "source": "ESA_RDM:2021_glo_ewocval_poly_111"
-  },
-  {
-    "lat": 50.63172,
-    "lon": 30.98817,
-    "year": 2021,
-    "label": "sunflower",
-    "region": "UKRAINE",
-    "source": "ESA_RDM:2021_glo_ewocval_poly_111"
-  },
-  {
-    "lat": 46.62375,
-    "lon": 27.4588,
-    "year": 2021,
-    "label": "sunflower",
-    "region": "UKRAINE",
-    "source": "ESA_RDM:2021_glo_ewocval_poly_111"
-  },
-  {
-    "lat": 46.62388,
-    "lon": 27.45761,
-    "year": 2021,
-    "label": "sunflower",
-    "region": "UKRAINE",
-    "source": "ESA_RDM:2021_glo_ewocval_poly_111"
-  },
-  {
-    "lat": 46.62377,
-    "lon": 27.45885,
-    "year": 2021,
-    "label": "sunflower",
-    "region": "UKRAINE",
-    "source": "ESA_RDM:2021_glo_ewocval_poly_111"
-  },
-  {
-    "lat": 46.62485,
-    "lon": 27.45892,
-    "year": 2021,
-    "label": "sunflower",
-    "region": "UKRAINE",
-    "source": "ESA_RDM:2021_glo_ewocval_poly_111"
-  },
-  {
-    "lat": 46.62502,
-    "lon": 27.45758,
-    "year": 2021,
-    "label": "sunflower",
-    "region": "UKRAINE",
-    "source": "ESA_RDM:2021_glo_ewocval_poly_111"
-  },
-  {
-    "lat": 47.94463,
-    "lon": 32.99144,
-    "year": 2021,
-    "label": "sunflower",
-    "region": "UKRAINE",
-    "source": "ESA_RDM:2021_glo_ewocval_poly_111"
-  },
-  {
-    "lat": 50.22262,
-    "lon": 13.68116,
-    "year": 2021,
-    "label": "rapeseed",
-    "region": "EUROPE",
-    "source": "ESA_RDM:2021_glo_ewocval_poly_111"
-  },
-  {
-    "lat": 51.154,
-    "lon": 6.53557,
-    "year": 2021,
-    "label": "rapeseed",
-    "region": "EUROPE",
-    "source": "ESA_RDM:2021_glo_ewocval_poly_111"
-  },
-  {
-    "lat": 56.24437,
-    "lon": 57.97691,
-    "year": 2021,
-    "label": "wheat",
-    "region": "RUSSIA",
-    "source": "ESA_RDM:2021_glo_ewocval_poly_111"
-  },
-  {
-    "lat": 55.44684,
-    "lon": 58.11759,
-    "year": 2021,
-    "label": "wheat",
-    "region": "RUSSIA",
-    "source": "ESA_RDM:2021_glo_ewocval_poly_111"
-  },
-  {
-    "lat": 55.51263,
-    "lon": 58.19144,
-    "year": 2021,
-    "label": "wheat",
-    "region": "RUSSIA",
-    "source": "ESA_RDM:2021_glo_ewocval_poly_111"
-  },
-  {
-    "lat": 55.51578,
-    "lon": 58.19871,
-    "year": 2021,
-    "label": "wheat",
-    "region": "RUSSIA",
-    "source": "ESA_RDM:2021_glo_ewocval_poly_111"
-  },
-  {
-    "lat": 55.51852,
-    "lon": 58.19744,
-    "year": 2021,
-    "label": "wheat",
-    "region": "RUSSIA",
-    "source": "ESA_RDM:2021_glo_ewocval_poly_111"
-  },
-  {
-    "lat": 55.52425,
-    "lon": 58.20755,
-    "year": 2021,
-    "label": "wheat",
-    "region": "RUSSIA",
-    "source": "ESA_RDM:2021_glo_ewocval_poly_111"
-  },
-  {
-    "lat": 54.18151,
-    "lon": 73.85037,
-    "year": 2021,
-    "label": "wheat",
-    "region": "RUSSIA",
-    "source": "ESA_RDM:2021_glo_ewocval_poly_111"
-  },
-  {
-    "lat": 54.18702,
-    "lon": 74.38809,
-    "year": 2021,
-    "label": "wheat",
-    "region": "RUSSIA",
-    "source": "ESA_RDM:2021_glo_ewocval_poly_111"
-  },
-  {
-    "lat": 54.18762,
-    "lon": 74.37652,
-    "year": 2021,
-    "label": "wheat",
-    "region": "RUSSIA",
-    "source": "ESA_RDM:2021_glo_ewocval_poly_111"
-  },
-  {
-    "lat": 54.19787,
-    "lon": 74.32443,
-    "year": 2021,
-    "label": "wheat",
-    "region": "RUSSIA",
-    "source": "ESA_RDM:2021_glo_ewocval_poly_111"
-  },
-  {
-    "lat": 54.19944,
-    "lon": 73.62871,
-    "year": 2021,
-    "label": "wheat",
-    "region": "RUSSIA",
-    "source": "ESA_RDM:2021_glo_ewocval_poly_111"
-  },
-  {
-    "lat": 54.3202,
-    "lon": 73.78236,
-    "year": 2021,
-    "label": "wheat",
-    "region": "RUSSIA",
-    "source": "ESA_RDM:2021_glo_ewocval_poly_111"
-  },
-  {
-    "lat": -23.46378,
-    "lon": -48.89065,
-    "year": 2021,
-    "label": "rapeseed",
-    "region": "GLOBAL",
-    "source": "ESA_RDM:2021_glo_ewocval_poly_111"
-  },
-  {
-    "lat": -21.91172,
-    "lon": -48.4027,
-    "year": 2021,
-    "label": "sunflower",
-    "region": "GLOBAL",
-    "source": "ESA_RDM:2021_glo_ewocval_poly_111"
-  },
-  {
-    "lat": -27.29162,
-    "lon": -61.22975,
-    "year": 2021,
-    "label": "sunflower",
-    "region": "GLOBAL",
-    "source": "ESA_RDM:2021_glo_ewocval_poly_111"
-  },
-  {
-    "lat": -38.6869,
-    "lon": -72.8767,
-    "year": 2022,
-    "label": "grapes",
-    "region": "GLOBAL",
-    "source": "ESA_RDM:2022_glo_ewocval_poly_111"
-  },
-  {
-    "lat": -28.75765,
-    "lon": 20.55603,
-    "year": 2022,
-    "label": "grapes",
-    "region": "GLOBAL",
-    "source": "ESA_RDM:2022_glo_ewocval_poly_111"
-  },
-  {
-    "lat": -28.75747,
-    "lon": 20.55765,
-    "year": 2022,
-    "label": "grapes",
-    "region": "GLOBAL",
-    "source": "ESA_RDM:2022_glo_ewocval_poly_111"
-  },
-  {
-    "lat": -28.75873,
-    "lon": 20.55684,
-    "year": 2022,
-    "label": "grapes",
-    "region": "GLOBAL",
-    "source": "ESA_RDM:2022_glo_ewocval_poly_111"
-  },
-  {
-    "lat": -28.75904,
-    "lon": 20.55892,
-    "year": 2022,
-    "label": "grapes",
-    "region": "GLOBAL",
-    "source": "ESA_RDM:2022_glo_ewocval_poly_111"
-  },
-  {
-    "lat": -33.6403,
-    "lon": -70.6569,
-    "year": 2022,
-    "label": "grapes",
-    "region": "GLOBAL",
-    "source": "ESA_RDM:2022_glo_ewocval_poly_111"
-  },
-  {
-    "lat": -33.63991,
-    "lon": -70.66008,
-    "year": 2022,
-    "label": "grapes",
-    "region": "GLOBAL",
-    "source": "ESA_RDM:2022_glo_ewocval_poly_111"
-  },
-  {
-    "lat": 29.94883,
-    "lon": 77.1755,
-    "year": 2018,
-    "label": "wheat",
-    "region": "INDIA",
-    "source": "ESA_RDM:2018_ind_cgiargardian_point_110"
-  },
-  {
-    "lat": 29.45833,
-    "lon": 76.45833,
-    "year": 2018,
-    "label": "wheat",
-    "region": "INDIA",
-    "source": "ESA_RDM:2018_ind_cgiargardian_point_110"
-  },
-  {
-    "lat": 29.47917,
-    "lon": 76.47917,
-    "year": 2018,
-    "label": "wheat",
-    "region": "INDIA",
-    "source": "ESA_RDM:2018_ind_cgiargardian_point_110"
-  },
-  {
-    "lat": 29.44592,
-    "lon": 76.49481,
-    "year": 2018,
-    "label": "wheat",
-    "region": "INDIA",
-    "source": "ESA_RDM:2018_ind_cgiargardian_point_110"
-  },
-  {
-    "lat": 30.39583,
-    "lon": 76.35417,
-    "year": 2018,
-    "label": "wheat",
-    "region": "INDIA",
-    "source": "ESA_RDM:2018_ind_cgiargardian_point_110"
-  },
-  {
-    "lat": 30.375,
-    "lon": 76.375,
-    "year": 2018,
-    "label": "wheat",
-    "region": "INDIA",
-    "source": "ESA_RDM:2018_ind_cgiargardian_point_110"
-  },
-  {
-    "lat": 30.39839,
-    "lon": 76.33475,
-    "year": 2018,
-    "label": "wheat",
-    "region": "INDIA",
-    "source": "ESA_RDM:2018_ind_cgiargardian_point_110"
-  },
-  {
-    "lat": 30.625,
-    "lon": 76.375,
-    "year": 2018,
-    "label": "wheat",
-    "region": "INDIA",
-    "source": "ESA_RDM:2018_ind_cgiargardian_point_110"
-  },
-  {
-    "lat": 30.66836,
-    "lon": 76.37639,
-    "year": 2018,
-    "label": "wheat",
-    "region": "INDIA",
-    "source": "ESA_RDM:2018_ind_cgiargardian_point_110"
-  },
-  {
-    "lat": 30.64583,
-    "lon": 76.35417,
-    "year": 2018,
-    "label": "wheat",
-    "region": "INDIA",
-    "source": "ESA_RDM:2018_ind_cgiargardian_point_110"
-  },
-  {
-    "lat": 30.36873,
-    "lon": 76.33085,
-    "year": 2018,
-    "label": "wheat",
-    "region": "INDIA",
-    "source": "ESA_RDM:2018_ind_cgiargardian_point_110"
-  },
-  {
-    "lat": 30.36279,
-    "lon": 76.31768,
-    "year": 2018,
-    "label": "wheat",
-    "region": "INDIA",
-    "source": "ESA_RDM:2018_ind_cgiargardian_point_110"
-  },
-  {
-    "lat": 30.35417,
-    "lon": 76.3125,
-    "year": 2018,
-    "label": "wheat",
-    "region": "INDIA",
-    "source": "ESA_RDM:2018_ind_cgiargardian_point_110"
-  },
-  {
-    "lat": 30.375,
-    "lon": 76.29167,
-    "year": 2018,
-    "label": "wheat",
-    "region": "INDIA",
-    "source": "ESA_RDM:2018_ind_cgiargardian_point_110"
-  },
-  {
-    "lat": 30.35417,
-    "lon": 76.35417,
-    "year": 2018,
-    "label": "wheat",
-    "region": "INDIA",
-    "source": "ESA_RDM:2018_ind_cgiargardian_point_110"
-  },
-  {
-    "lat": 30.37347,
-    "lon": 76.34259,
-    "year": 2018,
-    "label": "wheat",
-    "region": "INDIA",
-    "source": "ESA_RDM:2018_ind_cgiargardian_point_110"
-  },
-  {
-    "lat": 8.59087,
-    "lon": 80.2573,
-    "year": 2021,
-    "label": "lentil",
-    "region": "INDIA",
-    "source": "ESA_RDM:2021_lka_faowapor1_poly_111"
-  },
-  {
-    "lat": 8.57246,
-    "lon": 80.24214,
-    "year": 2021,
-    "label": "watermelon",
-    "region": "INDIA",
-    "source": "ESA_RDM:2021_lka_faowapor1_poly_111"
-  },
-  {
-    "lat": 8.55118,
-    "lon": 80.26197,
-    "year": 2021,
-    "label": "lentil",
-    "region": "INDIA",
-    "source": "ESA_RDM:2021_lka_faowapor1_poly_111"
-  },
-  {
-    "lat": 8.53579,
-    "lon": 80.25016,
-    "year": 2021,
-    "label": "lentil",
-    "region": "INDIA",
-    "source": "ESA_RDM:2021_lka_faowapor1_poly_111"
-  },
-  {
-    "lat": 8.53198,
-    "lon": 80.26417,
-    "year": 2021,
-    "label": "lentil",
-    "region": "INDIA",
-    "source": "ESA_RDM:2021_lka_faowapor1_poly_111"
-  },
-  {
-    "lat": 8.53072,
-    "lon": 80.26269,
-    "year": 2021,
-    "label": "lentil",
-    "region": "INDIA",
-    "source": "ESA_RDM:2021_lka_faowapor1_poly_111"
-  },
-  {
-    "lat": 8.52971,
-    "lon": 80.26116,
-    "year": 2021,
-    "label": "lentil",
-    "region": "INDIA",
-    "source": "ESA_RDM:2021_lka_faowapor1_poly_111"
-  },
-  {
-    "lat": 8.54206,
-    "lon": 80.29434,
-    "year": 2021,
-    "label": "lentil",
-    "region": "INDIA",
-    "source": "ESA_RDM:2021_lka_faowapor1_poly_111"
-  },
-  {
-    "lat": 8.54328,
-    "lon": 80.2908,
-    "year": 2021,
-    "label": "lentil",
-    "region": "INDIA",
-    "source": "ESA_RDM:2021_lka_faowapor1_poly_111"
-  },
-  {
-    "lat": 8.51237,
-    "lon": 80.25875,
-    "year": 2021,
-    "label": "lentil",
-    "region": "INDIA",
-    "source": "ESA_RDM:2021_lka_faowapor1_poly_111"
-  },
-  {
-    "lat": 8.46352,
-    "lon": 80.34809,
-    "year": 2021,
-    "label": "lentil",
-    "region": "INDIA",
-    "source": "ESA_RDM:2021_lka_faowapor1_poly_111"
-  },
-  {
-    "lat": 8.35155,
-    "lon": 80.37088,
-    "year": 2021,
-    "label": "lentil",
-    "region": "INDIA",
-    "source": "ESA_RDM:2021_lka_faowapor1_poly_111"
-  },
-  {
-    "lat": 8.4469,
-    "lon": 80.41063,
-    "year": 2021,
-    "label": "watermelon",
-    "region": "INDIA",
-    "source": "ESA_RDM:2021_lka_faowapor1_poly_111"
-  },
-  {
-    "lat": 8.44618,
-    "lon": 80.4108,
-    "year": 2021,
-    "label": "kidneybeans",
-    "region": "INDIA",
-    "source": "ESA_RDM:2021_lka_faowapor1_poly_111"
-  },
-  {
-    "lat": 8.44154,
-    "lon": 80.42751,
-    "year": 2021,
-    "label": "watermelon",
-    "region": "INDIA",
-    "source": "ESA_RDM:2021_lka_faowapor1_poly_111"
-  },
-  {
-    "lat": 8.43259,
-    "lon": 80.41468,
-    "year": 2021,
-    "label": "lentil",
-    "region": "INDIA",
-    "source": "ESA_RDM:2021_lka_faowapor1_poly_111"
-  },
-  {
-    "lat": 8.42785,
-    "lon": 80.43363,
-    "year": 2021,
-    "label": "lentil",
-    "region": "INDIA",
-    "source": "ESA_RDM:2021_lka_faowapor1_poly_111"
-  },
-  {
-    "lat": 8.42484,
-    "lon": 80.44234,
-    "year": 2021,
-    "label": "watermelon",
-    "region": "INDIA",
-    "source": "ESA_RDM:2021_lka_faowapor1_poly_111"
-  },
-  {
-    "lat": 8.42531,
-    "lon": 80.46046,
-    "year": 2021,
-    "label": "lentil",
-    "region": "INDIA",
-    "source": "ESA_RDM:2021_lka_faowapor1_poly_111"
-  },
-  {
-    "lat": 8.31404,
-    "lon": 80.35753,
-    "year": 2021,
-    "label": "lentil",
-    "region": "INDIA",
-    "source": "ESA_RDM:2021_lka_faowapor1_poly_111"
-  },
-  {
-    "lat": 8.29336,
-    "lon": 80.51318,
-    "year": 2021,
-    "label": "watermelon",
-    "region": "INDIA",
-    "source": "ESA_RDM:2021_lka_faowapor1_poly_111"
-  },
-  {
-    "lat": 8.2845,
-    "lon": 80.50396,
-    "year": 2021,
-    "label": "lentil",
-    "region": "INDIA",
-    "source": "ESA_RDM:2021_lka_faowapor1_poly_111"
-  },
-  {
-    "lat": -2.09562,
-    "lon": 30.78523,
-    "year": 2020,
-    "label": "chickpea",
-    "region": "GLOBAL",
-    "source": "ESA_RDM:2020_rwa_faowaporakagera_point_111"
-  },
-  {
-    "lat": -1.96047,
-    "lon": 30.59276,
-    "year": 2020,
-    "label": "orange",
-    "region": "GLOBAL",
-    "source": "ESA_RDM:2020_rwa_faowaporakagera_point_111"
-  },
-  {
-    "lat": -2.08024,
-    "lon": 30.78843,
-    "year": 2020,
-    "label": "chickpea",
-    "region": "GLOBAL",
-    "source": "ESA_RDM:2020_rwa_faowaporakagera_point_111"
-  },
-  {
-    "lat": -1.95987,
-    "lon": 30.59263,
-    "year": 2020,
-    "label": "orange",
-    "region": "GLOBAL",
-    "source": "ESA_RDM:2020_rwa_faowaporakagera_point_111"
-  },
-  {
-    "lat": -1.85904,
-    "lon": 30.64802,
-    "year": 2020,
-    "label": "watermelon",
-    "region": "GLOBAL",
-    "source": "ESA_RDM:2020_rwa_faowaporakagera_point_111"
-  },
-  {
-    "lat": -2.08418,
-    "lon": 30.78444,
-    "year": 2020,
-    "label": "chickpea",
-    "region": "GLOBAL",
-    "source": "ESA_RDM:2020_rwa_faowaporakagera_point_111"
-  },
-  {
-    "lat": -1.85948,
-    "lon": 30.6473,
-    "year": 2020,
-    "label": "watermelon",
-    "region": "GLOBAL",
-    "source": "ESA_RDM:2020_rwa_faowaporakagera_point_111"
-  },
-  {
-    "lat": -1.93196,
-    "lon": 30.61977,
-    "year": 2020,
-    "label": "watermelon",
-    "region": "GLOBAL",
-    "source": "ESA_RDM:2020_rwa_faowaporakagera_point_111"
-  },
-  {
-    "lat": -1.80585,
-    "lon": 30.64109,
-    "year": 2020,
-    "label": "watermelon",
-    "region": "GLOBAL",
-    "source": "ESA_RDM:2020_rwa_faowaporakagera_point_111"
-  },
-  {
-    "lat": -2.09389,
-    "lon": 30.78408,
-    "year": 2020,
-    "label": "chickpea",
-    "region": "GLOBAL",
-    "source": "ESA_RDM:2020_rwa_faowaporakagera_point_111"
-  },
-  {
-    "lat": -1.96031,
-    "lon": 30.59241,
-    "year": 2020,
-    "label": "orange",
-    "region": "GLOBAL",
-    "source": "ESA_RDM:2020_rwa_faowaporakagera_point_111"
-  },
-  {
-    "lat": -1.80574,
-    "lon": 30.64068,
-    "year": 2020,
-    "label": "watermelon",
-    "region": "GLOBAL",
-    "source": "ESA_RDM:2020_rwa_faowaporakagera_point_111"
-  },
-  {
-    "lat": -1.91384,
-    "lon": 30.62242,
-    "year": 2020,
-    "label": "watermelon",
-    "region": "GLOBAL",
-    "source": "ESA_RDM:2020_rwa_faowaporakagera_point_111"
-  },
-  {
-    "lat": -1.91372,
-    "lon": 30.6222,
-    "year": 2020,
-    "label": "watermelon",
-    "region": "GLOBAL",
-    "source": "ESA_RDM:2020_rwa_faowaporakagera_point_111"
-  },
-  {
-    "lat": -1.75572,
-    "lon": 30.6567,
-    "year": 2020,
-    "label": "watermelon",
-    "region": "GLOBAL",
-    "source": "ESA_RDM:2020_rwa_faowaporakagera_point_111"
-  },
-  {
-    "lat": -1.96037,
-    "lon": 30.59196,
-    "year": 2020,
-    "label": "orange",
-    "region": "GLOBAL",
-    "source": "ESA_RDM:2020_rwa_faowaporakagera_point_111"
-  },
-  {
-    "lat": -1.91363,
-    "lon": 30.62261,
-    "year": 2020,
-    "label": "watermelon",
-    "region": "GLOBAL",
-    "source": "ESA_RDM:2020_rwa_faowaporakagera_point_111"
-  },
-  {
-    "lat": -2.08065,
-    "lon": 30.77536,
-    "year": 2020,
-    "label": "chickpea",
-    "region": "GLOBAL",
-    "source": "ESA_RDM:2020_rwa_faowaporakagera_point_111"
-  },
-  {
-    "lat": -1.93229,
-    "lon": 30.61979,
-    "year": 2020,
-    "label": "watermelon",
-    "region": "GLOBAL",
-    "source": "ESA_RDM:2020_rwa_faowaporakagera_point_111"
-  },
-  {
-    "lat": 33.83433,
-    "lon": 35.98697,
-    "year": 2018,
-    "label": "grapes",
-    "region": "GLOBAL",
-    "source": "ESA_RDM:2017_lbn_faowapor2_poly_111"
-  },
-  {
-    "lat": 33.83368,
-    "lon": 35.98625,
-    "year": 2018,
-    "label": "grapes",
-    "region": "GLOBAL",
-    "source": "ESA_RDM:2017_lbn_faowapor2_poly_111"
-  },
-  {
-    "lat": 33.83544,
-    "lon": 35.98141,
-    "year": 2018,
-    "label": "grapes",
-    "region": "GLOBAL",
-    "source": "ESA_RDM:2017_lbn_faowapor2_poly_111"
-  },
-  {
-    "lat": 33.83405,
-    "lon": 35.98316,
-    "year": 2018,
-    "label": "grapes",
-    "region": "GLOBAL",
-    "source": "ESA_RDM:2017_lbn_faowapor2_poly_111"
-  },
-  {
-    "lat": 33.83383,
-    "lon": 35.98243,
-    "year": 2018,
-    "label": "apple",
-    "region": "GLOBAL",
-    "source": "ESA_RDM:2017_lbn_faowapor2_poly_111"
-  },
-  {
-    "lat": 33.8334,
-    "lon": 35.98198,
-    "year": 2018,
-    "label": "apple",
-    "region": "GLOBAL",
-    "source": "ESA_RDM:2017_lbn_faowapor2_poly_111"
-  },
-  {
-    "lat": 33.83712,
-    "lon": 35.99562,
-    "year": 2018,
-    "label": "grapes",
-    "region": "GLOBAL",
-    "source": "ESA_RDM:2017_lbn_faowapor2_poly_111"
-  },
-  {
-    "lat": 33.83204,
-    "lon": 35.99876,
-    "year": 2018,
-    "label": "watermelon",
-    "region": "GLOBAL",
-    "source": "ESA_RDM:2017_lbn_faowapor2_poly_111"
-  },
-  {
-    "lat": 33.82405,
-    "lon": 35.98205,
-    "year": 2018,
-    "label": "grapes",
-    "region": "GLOBAL",
-    "source": "ESA_RDM:2017_lbn_faowapor2_poly_111"
-  },
-  {
-    "lat": 33.82398,
-    "lon": 35.98686,
-    "year": 2018,
-    "label": "grapes",
-    "region": "GLOBAL",
-    "source": "ESA_RDM:2017_lbn_faowapor2_poly_111"
-  },
-  {
-    "lat": 33.82522,
-    "lon": 35.98861,
-    "year": 2018,
-    "label": "grapes",
-    "region": "GLOBAL",
-    "source": "ESA_RDM:2017_lbn_faowapor2_poly_111"
-  },
-  {
-    "lat": 33.82699,
-    "lon": 35.98473,
-    "year": 2018,
-    "label": "watermelon",
-    "region": "GLOBAL",
-    "source": "ESA_RDM:2017_lbn_faowapor2_poly_111"
-  },
-  {
-    "lat": 33.82303,
-    "lon": 36.01224,
-    "year": 2018,
-    "label": "apple",
-    "region": "GLOBAL",
-    "source": "ESA_RDM:2017_lbn_faowapor2_poly_111"
-  },
-  {
-    "lat": 33.83931,
-    "lon": 35.9884,
-    "year": 2018,
-    "label": "watermelon",
-    "region": "GLOBAL",
-    "source": "ESA_RDM:2017_lbn_faowapor2_poly_111"
-  },
-  {
-    "lat": 33.84297,
-    "lon": 35.99953,
-    "year": 2018,
-    "label": "watermelon",
-    "region": "GLOBAL",
-    "source": "ESA_RDM:2017_lbn_faowapor2_poly_111"
-  },
-  {
-    "lat": 33.83722,
-    "lon": 36.02049,
-    "year": 2018,
-    "label": "watermelon",
-    "region": "GLOBAL",
-    "source": "ESA_RDM:2017_lbn_faowapor2_poly_111"
-  },
-  {
-    "lat": 33.82411,
-    "lon": 35.97603,
-    "year": 2018,
-    "label": "kidneybeans",
-    "region": "GLOBAL",
-    "source": "ESA_RDM:2017_lbn_faowapor2_poly_111"
-  },
-  {
-    "lat": -0.44176,
-    "lon": 35.94,
-    "year": 2021,
-    "label": "kidneybeans",
-    "region": "GLOBAL",
-    "source": "ESA_RDM:2021_ken_copernicusgeoglamsr_point_111"
-  },
-  {
-    "lat": -0.80495,
-    "lon": 36.24974,
-    "year": 2021,
-    "label": "kidneybeans",
-    "region": "GLOBAL",
-    "source": "ESA_RDM:2021_ken_copernicusgeoglamsr_point_111"
-  },
-  {
-    "lat": -0.09304,
-    "lon": 36.10052,
-    "year": 2021,
-    "label": "kidneybeans",
-    "region": "GLOBAL",
-    "source": "ESA_RDM:2021_ken_copernicusgeoglamsr_point_111"
-  },
-  {
-    "lat": 0.42668,
-    "lon": 35.1485,
-    "year": 2021,
-    "label": "kidneybeans",
-    "region": "GLOBAL",
-    "source": "ESA_RDM:2021_ken_copernicusgeoglamsr_point_111"
-  },
-  {
-    "lat": -0.34963,
-    "lon": 35.18511,
-    "year": 2021,
-    "label": "kidneybeans",
-    "region": "GLOBAL",
-    "source": "ESA_RDM:2021_ken_copernicusgeoglamsr_point_111"
-  },
-  {
-    "lat": -0.87205,
-    "lon": 35.56622,
-    "year": 2021,
-    "label": "kidneybeans",
-    "region": "GLOBAL",
-    "source": "ESA_RDM:2021_ken_copernicusgeoglamsr_point_111"
-  },
-  {
-    "lat": -0.35037,
-    "lon": 35.1849,
-    "year": 2021,
-    "label": "kidneybeans",
-    "region": "GLOBAL",
-    "source": "ESA_RDM:2021_ken_copernicusgeoglamsr_point_111"
-  },
-  {
-    "lat": -0.14655,
-    "lon": 35.34092,
-    "year": 2021,
-    "label": "coffee",
-    "region": "GLOBAL",
-    "source": "ESA_RDM:2021_ken_copernicusgeoglamsr_point_111"
-  },
-  {
-    "lat": -0.14625,
-    "lon": 35.34091,
-    "year": 2021,
-    "label": "kidneybeans",
-    "region": "GLOBAL",
-    "source": "ESA_RDM:2021_ken_copernicusgeoglamsr_point_111"
-  },
-  {
-    "lat": -0.1466,
-    "lon": 35.34132,
-    "year": 2021,
-    "label": "coffee",
-    "region": "GLOBAL",
-    "source": "ESA_RDM:2021_ken_copernicusgeoglamsr_point_111"
-  },
-  {
-    "lat": -0.14622,
-    "lon": 35.34134,
-    "year": 2021,
-    "label": "kidneybeans",
-    "region": "GLOBAL",
-    "source": "ESA_RDM:2021_ken_copernicusgeoglamsr_point_111"
-  },
-  {
-    "lat": -0.14559,
-    "lon": 35.34136,
-    "year": 2021,
-    "label": "coffee",
-    "region": "GLOBAL",
-    "source": "ESA_RDM:2021_ken_copernicusgeoglamsr_point_111"
-  },
-  {
-    "lat": 0.01839,
-    "lon": 37.77103,
-    "year": 2021,
-    "label": "kidneybeans",
-    "region": "GLOBAL",
-    "source": "ESA_RDM:2021_ken_copernicusgeoglamsr_point_111"
-  },
-  {
-    "lat": -0.14334,
-    "lon": 35.34072,
-    "year": 2021,
-    "label": "kidneybeans",
-    "region": "GLOBAL",
-    "source": "ESA_RDM:2021_ken_copernicusgeoglamsr_point_111"
-  },
-  {
-    "lat": -0.1436,
-    "lon": 35.33967,
-    "year": 2021,
-    "label": "kidneybeans",
-    "region": "GLOBAL",
-    "source": "ESA_RDM:2021_ken_copernicusgeoglamsr_point_111"
-  },
-  {
-    "lat": -0.14605,
-    "lon": 35.33746,
-    "year": 2021,
-    "label": "coffee",
-    "region": "GLOBAL",
-    "source": "ESA_RDM:2021_ken_copernicusgeoglamsr_point_111"
-  },
-  {
-    "lat": -0.7897,
-    "lon": 35.44906,
-    "year": 2021,
-    "label": "coffee",
-    "region": "GLOBAL",
-    "source": "ESA_RDM:2021_ken_copernicusgeoglamlr_point_111"
-  },
-  {
-    "lat": -0.78961,
-    "lon": 35.44894,
-    "year": 2021,
-    "label": "coffee",
-    "region": "GLOBAL",
-    "source": "ESA_RDM:2021_ken_copernicusgeoglamlr_point_111"
-  },
-  {
-    "lat": -0.79005,
-    "lon": 35.44875,
-    "year": 2021,
-    "label": "coffee",
-    "region": "GLOBAL",
-    "source": "ESA_RDM:2021_ken_copernicusgeoglamlr_point_111"
-  },
-  {
-    "lat": 1.72093,
-    "lon": 33.49306,
-    "year": 2021,
-    "label": "orange",
-    "region": "GLOBAL",
-    "source": "ESA_RDM:2021_uga_copernicusgeoglamsr_point_111"
-  },
-  {
-    "lat": 1.7655,
-    "lon": 34.06878,
-    "year": 2021,
-    "label": "chickpea",
-    "region": "GLOBAL",
-    "source": "ESA_RDM:2021_uga_copernicusgeoglamsr_point_111"
-  },
-  {
-    "lat": 2.14997,
-    "lon": 33.54467,
-    "year": 2021,
-    "label": "chickpea",
-    "region": "GLOBAL",
-    "source": "ESA_RDM:2021_uga_copernicusgeoglamsr_point_111"
-  },
-  {
-    "lat": 2.54871,
-    "lon": 31.19978,
-    "year": 2021,
-    "label": "cotton",
-    "region": "GLOBAL",
-    "source": "ESA_RDM:2021_uga_copernicusgeoglamsr_point_111"
-  },
-  {
-    "lat": 1.76523,
-    "lon": 34.06771,
-    "year": 2021,
-    "label": "chickpea",
-    "region": "GLOBAL",
-    "source": "ESA_RDM:2021_uga_copernicusgeoglamsr_point_111"
-  },
-  {
-    "lat": 2.54888,
-    "lon": 31.19994,
-    "year": 2021,
-    "label": "cotton",
-    "region": "GLOBAL",
-    "source": "ESA_RDM:2021_uga_copernicusgeoglamsr_point_111"
-  },
-  {
-    "lat": 1.4849,
-    "lon": 33.22059,
-    "year": 2021,
-    "label": "chickpea",
-    "region": "GLOBAL",
-    "source": "ESA_RDM:2021_uga_copernicusgeoglamsr_point_111"
-  },
-  {
-    "lat": 1.60635,
-    "lon": 33.38789,
-    "year": 2021,
-    "label": "chickpea",
-    "region": "GLOBAL",
-    "source": "ESA_RDM:2021_uga_copernicusgeoglamsr_point_111"
-  },
-  {
-    "lat": 1.48501,
-    "lon": 33.22087,
-    "year": 2021,
-    "label": "chickpea",
-    "region": "GLOBAL",
-    "source": "ESA_RDM:2021_uga_copernicusgeoglamsr_point_111"
-  },
-  {
-    "lat": 1.60671,
-    "lon": 33.38787,
-    "year": 2021,
-    "label": "chickpea",
-    "region": "GLOBAL",
-    "source": "ESA_RDM:2021_uga_copernicusgeoglamsr_point_111"
-  },
-  {
-    "lat": 1.60605,
-    "lon": 33.38695,
-    "year": 2021,
-    "label": "chickpea",
-    "region": "GLOBAL",
-    "source": "ESA_RDM:2021_uga_copernicusgeoglamsr_point_111"
-  },
-  {
-    "lat": 1.60561,
-    "lon": 33.38639,
-    "year": 2021,
-    "label": "chickpea",
-    "region": "GLOBAL",
-    "source": "ESA_RDM:2021_uga_copernicusgeoglamsr_point_111"
-  },
-  {
-    "lat": 1.2405,
-    "lon": 33.84507,
-    "year": 2021,
-    "label": "chickpea",
-    "region": "GLOBAL",
-    "source": "ESA_RDM:2021_uga_copernicusgeoglamsr_point_111"
-  },
-  {
-    "lat": 2.32471,
-    "lon": 31.11836,
-    "year": 2021,
-    "label": "coffee",
-    "region": "GLOBAL",
-    "source": "ESA_RDM:2021_uga_copernicusgeoglamsr_point_111"
-  },
-  {
-    "lat": 1.62096,
-    "lon": 33.52351,
-    "year": 2021,
-    "label": "chickpea",
-    "region": "GLOBAL",
-    "source": "ESA_RDM:2021_uga_copernicusgeoglamsr_point_111"
-  },
-  {
-    "lat": 2.56667,
-    "lon": 30.79441,
-    "year": 2021,
-    "label": "coffee",
-    "region": "GLOBAL",
-    "source": "ESA_RDM:2021_uga_copernicusgeoglamlr_point_111"
-  },
-  {
-    "lat": -32.43306,
-    "lon": 116.03438,
-    "year": 2021,
-    "label": "orange",
-    "region": "GLOBAL",
-    "source": "ESA_RDM:2021_aus_clumcom_poly_110"
-  },
-  {
-    "lat": -31.8507,
-    "lon": 116.0542,
-    "year": 2021,
-    "label": "orange",
-    "region": "GLOBAL",
-    "source": "ESA_RDM:2021_aus_clumcom_poly_110"
-  },
-  {
-    "lat": -31.70169,
-    "lon": 116.16087,
-    "year": 2021,
-    "label": "orange",
-    "region": "GLOBAL",
-    "source": "ESA_RDM:2021_aus_clumcom_poly_110"
-  },
-  {
-    "lat": -31.70059,
-    "lon": 116.1636,
-    "year": 2021,
-    "label": "orange",
-    "region": "GLOBAL",
-    "source": "ESA_RDM:2021_aus_clumcom_poly_110"
-  },
-  {
-    "lat": -31.57049,
-    "lon": 116.13099,
-    "year": 2021,
-    "label": "orange",
-    "region": "GLOBAL",
-    "source": "ESA_RDM:2021_aus_clumcom_poly_110"
-  },
-  {
-    "lat": -31.42616,
-    "lon": 116.0784,
-    "year": 2021,
-    "label": "orange",
-    "region": "GLOBAL",
-    "source": "ESA_RDM:2021_aus_clumcom_poly_110"
-  },
-  {
-    "lat": -31.42395,
-    "lon": 116.07916,
-    "year": 2021,
-    "label": "orange",
-    "region": "GLOBAL",
-    "source": "ESA_RDM:2021_aus_clumcom_poly_110"
-  },
-  {
-    "lat": -17.08099,
-    "lon": 145.35271,
-    "year": 2021,
-    "label": "orange",
-    "region": "GLOBAL",
-    "source": "ESA_RDM:2021_aus_clumcom_poly_110"
-  },
-  {
-    "lat": -17.07926,
-    "lon": 145.35486,
-    "year": 2021,
-    "label": "orange",
-    "region": "GLOBAL",
-    "source": "ESA_RDM:2021_aus_clumcom_poly_110"
-  },
-  {
-    "lat": -33.05178,
-    "lon": 115.88582,
-    "year": 2021,
-    "label": "orange",
-    "region": "GLOBAL",
-    "source": "ESA_RDM:2021_aus_clumcom_poly_110"
-  },
-  {
-    "lat": -32.43375,
-    "lon": 116.02748,
-    "year": 2021,
-    "label": "orange",
-    "region": "GLOBAL",
-    "source": "ESA_RDM:2021_aus_clumcom_poly_110"
-  },
-  {
-    "lat": -31.37078,
-    "lon": 116.09073,
-    "year": 2021,
-    "label": "orange",
-    "region": "GLOBAL",
-    "source": "ESA_RDM:2021_aus_clumcom_poly_110"
-  },
-  {
-    "lat": -31.36926,
-    "lon": 116.08837,
-    "year": 2021,
-    "label": "orange",
-    "region": "GLOBAL",
-    "source": "ESA_RDM:2021_aus_clumcom_poly_110"
-  },
-  {
-    "lat": -17.07517,
-    "lon": 145.35125,
-    "year": 2021,
-    "label": "orange",
-    "region": "GLOBAL",
-    "source": "ESA_RDM:2021_aus_clumcom_poly_110"
-  },
-  {
-    "lat": -17.03634,
-    "lon": 145.44359,
-    "year": 2021,
-    "label": "orange",
-    "region": "GLOBAL",
-    "source": "ESA_RDM:2021_aus_clumcom_poly_110"
-  },
-  {
-    "lat": -17.06541,
-    "lon": 145.36319,
-    "year": 2021,
-    "label": "orange",
-    "region": "GLOBAL",
-    "source": "ESA_RDM:2021_aus_clumcom_poly_110"
-  },
-  {
-    "lat": -23.12124,
-    "lon": -48.6669,
-    "year": 2018,
-    "label": "orange",
-    "region": "GLOBAL",
-    "source": "ESA_RDM:2017_bra_jecamcirad_poly_111"
-  },
-  {
-    "lat": 32.11433,
-    "lon": -7.83133,
-    "year": 2023,
-    "label": "watermelon",
-    "region": "GLOBAL",
-    "source": "ESA_RDM:2023_mar_um6p_poly_111"
-  },
-  {
-    "lat": 31.9903,
-    "lon": -8.02514,
-    "year": 2023,
-    "label": "chickpea",
-    "region": "GLOBAL",
-    "source": "ESA_RDM:2023_mar_um6p_poly_111"
-  },
-  {
-    "lat": 28.66805,
-    "lon": 80.49429,
-    "year": 2023,
-    "label": "lentil",
-    "region": "INDIA",
-    "source": "ESA_RDM:2023_npl_cimmyt_poly_110"
-  },
-  {
-    "lat": 28.66647,
-    "lon": 80.48572,
-    "year": 2023,
-    "label": "lentil",
-    "region": "INDIA",
-    "source": "ESA_RDM:2023_npl_cimmyt_poly_110"
-  },
-  {
-    "lat": 28.66062,
-    "lon": 80.37423,
-    "year": 2023,
-    "label": "lentil",
-    "region": "INDIA",
-    "source": "ESA_RDM:2023_npl_cimmyt_poly_110"
-  },
-  {
-    "lat": 49.57263,
-    "lon": -119.64092,
-    "year": 2021,
-    "label": "apple",
-    "region": "USA",
-    "source": "ESA_RDM:2021_can_aafccropinventory_point_110"
-  },
-  {
-    "lat": 49.5653,
-    "lon": -119.65723,
-    "year": 2021,
-    "label": "apple",
-    "region": "USA",
-    "source": "ESA_RDM:2021_can_aafccropinventory_point_110"
-  },
-  {
-    "lat": 49.58985,
-    "lon": -119.70891,
-    "year": 2021,
-    "label": "apple",
-    "region": "USA",
-    "source": "ESA_RDM:2021_can_aafccropinventory_point_110"
-  },
-  {
-    "lat": 49.21612,
-    "lon": -119.82943,
-    "year": 2021,
-    "label": "apple",
-    "region": "USA",
-    "source": "ESA_RDM:2021_can_aafccropinventory_point_110"
-  },
-  {
-    "lat": 49.61183,
-    "lon": -119.677,
-    "year": 2021,
-    "label": "apple",
-    "region": "USA",
-    "source": "ESA_RDM:2021_can_aafccropinventory_point_110"
-  },
-  {
-    "lat": 49.22708,
-    "lon": -119.82395,
-    "year": 2021,
-    "label": "apple",
-    "region": "USA",
-    "source": "ESA_RDM:2021_can_aafccropinventory_point_110"
-  },
-  {
-    "lat": 49.20447,
-    "lon": -119.85859,
-    "year": 2021,
-    "label": "apple",
-    "region": "USA",
-    "source": "ESA_RDM:2021_can_aafccropinventory_point_110"
-  },
-  {
-    "lat": 49.21398,
-    "lon": -119.83584,
-    "year": 2021,
-    "label": "apple",
-    "region": "USA",
-    "source": "ESA_RDM:2021_can_aafccropinventory_point_110"
-  },
-  {
-    "lat": 49.20302,
-    "lon": -119.85155,
-    "year": 2021,
-    "label": "apple",
-    "region": "USA",
-    "source": "ESA_RDM:2021_can_aafccropinventory_point_110"
-  },
-  {
-    "lat": 49.57394,
-    "lon": -119.63987,
-    "year": 2021,
-    "label": "apple",
-    "region": "USA",
-    "source": "ESA_RDM:2021_can_aafccropinventory_point_110"
-  },
-  {
-    "lat": 49.56869,
-    "lon": -119.65646,
-    "year": 2021,
-    "label": "apple",
-    "region": "USA",
-    "source": "ESA_RDM:2021_can_aafccropinventory_point_110"
-  },
-  {
-    "lat": 49.20497,
-    "lon": -119.85067,
-    "year": 2021,
-    "label": "apple",
-    "region": "USA",
-    "source": "ESA_RDM:2021_can_aafccropinventory_point_110"
-  },
-  {
-    "lat": 49.57453,
-    "lon": -119.63918,
-    "year": 2021,
-    "label": "apple",
-    "region": "USA",
-    "source": "ESA_RDM:2021_can_aafccropinventory_point_110"
-  },
-  {
-    "lat": 49.20208,
-    "lon": -119.85148,
-    "year": 2021,
-    "label": "apple",
-    "region": "USA",
-    "source": "ESA_RDM:2021_can_aafccropinventory_point_110"
-  },
-  {
-    "lat": 49.5703,
-    "lon": -119.63518,
-    "year": 2021,
-    "label": "apple",
-    "region": "USA",
-    "source": "ESA_RDM:2021_can_aafccropinventory_point_110"
-  },
-  {
-    "lat": 49.57496,
-    "lon": -119.63354,
-    "year": 2021,
-    "label": "apple",
-    "region": "USA",
-    "source": "ESA_RDM:2021_can_aafccropinventory_point_110"
-  },
-  {
-    "lat": 49.19991,
-    "lon": -119.87249,
-    "year": 2021,
-    "label": "apple",
-    "region": "USA",
-    "source": "ESA_RDM:2021_can_aafccropinventory_point_110"
-  },
-  {
-    "lat": 40.55408,
-    "lon": 71.1752,
-    "year": 2018,
-    "label": "watermelon",
-    "region": "GLOBAL",
-    "source": "ESA_RDM:2018_as_cawaproject_poly_111"
-  },
-  {
-    "lat": 48.04373,
-    "lon": -0.34692,
-    "year": 2018,
-    "label": "rapeseed",
-    "region": "EUROPE",
-    "source": "ESA_RDM:2018_eu_lucas_point_110"
-  },
-  {
-    "lat": -0.47499,
-    "lon": 37.35526,
-    "year": 2023,
-    "label": "coffee",
-    "region": "GLOBAL",
-    "source": "ESA_RDM:2023_ken_copernicusgeoglamlr_point_111"
-  },
-  {
-    "lat": -0.47573,
-    "lon": 37.35329,
-    "year": 2023,
-    "label": "coffee",
-    "region": "GLOBAL",
-    "source": "ESA_RDM:2023_ken_copernicusgeoglamlr_point_111"
-  },
-  {
-    "lat": -0.47233,
-    "lon": 37.35322,
-    "year": 2023,
-    "label": "coffee",
-    "region": "GLOBAL",
-    "source": "ESA_RDM:2023_ken_copernicusgeoglamlr_point_111"
-  },
-  {
-    "lat": -0.47289,
-    "lon": 37.3555,
-    "year": 2023,
-    "label": "coffee",
-    "region": "GLOBAL",
-    "source": "ESA_RDM:2023_ken_copernicusgeoglamlr_point_111"
-  },
-  {
-    "lat": -0.52747,
-    "lon": 37.09196,
-    "year": 2022,
-    "label": "coffee",
-    "region": "GLOBAL",
-    "source": "ESA_RDM:2022_ken_copernicusgeoglamsr_point_111"
-  },
-  {
-    "lat": -0.52914,
-    "lon": 37.09414,
-    "year": 2022,
-    "label": "coffee",
-    "region": "GLOBAL",
-    "source": "ESA_RDM:2022_ken_copernicusgeoglamsr_point_111"
-  },
-  {
-    "lat": -0.52692,
-    "lon": 37.09573,
-    "year": 2022,
-    "label": "coffee",
-    "region": "GLOBAL",
-    "source": "ESA_RDM:2022_ken_copernicusgeoglamsr_point_111"
-  },
-  {
-    "lat": -0.528,
-    "lon": 37.09562,
-    "year": 2022,
-    "label": "coffee",
-    "region": "GLOBAL",
-    "source": "ESA_RDM:2022_ken_copernicusgeoglamsr_point_111"
-  },
-  {
-    "lat": 46.53109,
-    "lon": -116.90326,
-    "year": 2023,
-    "label": "rapeseed",
-    "region": "USA",
-    "source": "USDA_CDL:31"
-  },
-  {
-    "lat": 46.70839,
-    "lon": -117.00884,
-    "year": 2023,
-    "label": "rapeseed",
-    "region": "USA",
-    "source": "USDA_CDL:31"
-  }
-]
+{
+  "schema_version": 2,
+  "candidates": [
+    {
+      "lat": 49.8167,
+      "lon": -125.13768,
+      "year": 2023,
+      "label": "watermelon",
+      "region": "CANADA",
+      "source": "ESA_RDM:2023_can_aafcacigtd_point_110",
+      "rdm_props": {
+        "ewoc_code": 1103020040,
+        "irrigation_status": 0
+      }
+    },
+    {
+      "lat": 49.81671,
+      "lon": -125.13655,
+      "year": 2023,
+      "label": "watermelon",
+      "region": "CANADA",
+      "source": "ESA_RDM:2023_can_aafcacigtd_point_110",
+      "rdm_props": {
+        "ewoc_code": 1103020040,
+        "irrigation_status": 0
+      }
+    },
+    {
+      "lat": 49.19621,
+      "lon": -119.76382,
+      "year": 2021,
+      "label": "apple",
+      "region": "CANADA",
+      "source": "ESA_RDM:2021_can_aafccropinventory_point_110",
+      "rdm_props": {
+        "ewoc_code": 1201010020,
+        "irrigation_status": 0
+      }
+    },
+    {
+      "lat": 49.56511,
+      "lon": -119.67735,
+      "year": 2021,
+      "label": "apple",
+      "region": "CANADA",
+      "source": "ESA_RDM:2021_can_aafccropinventory_point_110",
+      "rdm_props": {
+        "ewoc_code": 1201010020,
+        "irrigation_status": 0
+      }
+    },
+    {
+      "lat": 49.57458,
+      "lon": -119.68591,
+      "year": 2021,
+      "label": "apple",
+      "region": "CANADA",
+      "source": "ESA_RDM:2021_can_aafccropinventory_point_110",
+      "rdm_props": {
+        "ewoc_code": 1201010020,
+        "irrigation_status": 0
+      }
+    },
+    {
+      "lat": 49.6056,
+      "lon": -119.66967,
+      "year": 2021,
+      "label": "apple",
+      "region": "CANADA",
+      "source": "ESA_RDM:2021_can_aafccropinventory_point_110",
+      "rdm_props": {
+        "ewoc_code": 1201010020,
+        "irrigation_status": 0
+      }
+    },
+    {
+      "lat": 49.18549,
+      "lon": -119.75485,
+      "year": 2021,
+      "label": "apple",
+      "region": "CANADA",
+      "source": "ESA_RDM:2021_can_aafccropinventory_point_110",
+      "rdm_props": {
+        "ewoc_code": 1201010020,
+        "irrigation_status": 0
+      }
+    },
+    {
+      "lat": 49.56728,
+      "lon": -119.68497,
+      "year": 2021,
+      "label": "apple",
+      "region": "CANADA",
+      "source": "ESA_RDM:2021_can_aafccropinventory_point_110",
+      "rdm_props": {
+        "ewoc_code": 1201010020,
+        "irrigation_status": 0
+      }
+    },
+    {
+      "lat": 49.57859,
+      "lon": -119.65098,
+      "year": 2021,
+      "label": "apple",
+      "region": "CANADA",
+      "source": "ESA_RDM:2021_can_aafccropinventory_point_110",
+      "rdm_props": {
+        "ewoc_code": 1201010020,
+        "irrigation_status": 0
+      }
+    },
+    {
+      "lat": 49.60391,
+      "lon": -119.66481,
+      "year": 2021,
+      "label": "apple",
+      "region": "CANADA",
+      "source": "ESA_RDM:2021_can_aafccropinventory_point_110",
+      "rdm_props": {
+        "ewoc_code": 1201010020,
+        "irrigation_status": 0
+      }
+    },
+    {
+      "lat": 49.21065,
+      "lon": -119.8382,
+      "year": 2021,
+      "label": "apple",
+      "region": "CANADA",
+      "source": "ESA_RDM:2021_can_aafccropinventory_point_110",
+      "rdm_props": {
+        "ewoc_code": 1201010020,
+        "irrigation_status": 0
+      }
+    },
+    {
+      "lat": 49.61547,
+      "lon": -119.67683,
+      "year": 2021,
+      "label": "apple",
+      "region": "CANADA",
+      "source": "ESA_RDM:2021_can_aafccropinventory_point_110",
+      "rdm_props": {
+        "ewoc_code": 1201010020,
+        "irrigation_status": 0
+      }
+    },
+    {
+      "lat": 49.5897,
+      "lon": -119.70582,
+      "year": 2021,
+      "label": "apple",
+      "region": "CANADA",
+      "source": "ESA_RDM:2021_can_aafccropinventory_point_110",
+      "rdm_props": {
+        "ewoc_code": 1201010020,
+        "irrigation_status": 0
+      }
+    },
+    {
+      "lat": 49.21335,
+      "lon": -119.80149,
+      "year": 2021,
+      "label": "apple",
+      "region": "CANADA",
+      "source": "ESA_RDM:2021_can_aafccropinventory_point_110",
+      "rdm_props": {
+        "ewoc_code": 1201010020,
+        "irrigation_status": 0
+      }
+    },
+    {
+      "lat": 49.5911,
+      "lon": -119.71201,
+      "year": 2021,
+      "label": "apple",
+      "region": "CANADA",
+      "source": "ESA_RDM:2021_can_aafccropinventory_point_110",
+      "rdm_props": {
+        "ewoc_code": 1201010020,
+        "irrigation_status": 0
+      }
+    },
+    {
+      "lat": 49.56763,
+      "lon": -119.68698,
+      "year": 2021,
+      "label": "apple",
+      "region": "CANADA",
+      "source": "ESA_RDM:2021_can_aafccropinventory_point_110",
+      "rdm_props": {
+        "ewoc_code": 1201010020,
+        "irrigation_status": 0
+      }
+    },
+    {
+      "lat": 49.21865,
+      "lon": -119.8268,
+      "year": 2021,
+      "label": "apple",
+      "region": "CANADA",
+      "source": "ESA_RDM:2021_can_aafccropinventory_point_110",
+      "rdm_props": {
+        "ewoc_code": 1201010020,
+        "irrigation_status": 0
+      }
+    },
+    {
+      "lat": 49.18841,
+      "lon": -119.75496,
+      "year": 2021,
+      "label": "apple",
+      "region": "CANADA",
+      "source": "ESA_RDM:2021_can_aafccropinventory_point_110",
+      "rdm_props": {
+        "ewoc_code": 1201010020,
+        "irrigation_status": 0
+      }
+    },
+    {
+      "lat": 49.56371,
+      "lon": -119.66693,
+      "year": 2021,
+      "label": "apple",
+      "region": "CANADA",
+      "source": "ESA_RDM:2021_can_aafccropinventory_point_110",
+      "rdm_props": {
+        "ewoc_code": 1201010020,
+        "irrigation_status": 0
+      }
+    },
+    {
+      "lat": 49.19245,
+      "lon": -119.75919,
+      "year": 2021,
+      "label": "apple",
+      "region": "CANADA",
+      "source": "ESA_RDM:2021_can_aafccropinventory_point_110",
+      "rdm_props": {
+        "ewoc_code": 1201010020,
+        "irrigation_status": 0
+      }
+    },
+    {
+      "lat": 49.21227,
+      "lon": -119.79311,
+      "year": 2021,
+      "label": "apple",
+      "region": "CANADA",
+      "source": "ESA_RDM:2021_can_aafccropinventory_point_110",
+      "rdm_props": {
+        "ewoc_code": 1201010020,
+        "irrigation_status": 0
+      }
+    },
+    {
+      "lat": 49.57568,
+      "lon": -119.65244,
+      "year": 2021,
+      "label": "apple",
+      "region": "CANADA",
+      "source": "ESA_RDM:2021_can_aafccropinventory_point_110",
+      "rdm_props": {
+        "ewoc_code": 1201010020,
+        "irrigation_status": 0
+      }
+    },
+    {
+      "lat": 49.19607,
+      "lon": -119.76662,
+      "year": 2021,
+      "label": "apple",
+      "region": "CANADA",
+      "source": "ESA_RDM:2021_can_aafccropinventory_point_110",
+      "rdm_props": {
+        "ewoc_code": 1201010020,
+        "irrigation_status": 0
+      }
+    },
+    {
+      "lat": 49.57395,
+      "lon": -119.64078,
+      "year": 2021,
+      "label": "apple",
+      "region": "CANADA",
+      "source": "ESA_RDM:2021_can_aafccropinventory_point_110",
+      "rdm_props": {
+        "ewoc_code": 1201010020,
+        "irrigation_status": 0
+      }
+    },
+    {
+      "lat": 45.59059,
+      "lon": -76.83681,
+      "year": 2021,
+      "label": "potato",
+      "region": "USA",
+      "source": "ESA_RDM:2021_can_aafccropinventory_point_110",
+      "rdm_props": {
+        "ewoc_code": 1102000020,
+        "irrigation_status": 0
+      }
+    },
+    {
+      "lat": 45.59176,
+      "lon": -76.84019,
+      "year": 2021,
+      "label": "potato",
+      "region": "USA",
+      "source": "ESA_RDM:2021_can_aafccropinventory_point_110",
+      "rdm_props": {
+        "ewoc_code": 1102000020,
+        "irrigation_status": 0
+      }
+    },
+    {
+      "lat": 46.40507,
+      "lon": -80.03711,
+      "year": 2021,
+      "label": "rapeseed",
+      "region": "USA",
+      "source": "ESA_RDM:2021_can_aafccropinventory_point_110",
+      "rdm_props": {
+        "ewoc_code": 1106000031,
+        "irrigation_status": 0
+      }
+    },
+    {
+      "lat": 46.24225,
+      "lon": -83.28398,
+      "year": 2021,
+      "label": "chickpea",
+      "region": "USA",
+      "source": "ESA_RDM:2021_can_aafccropinventory_point_110",
+      "rdm_props": {
+        "ewoc_code": 1105010020,
+        "irrigation_status": 0
+      }
+    },
+    {
+      "lat": 50.82139,
+      "lon": 4.04042,
+      "year": 2021,
+      "label": "apple",
+      "region": "EUROPE",
+      "source": "ESA_RDM:2021_bel_lpisflanders_poly_110",
+      "rdm_props": {
+        "ewoc_code": 1201010020,
+        "irrigation_status": 0
+      }
+    },
+    {
+      "lat": 58.74226,
+      "lon": 26.20399,
+      "year": 2021,
+      "label": "rapeseed",
+      "region": "EUROPE",
+      "source": "ESA_RDM:2021_est_eurocrops_poly_110",
+      "rdm_props": {
+        "ewoc_code": 1106000031,
+        "irrigation_status": 0
+      }
+    },
+    {
+      "lat": 59.2312,
+      "lon": 24.50113,
+      "year": 2021,
+      "label": "chickpea",
+      "region": "EUROPE",
+      "source": "ESA_RDM:2021_est_eurocrops_poly_110",
+      "rdm_props": {
+        "ewoc_code": 1105010020,
+        "irrigation_status": 0
+      }
+    },
+    {
+      "lat": 58.77132,
+      "lon": 26.44765,
+      "year": 2021,
+      "label": "potato",
+      "region": "EUROPE",
+      "source": "ESA_RDM:2021_est_eurocrops_poly_110",
+      "rdm_props": {
+        "ewoc_code": 1102000020,
+        "irrigation_status": 0
+      }
+    },
+    {
+      "lat": 59.09395,
+      "lon": 24.30275,
+      "year": 2021,
+      "label": "chickpea",
+      "region": "EUROPE",
+      "source": "ESA_RDM:2021_est_eurocrops_poly_110",
+      "rdm_props": {
+        "ewoc_code": 1105010020,
+        "irrigation_status": 0
+      }
+    },
+    {
+      "lat": 59.27679,
+      "lon": 24.87189,
+      "year": 2021,
+      "label": "chickpea",
+      "region": "EUROPE",
+      "source": "ESA_RDM:2021_est_eurocrops_poly_110",
+      "rdm_props": {
+        "ewoc_code": 1105010020,
+        "irrigation_status": 0
+      }
+    },
+    {
+      "lat": 58.75984,
+      "lon": 26.41581,
+      "year": 2021,
+      "label": "potato",
+      "region": "EUROPE",
+      "source": "ESA_RDM:2021_est_eurocrops_poly_110",
+      "rdm_props": {
+        "ewoc_code": 1102000020,
+        "irrigation_status": 0
+      }
+    },
+    {
+      "lat": 59.27325,
+      "lon": 24.89677,
+      "year": 2021,
+      "label": "chickpea",
+      "region": "EUROPE",
+      "source": "ESA_RDM:2021_est_eurocrops_poly_110",
+      "rdm_props": {
+        "ewoc_code": 1105010020,
+        "irrigation_status": 0
+      }
+    },
+    {
+      "lat": 58.17541,
+      "lon": 26.26193,
+      "year": 2021,
+      "label": "apple",
+      "region": "EUROPE",
+      "source": "ESA_RDM:2021_est_eurocrops_poly_110",
+      "rdm_props": {
+        "ewoc_code": 1201010020,
+        "irrigation_status": 0
+      }
+    },
+    {
+      "lat": 59.43011,
+      "lon": 25.11874,
+      "year": 2021,
+      "label": "rapeseed",
+      "region": "EUROPE",
+      "source": "ESA_RDM:2021_est_eurocrops_poly_110",
+      "rdm_props": {
+        "ewoc_code": 1106000031,
+        "irrigation_status": 0
+      }
+    },
+    {
+      "lat": 58.75656,
+      "lon": 26.39801,
+      "year": 2021,
+      "label": "potato",
+      "region": "EUROPE",
+      "source": "ESA_RDM:2021_est_eurocrops_poly_110",
+      "rdm_props": {
+        "ewoc_code": 1102000020,
+        "irrigation_status": 0
+      }
+    },
+    {
+      "lat": 58.38221,
+      "lon": 26.61317,
+      "year": 2021,
+      "label": "rapeseed",
+      "region": "EUROPE",
+      "source": "ESA_RDM:2021_est_eurocrops_poly_110",
+      "rdm_props": {
+        "ewoc_code": 1106000031,
+        "irrigation_status": 0
+      }
+    },
+    {
+      "lat": 58.09433,
+      "lon": 26.03295,
+      "year": 2021,
+      "label": "chickpea",
+      "region": "EUROPE",
+      "source": "ESA_RDM:2021_est_eurocrops_poly_110",
+      "rdm_props": {
+        "ewoc_code": 1105010020,
+        "irrigation_status": 0
+      }
+    },
+    {
+      "lat": 59.27955,
+      "lon": 27.26266,
+      "year": 2021,
+      "label": "rapeseed",
+      "region": "RUSSIA",
+      "source": "ESA_RDM:2021_est_eurocrops_poly_110",
+      "rdm_props": {
+        "ewoc_code": 1106000031,
+        "irrigation_status": 0
+      }
+    },
+    {
+      "lat": 58.22642,
+      "lon": 26.97565,
+      "year": 2021,
+      "label": "rapeseed",
+      "region": "EUROPE",
+      "source": "ESA_RDM:2021_est_eurocrops_poly_110",
+      "rdm_props": {
+        "ewoc_code": 1106000031,
+        "irrigation_status": 0
+      }
+    },
+    {
+      "lat": 58.2412,
+      "lon": 25.39282,
+      "year": 2021,
+      "label": "rapeseed",
+      "region": "EUROPE",
+      "source": "ESA_RDM:2021_est_eurocrops_poly_110",
+      "rdm_props": {
+        "ewoc_code": 1106000031,
+        "irrigation_status": 0
+      }
+    },
+    {
+      "lat": 58.10256,
+      "lon": 26.04097,
+      "year": 2021,
+      "label": "chickpea",
+      "region": "EUROPE",
+      "source": "ESA_RDM:2021_est_eurocrops_poly_110",
+      "rdm_props": {
+        "ewoc_code": 1105010020,
+        "irrigation_status": 0
+      }
+    },
+    {
+      "lat": 58.07607,
+      "lon": 25.54588,
+      "year": 2021,
+      "label": "rapeseed",
+      "region": "EUROPE",
+      "source": "ESA_RDM:2021_est_eurocrops_poly_110",
+      "rdm_props": {
+        "ewoc_code": 1106000031,
+        "irrigation_status": 0
+      }
+    },
+    {
+      "lat": 59.06716,
+      "lon": 24.32385,
+      "year": 2021,
+      "label": "potato",
+      "region": "EUROPE",
+      "source": "ESA_RDM:2021_est_eurocrops_poly_110",
+      "rdm_props": {
+        "ewoc_code": 1102000020,
+        "irrigation_status": 0
+      }
+    },
+    {
+      "lat": 59.28034,
+      "lon": 27.26048,
+      "year": 2021,
+      "label": "rapeseed",
+      "region": "RUSSIA",
+      "source": "ESA_RDM:2021_est_eurocrops_poly_110",
+      "rdm_props": {
+        "ewoc_code": 1106000031,
+        "irrigation_status": 0
+      }
+    },
+    {
+      "lat": 58.53737,
+      "lon": 27.20904,
+      "year": 2021,
+      "label": "chickpea",
+      "region": "RUSSIA",
+      "source": "ESA_RDM:2021_est_eurocrops_poly_110",
+      "rdm_props": {
+        "ewoc_code": 1105010020,
+        "irrigation_status": 0
+      }
+    },
+    {
+      "lat": 59.33517,
+      "lon": 27.26023,
+      "year": 2021,
+      "label": "rapeseed",
+      "region": "RUSSIA",
+      "source": "ESA_RDM:2021_est_eurocrops_poly_110",
+      "rdm_props": {
+        "ewoc_code": 1106000031,
+        "irrigation_status": 0
+      }
+    },
+    {
+      "lat": 58.18954,
+      "lon": 25.55181,
+      "year": 2021,
+      "label": "kidneybeans",
+      "region": "EUROPE",
+      "source": "ESA_RDM:2021_est_eurocrops_poly_110",
+      "rdm_props": {
+        "ewoc_code": 1105010010,
+        "irrigation_status": 0
+      }
+    },
+    {
+      "lat": 58.24687,
+      "lon": 22.03236,
+      "year": 2021,
+      "label": "apple",
+      "region": "EUROPE",
+      "source": "ESA_RDM:2021_est_eurocrops_poly_110",
+      "rdm_props": {
+        "ewoc_code": 1201010020,
+        "irrigation_status": 0
+      }
+    },
+    {
+      "lat": 59.35385,
+      "lon": 27.26486,
+      "year": 2021,
+      "label": "rapeseed",
+      "region": "RUSSIA",
+      "source": "ESA_RDM:2021_est_eurocrops_poly_110",
+      "rdm_props": {
+        "ewoc_code": 1106000031,
+        "irrigation_status": 0
+      }
+    },
+    {
+      "lat": 59.41261,
+      "lon": 27.2266,
+      "year": 2021,
+      "label": "rapeseed",
+      "region": "RUSSIA",
+      "source": "ESA_RDM:2021_est_eurocrops_poly_110",
+      "rdm_props": {
+        "ewoc_code": 1106000031,
+        "irrigation_status": 0
+      }
+    },
+    {
+      "lat": 58.15862,
+      "lon": 25.7017,
+      "year": 2021,
+      "label": "chickpea",
+      "region": "EUROPE",
+      "source": "ESA_RDM:2021_est_eurocrops_poly_110",
+      "rdm_props": {
+        "ewoc_code": 1105010020,
+        "irrigation_status": 0
+      }
+    },
+    {
+      "lat": 59.35804,
+      "lon": 27.22543,
+      "year": 2021,
+      "label": "rapeseed",
+      "region": "RUSSIA",
+      "source": "ESA_RDM:2021_est_eurocrops_poly_110",
+      "rdm_props": {
+        "ewoc_code": 1106000032,
+        "irrigation_status": 0
+      }
+    },
+    {
+      "lat": 58.14773,
+      "lon": 25.73342,
+      "year": 2021,
+      "label": "kidneybeans",
+      "region": "EUROPE",
+      "source": "ESA_RDM:2021_est_eurocrops_poly_110",
+      "rdm_props": {
+        "ewoc_code": 1105010010,
+        "irrigation_status": 0
+      }
+    },
+    {
+      "lat": 58.12656,
+      "lon": 25.74358,
+      "year": 2021,
+      "label": "rapeseed",
+      "region": "EUROPE",
+      "source": "ESA_RDM:2021_est_eurocrops_poly_110",
+      "rdm_props": {
+        "ewoc_code": 1106000032,
+        "irrigation_status": 0
+      }
+    },
+    {
+      "lat": 58.14585,
+      "lon": 25.75399,
+      "year": 2021,
+      "label": "rapeseed",
+      "region": "EUROPE",
+      "source": "ESA_RDM:2021_est_eurocrops_poly_110",
+      "rdm_props": {
+        "ewoc_code": 1106000031,
+        "irrigation_status": 0
+      }
+    },
+    {
+      "lat": 58.09586,
+      "lon": 26.04089,
+      "year": 2021,
+      "label": "chickpea",
+      "region": "EUROPE",
+      "source": "ESA_RDM:2021_est_eurocrops_poly_110",
+      "rdm_props": {
+        "ewoc_code": 1105010020,
+        "irrigation_status": 0
+      }
+    },
+    {
+      "lat": 58.13485,
+      "lon": 25.61972,
+      "year": 2021,
+      "label": "kidneybeans",
+      "region": "EUROPE",
+      "source": "ESA_RDM:2021_est_eurocrops_poly_110",
+      "rdm_props": {
+        "ewoc_code": 1105010010,
+        "irrigation_status": 0
+      }
+    },
+    {
+      "lat": 59.3559,
+      "lon": 27.27002,
+      "year": 2021,
+      "label": "rapeseed",
+      "region": "RUSSIA",
+      "source": "ESA_RDM:2021_est_eurocrops_poly_110",
+      "rdm_props": {
+        "ewoc_code": 1106000031,
+        "irrigation_status": 0
+      }
+    },
+    {
+      "lat": 59.42322,
+      "lon": 25.18038,
+      "year": 2021,
+      "label": "rapeseed",
+      "region": "EUROPE",
+      "source": "ESA_RDM:2021_est_eurocrops_poly_110",
+      "rdm_props": {
+        "ewoc_code": 1106000031,
+        "irrigation_status": 0
+      }
+    },
+    {
+      "lat": 58.52915,
+      "lon": 24.68365,
+      "year": 2021,
+      "label": "rapeseed",
+      "region": "EUROPE",
+      "source": "ESA_RDM:2021_est_eurocrops_poly_110",
+      "rdm_props": {
+        "ewoc_code": 1106000032,
+        "irrigation_status": 0
+      }
+    },
+    {
+      "lat": 58.60714,
+      "lon": 26.38501,
+      "year": 2021,
+      "label": "chickpea",
+      "region": "EUROPE",
+      "source": "ESA_RDM:2021_est_eurocrops_poly_110",
+      "rdm_props": {
+        "ewoc_code": 1105010020,
+        "irrigation_status": 0
+      }
+    },
+    {
+      "lat": 58.14492,
+      "lon": 26.00899,
+      "year": 2021,
+      "label": "rapeseed",
+      "region": "EUROPE",
+      "source": "ESA_RDM:2021_est_eurocrops_poly_110",
+      "rdm_props": {
+        "ewoc_code": 1106000032,
+        "irrigation_status": 0
+      }
+    },
+    {
+      "lat": 58.24369,
+      "lon": 22.03753,
+      "year": 2021,
+      "label": "apple",
+      "region": "EUROPE",
+      "source": "ESA_RDM:2021_est_eurocrops_poly_110",
+      "rdm_props": {
+        "ewoc_code": 1201010020,
+        "irrigation_status": 0
+      }
+    },
+    {
+      "lat": 59.43983,
+      "lon": 27.30862,
+      "year": 2021,
+      "label": "rapeseed",
+      "region": "RUSSIA",
+      "source": "ESA_RDM:2021_est_eurocrops_poly_110",
+      "rdm_props": {
+        "ewoc_code": 1106000031,
+        "irrigation_status": 0
+      }
+    },
+    {
+      "lat": 59.40533,
+      "lon": 27.21379,
+      "year": 2021,
+      "label": "rapeseed",
+      "region": "RUSSIA",
+      "source": "ESA_RDM:2021_est_eurocrops_poly_110",
+      "rdm_props": {
+        "ewoc_code": 1106000032,
+        "irrigation_status": 0
+      }
+    },
+    {
+      "lat": 58.09643,
+      "lon": 25.82123,
+      "year": 2021,
+      "label": "rapeseed",
+      "region": "EUROPE",
+      "source": "ESA_RDM:2021_est_eurocrops_poly_110",
+      "rdm_props": {
+        "ewoc_code": 1106000031,
+        "irrigation_status": 0
+      }
+    },
+    {
+      "lat": 59.3588,
+      "lon": 27.23557,
+      "year": 2021,
+      "label": "rapeseed",
+      "region": "RUSSIA",
+      "source": "ESA_RDM:2021_est_eurocrops_poly_110",
+      "rdm_props": {
+        "ewoc_code": 1106000032,
+        "irrigation_status": 0
+      }
+    },
+    {
+      "lat": 58.99751,
+      "lon": 23.73149,
+      "year": 2021,
+      "label": "chickpea",
+      "region": "EUROPE",
+      "source": "ESA_RDM:2021_est_eurocrops_poly_110",
+      "rdm_props": {
+        "ewoc_code": 1105010020,
+        "irrigation_status": 0
+      }
+    },
+    {
+      "lat": 59.23779,
+      "lon": 24.50165,
+      "year": 2021,
+      "label": "chickpea",
+      "region": "EUROPE",
+      "source": "ESA_RDM:2021_est_eurocrops_poly_110",
+      "rdm_props": {
+        "ewoc_code": 1105010020,
+        "irrigation_status": 0
+      }
+    },
+    {
+      "lat": 58.45332,
+      "lon": 27.06783,
+      "year": 2021,
+      "label": "chickpea",
+      "region": "RUSSIA",
+      "source": "ESA_RDM:2021_est_eurocrops_poly_110",
+      "rdm_props": {
+        "ewoc_code": 1105010020,
+        "irrigation_status": 0
+      }
+    },
+    {
+      "lat": 58.7599,
+      "lon": 26.41027,
+      "year": 2021,
+      "label": "potato",
+      "region": "EUROPE",
+      "source": "ESA_RDM:2021_est_eurocrops_poly_110",
+      "rdm_props": {
+        "ewoc_code": 1102000020,
+        "irrigation_status": 0
+      }
+    },
+    {
+      "lat": 58.50003,
+      "lon": 26.67171,
+      "year": 2021,
+      "label": "chickpea",
+      "region": "EUROPE",
+      "source": "ESA_RDM:2021_est_eurocrops_poly_110",
+      "rdm_props": {
+        "ewoc_code": 1105010020,
+        "irrigation_status": 0
+      }
+    },
+    {
+      "lat": 58.4474,
+      "lon": 27.00193,
+      "year": 2021,
+      "label": "chickpea",
+      "region": "RUSSIA",
+      "source": "ESA_RDM:2021_est_eurocrops_poly_110",
+      "rdm_props": {
+        "ewoc_code": 1105010020,
+        "irrigation_status": 0
+      }
+    },
+    {
+      "lat": 58.75789,
+      "lon": 26.40885,
+      "year": 2021,
+      "label": "potato",
+      "region": "EUROPE",
+      "source": "ESA_RDM:2021_est_eurocrops_poly_110",
+      "rdm_props": {
+        "ewoc_code": 1102000020,
+        "irrigation_status": 0
+      }
+    },
+    {
+      "lat": 59.28415,
+      "lon": 24.66066,
+      "year": 2021,
+      "label": "chickpea",
+      "region": "EUROPE",
+      "source": "ESA_RDM:2021_est_eurocrops_poly_110",
+      "rdm_props": {
+        "ewoc_code": 1105010020,
+        "irrigation_status": 0
+      }
+    },
+    {
+      "lat": 58.77193,
+      "lon": 26.40245,
+      "year": 2021,
+      "label": "chickpea",
+      "region": "EUROPE",
+      "source": "ESA_RDM:2021_est_eurocrops_poly_110",
+      "rdm_props": {
+        "ewoc_code": 1105010020,
+        "irrigation_status": 0
+      }
+    },
+    {
+      "lat": 58.52581,
+      "lon": 27.10125,
+      "year": 2021,
+      "label": "chickpea",
+      "region": "RUSSIA",
+      "source": "ESA_RDM:2021_est_eurocrops_poly_110",
+      "rdm_props": {
+        "ewoc_code": 1105010020,
+        "irrigation_status": 0
+      }
+    },
+    {
+      "lat": 58.73113,
+      "lon": 26.47449,
+      "year": 2021,
+      "label": "kidneybeans",
+      "region": "EUROPE",
+      "source": "ESA_RDM:2021_est_eurocrops_poly_110",
+      "rdm_props": {
+        "ewoc_code": 1105010010,
+        "irrigation_status": 0
+      }
+    },
+    {
+      "lat": 58.15838,
+      "lon": 25.20122,
+      "year": 2021,
+      "label": "chickpea",
+      "region": "EUROPE",
+      "source": "ESA_RDM:2021_est_eurocrops_poly_110",
+      "rdm_props": {
+        "ewoc_code": 1105010020,
+        "irrigation_status": 0
+      }
+    },
+    {
+      "lat": 59.16673,
+      "lon": 25.01335,
+      "year": 2021,
+      "label": "kidneybeans",
+      "region": "EUROPE",
+      "source": "ESA_RDM:2021_est_eurocrops_poly_110",
+      "rdm_props": {
+        "ewoc_code": 1105010010,
+        "irrigation_status": 0
+      }
+    },
+    {
+      "lat": 58.49891,
+      "lon": 26.67059,
+      "year": 2021,
+      "label": "chickpea",
+      "region": "EUROPE",
+      "source": "ESA_RDM:2021_est_eurocrops_poly_110",
+      "rdm_props": {
+        "ewoc_code": 1105010020,
+        "irrigation_status": 0
+      }
+    },
+    {
+      "lat": 59.09626,
+      "lon": 24.31852,
+      "year": 2021,
+      "label": "chickpea",
+      "region": "EUROPE",
+      "source": "ESA_RDM:2021_est_eurocrops_poly_110",
+      "rdm_props": {
+        "ewoc_code": 1105010020,
+        "irrigation_status": 0
+      }
+    },
+    {
+      "lat": 51.56042,
+      "lon": 4.8829,
+      "year": 2021,
+      "label": "potato",
+      "region": "EUROPE",
+      "source": "ESA_RDM:2021_nld_lpis_poly_110",
+      "rdm_props": {
+        "ewoc_code": 1102000021,
+        "irrigation_status": 0
+      }
+    },
+    {
+      "lat": 52.5114,
+      "lon": 5.6778,
+      "year": 2021,
+      "label": "apple",
+      "region": "EUROPE",
+      "source": "ESA_RDM:2021_nld_lpis_poly_110",
+      "rdm_props": {
+        "ewoc_code": 1201010021,
+        "irrigation_status": 0
+      }
+    },
+    {
+      "lat": 52.51275,
+      "lon": 5.67242,
+      "year": 2021,
+      "label": "apple",
+      "region": "EUROPE",
+      "source": "ESA_RDM:2021_nld_lpis_poly_110",
+      "rdm_props": {
+        "ewoc_code": 1201010022,
+        "irrigation_status": 0
+      }
+    },
+    {
+      "lat": 52.51243,
+      "lon": 5.6733,
+      "year": 2021,
+      "label": "apple",
+      "region": "EUROPE",
+      "source": "ESA_RDM:2021_nld_lpis_poly_110",
+      "rdm_props": {
+        "ewoc_code": 1201010022,
+        "irrigation_status": 0
+      }
+    },
+    {
+      "lat": 51.42686,
+      "lon": 5.63185,
+      "year": 2021,
+      "label": "watermelon",
+      "region": "EUROPE",
+      "source": "ESA_RDM:2021_nld_lpis_poly_110",
+      "rdm_props": {
+        "ewoc_code": 1103020040,
+        "irrigation_status": 0
+      }
+    },
+    {
+      "lat": 51.42545,
+      "lon": 3.77337,
+      "year": 2021,
+      "label": "apple",
+      "region": "EUROPE",
+      "source": "ESA_RDM:2021_nld_lpis_poly_110",
+      "rdm_props": {
+        "ewoc_code": 1201010022,
+        "irrigation_status": 0
+      }
+    },
+    {
+      "lat": 52.35203,
+      "lon": 5.41151,
+      "year": 2021,
+      "label": "kidneybeans",
+      "region": "EUROPE",
+      "source": "ESA_RDM:2021_nld_lpis_poly_110",
+      "rdm_props": {
+        "ewoc_code": 1105010010,
+        "irrigation_status": 0
+      }
+    },
+    {
+      "lat": 51.9605,
+      "lon": 5.25145,
+      "year": 2021,
+      "label": "apple",
+      "region": "EUROPE",
+      "source": "ESA_RDM:2021_nld_lpis_poly_110",
+      "rdm_props": {
+        "ewoc_code": 1201010022,
+        "irrigation_status": 0
+      }
+    },
+    {
+      "lat": 51.42682,
+      "lon": 6.05644,
+      "year": 2021,
+      "label": "watermelon",
+      "region": "EUROPE",
+      "source": "ESA_RDM:2021_nld_lpis_poly_110",
+      "rdm_props": {
+        "ewoc_code": 1103020040,
+        "irrigation_status": 0
+      }
+    },
+    {
+      "lat": 51.8279,
+      "lon": 5.33939,
+      "year": 2021,
+      "label": "apple",
+      "region": "EUROPE",
+      "source": "ESA_RDM:2021_nld_lpis_poly_110",
+      "rdm_props": {
+        "ewoc_code": 1201010022,
+        "irrigation_status": 0
+      }
+    },
+    {
+      "lat": 51.82553,
+      "lon": 5.35856,
+      "year": 2021,
+      "label": "apple",
+      "region": "EUROPE",
+      "source": "ESA_RDM:2021_nld_lpis_poly_110",
+      "rdm_props": {
+        "ewoc_code": 1201010022,
+        "irrigation_status": 0
+      }
+    },
+    {
+      "lat": 51.83517,
+      "lon": 5.35593,
+      "year": 2021,
+      "label": "apple",
+      "region": "EUROPE",
+      "source": "ESA_RDM:2021_nld_lpis_poly_110",
+      "rdm_props": {
+        "ewoc_code": 1201010021,
+        "irrigation_status": 0
+      }
+    },
+    {
+      "lat": 51.11049,
+      "lon": 5.96119,
+      "year": 2021,
+      "label": "chickpea",
+      "region": "EUROPE",
+      "source": "ESA_RDM:2021_nld_lpis_poly_110",
+      "rdm_props": {
+        "ewoc_code": 1105010023,
+        "irrigation_status": 0
+      }
+    },
+    {
+      "lat": 52.38824,
+      "lon": 6.24577,
+      "year": 2021,
+      "label": "rapeseed",
+      "region": "EUROPE",
+      "source": "ESA_RDM:2021_nld_lpis_poly_110",
+      "rdm_props": {
+        "ewoc_code": 1106000031,
+        "irrigation_status": 0
+      }
+    },
+    {
+      "lat": 52.82091,
+      "lon": 6.37978,
+      "year": 2021,
+      "label": "potato",
+      "region": "EUROPE",
+      "source": "ESA_RDM:2021_nld_lpis_poly_110",
+      "rdm_props": {
+        "ewoc_code": 1102000021,
+        "irrigation_status": 0
+      }
+    },
+    {
+      "lat": 51.83353,
+      "lon": 5.34843,
+      "year": 2021,
+      "label": "apple",
+      "region": "EUROPE",
+      "source": "ESA_RDM:2021_nld_lpis_poly_110",
+      "rdm_props": {
+        "ewoc_code": 1201010021,
+        "irrigation_status": 0
+      }
+    },
+    {
+      "lat": 52.45791,
+      "lon": 5.55426,
+      "year": 2021,
+      "label": "chickpea",
+      "region": "EUROPE",
+      "source": "ESA_RDM:2021_nld_lpis_poly_110",
+      "rdm_props": {
+        "ewoc_code": 1105010023,
+        "irrigation_status": 0
+      }
+    },
+    {
+      "lat": 51.89305,
+      "lon": 5.18055,
+      "year": 2021,
+      "label": "apple",
+      "region": "EUROPE",
+      "source": "ESA_RDM:2021_nld_lpis_poly_110",
+      "rdm_props": {
+        "ewoc_code": 1201010022,
+        "irrigation_status": 0
+      }
+    },
+    {
+      "lat": 51.80047,
+      "lon": 4.31052,
+      "year": 2021,
+      "label": "watermelon",
+      "region": "EUROPE",
+      "source": "ESA_RDM:2021_nld_lpis_poly_110",
+      "rdm_props": {
+        "ewoc_code": 1103020040,
+        "irrigation_status": 0
+      }
+    },
+    {
+      "lat": 51.59858,
+      "lon": 5.59639,
+      "year": 2021,
+      "label": "apple",
+      "region": "EUROPE",
+      "source": "ESA_RDM:2021_nld_lpis_poly_110",
+      "rdm_props": {
+        "ewoc_code": 1201010022,
+        "irrigation_status": 0
+      }
+    },
+    {
+      "lat": 52.03966,
+      "lon": 5.23466,
+      "year": 2021,
+      "label": "apple",
+      "region": "EUROPE",
+      "source": "ESA_RDM:2021_nld_lpis_poly_110",
+      "rdm_props": {
+        "ewoc_code": 1201010022,
+        "irrigation_status": 0
+      }
+    },
+    {
+      "lat": 52.03913,
+      "lon": 5.2353,
+      "year": 2021,
+      "label": "apple",
+      "region": "EUROPE",
+      "source": "ESA_RDM:2021_nld_lpis_poly_110",
+      "rdm_props": {
+        "ewoc_code": 1201010022,
+        "irrigation_status": 0
+      }
+    },
+    {
+      "lat": 51.93689,
+      "lon": 5.70805,
+      "year": 2021,
+      "label": "apple",
+      "region": "EUROPE",
+      "source": "ESA_RDM:2021_nld_lpis_poly_110",
+      "rdm_props": {
+        "ewoc_code": 1201010022,
+        "irrigation_status": 0
+      }
+    },
+    {
+      "lat": 51.75892,
+      "lon": 4.40313,
+      "year": 2021,
+      "label": "kidneybeans",
+      "region": "EUROPE",
+      "source": "ESA_RDM:2021_nld_lpis_poly_110",
+      "rdm_props": {
+        "ewoc_code": 1105010018,
+        "irrigation_status": 0
+      }
+    },
+    {
+      "lat": 51.73345,
+      "lon": 4.12835,
+      "year": 2021,
+      "label": "chickpea",
+      "region": "EUROPE",
+      "source": "ESA_RDM:2021_nld_lpis_poly_110",
+      "rdm_props": {
+        "ewoc_code": 1105010023,
+        "irrigation_status": 0
+      }
+    },
+    {
+      "lat": 51.87597,
+      "lon": 5.33543,
+      "year": 2021,
+      "label": "apple",
+      "region": "EUROPE",
+      "source": "ESA_RDM:2021_nld_lpis_poly_110",
+      "rdm_props": {
+        "ewoc_code": 1201010022,
+        "irrigation_status": 0
+      }
+    },
+    {
+      "lat": 51.29782,
+      "lon": 4.02712,
+      "year": 2021,
+      "label": "kidneybeans",
+      "region": "EUROPE",
+      "source": "ESA_RDM:2021_nld_lpis_poly_110",
+      "rdm_props": {
+        "ewoc_code": 1105010017,
+        "irrigation_status": 0
+      }
+    },
+    {
+      "lat": 53.20908,
+      "lon": 13.26707,
+      "year": 2023,
+      "label": "rapeseed",
+      "region": "EUROPE",
+      "source": "ESA_RDM:2023_deu_eurocropsbb_poly_110",
+      "rdm_props": {
+        "ewoc_code": 1106000031,
+        "irrigation_status": 0
+      }
+    },
+    {
+      "lat": 53.47764,
+      "lon": 13.85474,
+      "year": 2023,
+      "label": "rapeseed",
+      "region": "EUROPE",
+      "source": "ESA_RDM:2023_deu_eurocropsbb_poly_110",
+      "rdm_props": {
+        "ewoc_code": 1106000031,
+        "irrigation_status": 0
+      }
+    },
+    {
+      "lat": 53.44637,
+      "lon": 13.85047,
+      "year": 2023,
+      "label": "rapeseed",
+      "region": "EUROPE",
+      "source": "ESA_RDM:2023_deu_eurocropsbb_poly_110",
+      "rdm_props": {
+        "ewoc_code": 1106000031,
+        "irrigation_status": 0
+      }
+    },
+    {
+      "lat": 53.39556,
+      "lon": 13.73121,
+      "year": 2023,
+      "label": "rapeseed",
+      "region": "EUROPE",
+      "source": "ESA_RDM:2023_deu_eurocropsbb_poly_110",
+      "rdm_props": {
+        "ewoc_code": 1106000031,
+        "irrigation_status": 0
+      }
+    },
+    {
+      "lat": 53.26176,
+      "lon": 14.17967,
+      "year": 2023,
+      "label": "rapeseed",
+      "region": "EUROPE",
+      "source": "ESA_RDM:2023_deu_eurocropsbb_poly_110",
+      "rdm_props": {
+        "ewoc_code": 1106000031,
+        "irrigation_status": 0
+      }
+    },
+    {
+      "lat": 53.09129,
+      "lon": 14.19569,
+      "year": 2023,
+      "label": "rapeseed",
+      "region": "EUROPE",
+      "source": "ESA_RDM:2023_deu_eurocropsbb_poly_110",
+      "rdm_props": {
+        "ewoc_code": 1106000031,
+        "irrigation_status": 0
+      }
+    },
+    {
+      "lat": 31.41437,
+      "lon": -8.44058,
+      "year": 2023,
+      "label": "orange",
+      "region": "GLOBAL",
+      "source": "ESA_RDM:2023_mar_um6p_poly_111",
+      "rdm_props": {
+        "ewoc_code": 1201030000,
+        "irrigation_status": 215
+      }
+    },
+    {
+      "lat": 31.41748,
+      "lon": -8.45112,
+      "year": 2023,
+      "label": "orange",
+      "region": "GLOBAL",
+      "source": "ESA_RDM:2023_mar_um6p_poly_111",
+      "rdm_props": {
+        "ewoc_code": 1201030000,
+        "irrigation_status": 215
+      }
+    },
+    {
+      "lat": 31.39411,
+      "lon": -8.52869,
+      "year": 2023,
+      "label": "chickpea",
+      "region": "GLOBAL",
+      "source": "ESA_RDM:2023_mar_um6p_poly_111",
+      "rdm_props": {
+        "ewoc_code": 1105010020,
+        "irrigation_status": 215
+      }
+    },
+    {
+      "lat": 31.44042,
+      "lon": -8.61089,
+      "year": 2023,
+      "label": "chickpea",
+      "region": "GLOBAL",
+      "source": "ESA_RDM:2023_mar_um6p_poly_111",
+      "rdm_props": {
+        "ewoc_code": 1105010020,
+        "irrigation_status": 215
+      }
+    },
+    {
+      "lat": 31.44613,
+      "lon": -8.62723,
+      "year": 2023,
+      "label": "orange",
+      "region": "GLOBAL",
+      "source": "ESA_RDM:2023_mar_um6p_poly_111",
+      "rdm_props": {
+        "ewoc_code": 1201030000,
+        "irrigation_status": 215
+      }
+    },
+    {
+      "lat": 31.42904,
+      "lon": -8.62763,
+      "year": 2023,
+      "label": "chickpea",
+      "region": "GLOBAL",
+      "source": "ESA_RDM:2023_mar_um6p_poly_111",
+      "rdm_props": {
+        "ewoc_code": 1105010020,
+        "irrigation_status": 215
+      }
+    },
+    {
+      "lat": 30.5848,
+      "lon": 31.30578,
+      "year": 2019,
+      "label": "orange",
+      "region": "GLOBAL",
+      "source": "ESA_RDM:2019_egy_faowapor2_poly_111",
+      "rdm_props": {
+        "ewoc_code": 1201030040,
+        "irrigation_status": 200
+      }
+    },
+    {
+      "lat": 30.58343,
+      "lon": 31.30595,
+      "year": 2019,
+      "label": "orange",
+      "region": "GLOBAL",
+      "source": "ESA_RDM:2019_egy_faowapor2_poly_111",
+      "rdm_props": {
+        "ewoc_code": 1201030040,
+        "irrigation_status": 200
+      }
+    },
+    {
+      "lat": 30.58385,
+      "lon": 31.30686,
+      "year": 2019,
+      "label": "orange",
+      "region": "GLOBAL",
+      "source": "ESA_RDM:2019_egy_faowapor2_poly_111",
+      "rdm_props": {
+        "ewoc_code": 1201030040,
+        "irrigation_status": 200
+      }
+    },
+    {
+      "lat": 30.55961,
+      "lon": 31.32713,
+      "year": 2019,
+      "label": "orange",
+      "region": "GLOBAL",
+      "source": "ESA_RDM:2019_egy_faowapor2_poly_111",
+      "rdm_props": {
+        "ewoc_code": 1201030040,
+        "irrigation_status": 200
+      }
+    },
+    {
+      "lat": 30.55993,
+      "lon": 31.32427,
+      "year": 2019,
+      "label": "orange",
+      "region": "GLOBAL",
+      "source": "ESA_RDM:2019_egy_faowapor2_poly_111",
+      "rdm_props": {
+        "ewoc_code": 1201030040,
+        "irrigation_status": 200
+      }
+    },
+    {
+      "lat": 30.4964,
+      "lon": 31.31816,
+      "year": 2019,
+      "label": "orange",
+      "region": "GLOBAL",
+      "source": "ESA_RDM:2019_egy_faowapor2_poly_111",
+      "rdm_props": {
+        "ewoc_code": 1201030040,
+        "irrigation_status": 200
+      }
+    },
+    {
+      "lat": 30.49688,
+      "lon": 31.31745,
+      "year": 2019,
+      "label": "orange",
+      "region": "GLOBAL",
+      "source": "ESA_RDM:2019_egy_faowapor2_poly_111",
+      "rdm_props": {
+        "ewoc_code": 1201030040,
+        "irrigation_status": 200
+      }
+    },
+    {
+      "lat": 30.50008,
+      "lon": 31.27569,
+      "year": 2019,
+      "label": "orange",
+      "region": "GLOBAL",
+      "source": "ESA_RDM:2019_egy_faowapor2_poly_111",
+      "rdm_props": {
+        "ewoc_code": 1201030040,
+        "irrigation_status": 200
+      }
+    },
+    {
+      "lat": 30.50171,
+      "lon": 31.27738,
+      "year": 2019,
+      "label": "orange",
+      "region": "GLOBAL",
+      "source": "ESA_RDM:2019_egy_faowapor2_poly_111",
+      "rdm_props": {
+        "ewoc_code": 1201030040,
+        "irrigation_status": 200
+      }
+    },
+    {
+      "lat": 30.52465,
+      "lon": 31.257,
+      "year": 2019,
+      "label": "watermelon",
+      "region": "GLOBAL",
+      "source": "ESA_RDM:2019_egy_faowapor2_poly_111",
+      "rdm_props": {
+        "ewoc_code": 1103020040,
+        "irrigation_status": 200
+      }
+    },
+    {
+      "lat": 30.5244,
+      "lon": 31.25766,
+      "year": 2019,
+      "label": "watermelon",
+      "region": "GLOBAL",
+      "source": "ESA_RDM:2019_egy_faowapor2_poly_111",
+      "rdm_props": {
+        "ewoc_code": 1103020040,
+        "irrigation_status": 200
+      }
+    },
+    {
+      "lat": 30.52263,
+      "lon": 31.27552,
+      "year": 2019,
+      "label": "orange",
+      "region": "GLOBAL",
+      "source": "ESA_RDM:2019_egy_faowapor2_poly_111",
+      "rdm_props": {
+        "ewoc_code": 1201030040,
+        "irrigation_status": 200
+      }
+    },
+    {
+      "lat": 30.5237,
+      "lon": 31.27683,
+      "year": 2019,
+      "label": "watermelon",
+      "region": "GLOBAL",
+      "source": "ESA_RDM:2019_egy_faowapor2_poly_111",
+      "rdm_props": {
+        "ewoc_code": 1103020040,
+        "irrigation_status": 200
+      }
+    },
+    {
+      "lat": 30.47638,
+      "lon": 31.23931,
+      "year": 2019,
+      "label": "orange",
+      "region": "GLOBAL",
+      "source": "ESA_RDM:2019_egy_faowapor2_poly_111",
+      "rdm_props": {
+        "ewoc_code": 1201030040,
+        "irrigation_status": 200
+      }
+    },
+    {
+      "lat": 30.47242,
+      "lon": 31.23976,
+      "year": 2019,
+      "label": "orange",
+      "region": "GLOBAL",
+      "source": "ESA_RDM:2019_egy_faowapor2_poly_111",
+      "rdm_props": {
+        "ewoc_code": 1201030040,
+        "irrigation_status": 200
+      }
+    },
+    {
+      "lat": 30.46841,
+      "lon": 31.23832,
+      "year": 2019,
+      "label": "orange",
+      "region": "GLOBAL",
+      "source": "ESA_RDM:2019_egy_faowapor2_poly_111",
+      "rdm_props": {
+        "ewoc_code": 1201030040,
+        "irrigation_status": 200
+      }
+    },
+    {
+      "lat": 30.50444,
+      "lon": 31.28986,
+      "year": 2019,
+      "label": "orange",
+      "region": "GLOBAL",
+      "source": "ESA_RDM:2019_egy_faowapor2_poly_111",
+      "rdm_props": {
+        "ewoc_code": 1201030040,
+        "irrigation_status": 200
+      }
+    },
+    {
+      "lat": 30.49439,
+      "lon": 31.24088,
+      "year": 2019,
+      "label": "orange",
+      "region": "GLOBAL",
+      "source": "ESA_RDM:2019_egy_faowapor2_poly_111",
+      "rdm_props": {
+        "ewoc_code": 1201030040,
+        "irrigation_status": 200
+      }
+    },
+    {
+      "lat": 30.49427,
+      "lon": 31.24293,
+      "year": 2019,
+      "label": "orange",
+      "region": "GLOBAL",
+      "source": "ESA_RDM:2019_egy_faowapor2_poly_111",
+      "rdm_props": {
+        "ewoc_code": 1201030040,
+        "irrigation_status": 200
+      }
+    },
+    {
+      "lat": 30.48913,
+      "lon": 31.25007,
+      "year": 2019,
+      "label": "orange",
+      "region": "GLOBAL",
+      "source": "ESA_RDM:2019_egy_faowapor2_poly_111",
+      "rdm_props": {
+        "ewoc_code": 1201030040,
+        "irrigation_status": 200
+      }
+    },
+    {
+      "lat": 30.48825,
+      "lon": 31.25101,
+      "year": 2019,
+      "label": "orange",
+      "region": "GLOBAL",
+      "source": "ESA_RDM:2019_egy_faowapor2_poly_111",
+      "rdm_props": {
+        "ewoc_code": 1201030040,
+        "irrigation_status": 200
+      }
+    },
+    {
+      "lat": 30.48627,
+      "lon": 31.25474,
+      "year": 2019,
+      "label": "orange",
+      "region": "GLOBAL",
+      "source": "ESA_RDM:2019_egy_faowapor2_poly_111",
+      "rdm_props": {
+        "ewoc_code": 1201030040,
+        "irrigation_status": 200
+      }
+    },
+    {
+      "lat": 30.48579,
+      "lon": 31.25628,
+      "year": 2019,
+      "label": "orange",
+      "region": "GLOBAL",
+      "source": "ESA_RDM:2019_egy_faowapor2_poly_111",
+      "rdm_props": {
+        "ewoc_code": 1201030040,
+        "irrigation_status": 200
+      }
+    },
+    {
+      "lat": 30.55908,
+      "lon": 31.31621,
+      "year": 2019,
+      "label": "orange",
+      "region": "GLOBAL",
+      "source": "ESA_RDM:2019_egy_faowapor2_poly_111",
+      "rdm_props": {
+        "ewoc_code": 1201030040,
+        "irrigation_status": 200
+      }
+    },
+    {
+      "lat": 30.55971,
+      "lon": 31.31842,
+      "year": 2019,
+      "label": "orange",
+      "region": "GLOBAL",
+      "source": "ESA_RDM:2019_egy_faowapor2_poly_111",
+      "rdm_props": {
+        "ewoc_code": 1201030040,
+        "irrigation_status": 200
+      }
+    },
+    {
+      "lat": 30.55215,
+      "lon": 31.31002,
+      "year": 2019,
+      "label": "watermelon",
+      "region": "GLOBAL",
+      "source": "ESA_RDM:2019_egy_faowapor2_poly_111",
+      "rdm_props": {
+        "ewoc_code": 1103020040,
+        "irrigation_status": 200
+      }
+    },
+    {
+      "lat": 40.47836,
+      "lon": 71.50907,
+      "year": 2018,
+      "label": "cotton",
+      "region": "GLOBAL",
+      "source": "ESA_RDM:2018_as_cawaproject_poly_111",
+      "rdm_props": {
+        "ewoc_code": 1108000010,
+        "irrigation_status": 200
+      }
+    },
+    {
+      "lat": 40.47608,
+      "lon": 71.51564,
+      "year": 2018,
+      "label": "cotton",
+      "region": "GLOBAL",
+      "source": "ESA_RDM:2018_as_cawaproject_poly_111",
+      "rdm_props": {
+        "ewoc_code": 1108000010,
+        "irrigation_status": 200
+      }
+    },
+    {
+      "lat": 40.47568,
+      "lon": 71.52086,
+      "year": 2018,
+      "label": "cotton",
+      "region": "GLOBAL",
+      "source": "ESA_RDM:2018_as_cawaproject_poly_111",
+      "rdm_props": {
+        "ewoc_code": 1108000010,
+        "irrigation_status": 200
+      }
+    },
+    {
+      "lat": 40.47253,
+      "lon": 71.51619,
+      "year": 2018,
+      "label": "cotton",
+      "region": "GLOBAL",
+      "source": "ESA_RDM:2018_as_cawaproject_poly_111",
+      "rdm_props": {
+        "ewoc_code": 1108000010,
+        "irrigation_status": 200
+      }
+    },
+    {
+      "lat": 40.46874,
+      "lon": 71.51807,
+      "year": 2018,
+      "label": "cotton",
+      "region": "GLOBAL",
+      "source": "ESA_RDM:2018_as_cawaproject_poly_111",
+      "rdm_props": {
+        "ewoc_code": 1108000010,
+        "irrigation_status": 200
+      }
+    },
+    {
+      "lat": 40.463,
+      "lon": 71.51448,
+      "year": 2018,
+      "label": "cotton",
+      "region": "GLOBAL",
+      "source": "ESA_RDM:2018_as_cawaproject_poly_111",
+      "rdm_props": {
+        "ewoc_code": 1108000010,
+        "irrigation_status": 200
+      }
+    },
+    {
+      "lat": 40.45483,
+      "lon": 71.54969,
+      "year": 2018,
+      "label": "cotton",
+      "region": "GLOBAL",
+      "source": "ESA_RDM:2018_as_cawaproject_poly_111",
+      "rdm_props": {
+        "ewoc_code": 1108000010,
+        "irrigation_status": 200
+      }
+    },
+    {
+      "lat": 40.45398,
+      "lon": 71.54137,
+      "year": 2018,
+      "label": "cotton",
+      "region": "GLOBAL",
+      "source": "ESA_RDM:2018_as_cawaproject_poly_111",
+      "rdm_props": {
+        "ewoc_code": 1108000010,
+        "irrigation_status": 200
+      }
+    },
+    {
+      "lat": 40.44573,
+      "lon": 71.53923,
+      "year": 2018,
+      "label": "cotton",
+      "region": "GLOBAL",
+      "source": "ESA_RDM:2018_as_cawaproject_poly_111",
+      "rdm_props": {
+        "ewoc_code": 1108000010,
+        "irrigation_status": 200
+      }
+    },
+    {
+      "lat": 40.4352,
+      "lon": 71.53689,
+      "year": 2018,
+      "label": "cotton",
+      "region": "GLOBAL",
+      "source": "ESA_RDM:2018_as_cawaproject_poly_111",
+      "rdm_props": {
+        "ewoc_code": 1108000010,
+        "irrigation_status": 200
+      }
+    },
+    {
+      "lat": 40.42881,
+      "lon": 71.53571,
+      "year": 2018,
+      "label": "cotton",
+      "region": "GLOBAL",
+      "source": "ESA_RDM:2018_as_cawaproject_poly_111",
+      "rdm_props": {
+        "ewoc_code": 1108000010,
+        "irrigation_status": 200
+      }
+    },
+    {
+      "lat": 40.43685,
+      "lon": 71.54184,
+      "year": 2018,
+      "label": "cotton",
+      "region": "GLOBAL",
+      "source": "ESA_RDM:2018_as_cawaproject_poly_111",
+      "rdm_props": {
+        "ewoc_code": 1108000010,
+        "irrigation_status": 200
+      }
+    },
+    {
+      "lat": 40.43487,
+      "lon": 71.5408,
+      "year": 2018,
+      "label": "cotton",
+      "region": "GLOBAL",
+      "source": "ESA_RDM:2018_as_cawaproject_poly_111",
+      "rdm_props": {
+        "ewoc_code": 1108000010,
+        "irrigation_status": 200
+      }
+    },
+    {
+      "lat": 40.43196,
+      "lon": 71.53956,
+      "year": 2018,
+      "label": "cotton",
+      "region": "GLOBAL",
+      "source": "ESA_RDM:2018_as_cawaproject_poly_111",
+      "rdm_props": {
+        "ewoc_code": 1108000010,
+        "irrigation_status": 200
+      }
+    },
+    {
+      "lat": 40.41762,
+      "lon": 71.51898,
+      "year": 2018,
+      "label": "cotton",
+      "region": "GLOBAL",
+      "source": "ESA_RDM:2018_as_cawaproject_poly_111",
+      "rdm_props": {
+        "ewoc_code": 1108000010,
+        "irrigation_status": 200
+      }
+    },
+    {
+      "lat": 40.41259,
+      "lon": 71.51737,
+      "year": 2018,
+      "label": "cotton",
+      "region": "GLOBAL",
+      "source": "ESA_RDM:2018_as_cawaproject_poly_111",
+      "rdm_props": {
+        "ewoc_code": 1108000010,
+        "irrigation_status": 200
+      }
+    },
+    {
+      "lat": 40.40847,
+      "lon": 71.51688,
+      "year": 2018,
+      "label": "cotton",
+      "region": "GLOBAL",
+      "source": "ESA_RDM:2018_as_cawaproject_poly_111",
+      "rdm_props": {
+        "ewoc_code": 1108000010,
+        "irrigation_status": 200
+      }
+    },
+    {
+      "lat": 40.40816,
+      "lon": 71.51972,
+      "year": 2018,
+      "label": "cotton",
+      "region": "GLOBAL",
+      "source": "ESA_RDM:2018_as_cawaproject_poly_111",
+      "rdm_props": {
+        "ewoc_code": 1108000010,
+        "irrigation_status": 200
+      }
+    },
+    {
+      "lat": 40.4064,
+      "lon": 71.52469,
+      "year": 2018,
+      "label": "cotton",
+      "region": "GLOBAL",
+      "source": "ESA_RDM:2018_as_cawaproject_poly_111",
+      "rdm_props": {
+        "ewoc_code": 1108000010,
+        "irrigation_status": 200
+      }
+    },
+    {
+      "lat": 40.4077,
+      "lon": 71.52825,
+      "year": 2018,
+      "label": "cotton",
+      "region": "GLOBAL",
+      "source": "ESA_RDM:2018_as_cawaproject_poly_111",
+      "rdm_props": {
+        "ewoc_code": 1108000010,
+        "irrigation_status": 200
+      }
+    },
+    {
+      "lat": 40.51022,
+      "lon": 71.78124,
+      "year": 2018,
+      "label": "cotton",
+      "region": "GLOBAL",
+      "source": "ESA_RDM:2018_as_cawaproject_poly_111",
+      "rdm_props": {
+        "ewoc_code": 1108000010,
+        "irrigation_status": 200
+      }
+    },
+    {
+      "lat": 40.5663,
+      "lon": 71.17417,
+      "year": 2018,
+      "label": "cotton",
+      "region": "GLOBAL",
+      "source": "ESA_RDM:2018_as_cawaproject_poly_111",
+      "rdm_props": {
+        "ewoc_code": 1108000010,
+        "irrigation_status": 200
+      }
+    },
+    {
+      "lat": 28.40966,
+      "lon": 81.11302,
+      "year": 2023,
+      "label": "lentil",
+      "region": "INDIA",
+      "source": "ESA_RDM:2023_npl_cimmyt_poly_110",
+      "rdm_props": {
+        "ewoc_code": 1105000030,
+        "irrigation_status": 0
+      }
+    },
+    {
+      "lat": 28.40397,
+      "lon": 81.15727,
+      "year": 2023,
+      "label": "lentil",
+      "region": "INDIA",
+      "source": "ESA_RDM:2023_npl_cimmyt_poly_110",
+      "rdm_props": {
+        "ewoc_code": 1105000030,
+        "irrigation_status": 0
+      }
+    },
+    {
+      "lat": 28.44301,
+      "lon": 81.11462,
+      "year": 2023,
+      "label": "lentil",
+      "region": "INDIA",
+      "source": "ESA_RDM:2023_npl_cimmyt_poly_110",
+      "rdm_props": {
+        "ewoc_code": 1105000030,
+        "irrigation_status": 0
+      }
+    },
+    {
+      "lat": 28.43586,
+      "lon": 81.1289,
+      "year": 2023,
+      "label": "lentil",
+      "region": "INDIA",
+      "source": "ESA_RDM:2023_npl_cimmyt_poly_110",
+      "rdm_props": {
+        "ewoc_code": 1105000030,
+        "irrigation_status": 0
+      }
+    },
+    {
+      "lat": 28.46803,
+      "lon": 81.14265,
+      "year": 2023,
+      "label": "lentil",
+      "region": "INDIA",
+      "source": "ESA_RDM:2023_npl_cimmyt_poly_110",
+      "rdm_props": {
+        "ewoc_code": 1105000030,
+        "irrigation_status": 0
+      }
+    },
+    {
+      "lat": 28.46818,
+      "lon": 81.13224,
+      "year": 2023,
+      "label": "lentil",
+      "region": "INDIA",
+      "source": "ESA_RDM:2023_npl_cimmyt_poly_110",
+      "rdm_props": {
+        "ewoc_code": 1105000030,
+        "irrigation_status": 0
+      }
+    },
+    {
+      "lat": 28.27885,
+      "lon": 81.26336,
+      "year": 2023,
+      "label": "lentil",
+      "region": "INDIA",
+      "source": "ESA_RDM:2023_npl_cimmyt_poly_110",
+      "rdm_props": {
+        "ewoc_code": 1105000030,
+        "irrigation_status": 0
+      }
+    },
+    {
+      "lat": 28.39537,
+      "lon": 81.17157,
+      "year": 2023,
+      "label": "lentil",
+      "region": "INDIA",
+      "source": "ESA_RDM:2023_npl_cimmyt_poly_110",
+      "rdm_props": {
+        "ewoc_code": 1105000030,
+        "irrigation_status": 0
+      }
+    },
+    {
+      "lat": 28.27657,
+      "lon": 81.2653,
+      "year": 2023,
+      "label": "lentil",
+      "region": "INDIA",
+      "source": "ESA_RDM:2023_npl_cimmyt_poly_110",
+      "rdm_props": {
+        "ewoc_code": 1105000030,
+        "irrigation_status": 0
+      }
+    },
+    {
+      "lat": 28.25149,
+      "lon": 81.28937,
+      "year": 2023,
+      "label": "chickpea",
+      "region": "INDIA",
+      "source": "ESA_RDM:2023_npl_cimmyt_poly_110",
+      "rdm_props": {
+        "ewoc_code": 1105010020,
+        "irrigation_status": 0
+      }
+    },
+    {
+      "lat": 28.50757,
+      "lon": 81.1736,
+      "year": 2023,
+      "label": "lentil",
+      "region": "INDIA",
+      "source": "ESA_RDM:2023_npl_cimmyt_poly_110",
+      "rdm_props": {
+        "ewoc_code": 1105000030,
+        "irrigation_status": 0
+      }
+    },
+    {
+      "lat": 28.43617,
+      "lon": 81.33239,
+      "year": 2023,
+      "label": "lentil",
+      "region": "INDIA",
+      "source": "ESA_RDM:2023_npl_cimmyt_poly_110",
+      "rdm_props": {
+        "ewoc_code": 1105000030,
+        "irrigation_status": 0
+      }
+    },
+    {
+      "lat": 28.23608,
+      "lon": 81.45574,
+      "year": 2023,
+      "label": "chickpea",
+      "region": "INDIA",
+      "source": "ESA_RDM:2023_npl_cimmyt_poly_110",
+      "rdm_props": {
+        "ewoc_code": 1105010020,
+        "irrigation_status": 0
+      }
+    },
+    {
+      "lat": 28.48039,
+      "lon": 81.17451,
+      "year": 2023,
+      "label": "lentil",
+      "region": "INDIA",
+      "source": "ESA_RDM:2023_npl_cimmyt_poly_110",
+      "rdm_props": {
+        "ewoc_code": 1105000030,
+        "irrigation_status": 0
+      }
+    },
+    {
+      "lat": 28.47067,
+      "lon": 81.17386,
+      "year": 2023,
+      "label": "lentil",
+      "region": "INDIA",
+      "source": "ESA_RDM:2023_npl_cimmyt_poly_110",
+      "rdm_props": {
+        "ewoc_code": 1105000030,
+        "irrigation_status": 0
+      }
+    },
+    {
+      "lat": 28.46607,
+      "lon": 81.17864,
+      "year": 2023,
+      "label": "lentil",
+      "region": "INDIA",
+      "source": "ESA_RDM:2023_npl_cimmyt_poly_110",
+      "rdm_props": {
+        "ewoc_code": 1105000030,
+        "irrigation_status": 0
+      }
+    },
+    {
+      "lat": 28.52239,
+      "lon": 81.09679,
+      "year": 2023,
+      "label": "lentil",
+      "region": "INDIA",
+      "source": "ESA_RDM:2023_npl_cimmyt_poly_110",
+      "rdm_props": {
+        "ewoc_code": 1105000030,
+        "irrigation_status": 0
+      }
+    },
+    {
+      "lat": 28.52274,
+      "lon": 81.09852,
+      "year": 2023,
+      "label": "lentil",
+      "region": "INDIA",
+      "source": "ESA_RDM:2023_npl_cimmyt_poly_110",
+      "rdm_props": {
+        "ewoc_code": 1105000030,
+        "irrigation_status": 0
+      }
+    },
+    {
+      "lat": 28.5265,
+      "lon": 81.10321,
+      "year": 2023,
+      "label": "lentil",
+      "region": "INDIA",
+      "source": "ESA_RDM:2023_npl_cimmyt_poly_110",
+      "rdm_props": {
+        "ewoc_code": 1105000030,
+        "irrigation_status": 0
+      }
+    },
+    {
+      "lat": 28.52474,
+      "lon": 81.10097,
+      "year": 2023,
+      "label": "chickpea",
+      "region": "INDIA",
+      "source": "ESA_RDM:2023_npl_cimmyt_poly_110",
+      "rdm_props": {
+        "ewoc_code": 1105010020,
+        "irrigation_status": 0
+      }
+    },
+    {
+      "lat": 28.54086,
+      "lon": 81.07913,
+      "year": 2023,
+      "label": "lentil",
+      "region": "INDIA",
+      "source": "ESA_RDM:2023_npl_cimmyt_poly_110",
+      "rdm_props": {
+        "ewoc_code": 1105000030,
+        "irrigation_status": 0
+      }
+    },
+    {
+      "lat": 28.54423,
+      "lon": 81.07515,
+      "year": 2023,
+      "label": "lentil",
+      "region": "INDIA",
+      "source": "ESA_RDM:2023_npl_cimmyt_poly_110",
+      "rdm_props": {
+        "ewoc_code": 1105000030,
+        "irrigation_status": 0
+      }
+    },
+    {
+      "lat": 28.54931,
+      "lon": 81.07982,
+      "year": 2023,
+      "label": "lentil",
+      "region": "INDIA",
+      "source": "ESA_RDM:2023_npl_cimmyt_poly_110",
+      "rdm_props": {
+        "ewoc_code": 1105000030,
+        "irrigation_status": 0
+      }
+    },
+    {
+      "lat": 28.55093,
+      "lon": 81.07993,
+      "year": 2023,
+      "label": "lentil",
+      "region": "INDIA",
+      "source": "ESA_RDM:2023_npl_cimmyt_poly_110",
+      "rdm_props": {
+        "ewoc_code": 1105000030,
+        "irrigation_status": 0
+      }
+    },
+    {
+      "lat": 28.5324,
+      "lon": 81.05662,
+      "year": 2023,
+      "label": "lentil",
+      "region": "INDIA",
+      "source": "ESA_RDM:2023_npl_cimmyt_poly_110",
+      "rdm_props": {
+        "ewoc_code": 1105000030,
+        "irrigation_status": 0
+      }
+    },
+    {
+      "lat": 28.58302,
+      "lon": 81.00736,
+      "year": 2023,
+      "label": "chickpea",
+      "region": "INDIA",
+      "source": "ESA_RDM:2023_npl_cimmyt_poly_110",
+      "rdm_props": {
+        "ewoc_code": 1105010040,
+        "irrigation_status": 0
+      }
+    },
+    {
+      "lat": 27.80889,
+      "lon": 82.58127,
+      "year": 2023,
+      "label": "chickpea",
+      "region": "INDIA",
+      "source": "ESA_RDM:2023_npl_cimmyt_poly_110",
+      "rdm_props": {
+        "ewoc_code": 1105010040,
+        "irrigation_status": 0
+      }
+    },
+    {
+      "lat": 27.86033,
+      "lon": 82.56774,
+      "year": 2023,
+      "label": "chickpea",
+      "region": "INDIA",
+      "source": "ESA_RDM:2023_npl_cimmyt_poly_110",
+      "rdm_props": {
+        "ewoc_code": 1105010020,
+        "irrigation_status": 0
+      }
+    },
+    {
+      "lat": 28.16597,
+      "lon": 83.95808,
+      "year": 2023,
+      "label": "orange",
+      "region": "INDIA",
+      "source": "ESA_RDM:2023_npl_cimmyt_poly_110",
+      "rdm_props": {
+        "ewoc_code": 1201030040,
+        "irrigation_status": 0
+      }
+    },
+    {
+      "lat": 28.16364,
+      "lon": 83.95792,
+      "year": 2023,
+      "label": "orange",
+      "region": "INDIA",
+      "source": "ESA_RDM:2023_npl_cimmyt_poly_110",
+      "rdm_props": {
+        "ewoc_code": 1201030040,
+        "irrigation_status": 0
+      }
+    },
+    {
+      "lat": 28.18047,
+      "lon": 83.98674,
+      "year": 2023,
+      "label": "potato",
+      "region": "INDIA",
+      "source": "ESA_RDM:2023_npl_cimmyt_poly_110",
+      "rdm_props": {
+        "ewoc_code": 1102000020,
+        "irrigation_status": 0
+      }
+    },
+    {
+      "lat": 28.18074,
+      "lon": 83.9821,
+      "year": 2023,
+      "label": "watermelon",
+      "region": "INDIA",
+      "source": "ESA_RDM:2023_npl_cimmyt_poly_110",
+      "rdm_props": {
+        "ewoc_code": 1103020040,
+        "irrigation_status": 0
+      }
+    },
+    {
+      "lat": 28.22849,
+      "lon": 83.97146,
+      "year": 2023,
+      "label": "kidneybeans",
+      "region": "INDIA",
+      "source": "ESA_RDM:2023_npl_cimmyt_poly_110",
+      "rdm_props": {
+        "ewoc_code": 1105010010,
+        "irrigation_status": 0
+      }
+    },
+    {
+      "lat": 28.22387,
+      "lon": 83.96966,
+      "year": 2023,
+      "label": "watermelon",
+      "region": "INDIA",
+      "source": "ESA_RDM:2023_npl_cimmyt_poly_110",
+      "rdm_props": {
+        "ewoc_code": 1103020040,
+        "irrigation_status": 0
+      }
+    },
+    {
+      "lat": 28.21658,
+      "lon": 83.96945,
+      "year": 2023,
+      "label": "kidneybeans",
+      "region": "INDIA",
+      "source": "ESA_RDM:2023_npl_cimmyt_poly_110",
+      "rdm_props": {
+        "ewoc_code": 1105010010,
+        "irrigation_status": 0
+      }
+    },
+    {
+      "lat": 28.18395,
+      "lon": 83.96531,
+      "year": 2023,
+      "label": "watermelon",
+      "region": "INDIA",
+      "source": "ESA_RDM:2023_npl_cimmyt_poly_110",
+      "rdm_props": {
+        "ewoc_code": 1103020040,
+        "irrigation_status": 0
+      }
+    },
+    {
+      "lat": 28.18783,
+      "lon": 83.97326,
+      "year": 2023,
+      "label": "watermelon",
+      "region": "INDIA",
+      "source": "ESA_RDM:2023_npl_cimmyt_poly_110",
+      "rdm_props": {
+        "ewoc_code": 1103020040,
+        "irrigation_status": 0
+      }
+    },
+    {
+      "lat": 28.18551,
+      "lon": 83.97425,
+      "year": 2023,
+      "label": "potato",
+      "region": "INDIA",
+      "source": "ESA_RDM:2023_npl_cimmyt_poly_110",
+      "rdm_props": {
+        "ewoc_code": 1102000020,
+        "irrigation_status": 0
+      }
+    },
+    {
+      "lat": 28.18472,
+      "lon": 83.97196,
+      "year": 2023,
+      "label": "watermelon",
+      "region": "INDIA",
+      "source": "ESA_RDM:2023_npl_cimmyt_poly_110",
+      "rdm_props": {
+        "ewoc_code": 1103020040,
+        "irrigation_status": 0
+      }
+    },
+    {
+      "lat": 28.18141,
+      "lon": 83.97324,
+      "year": 2023,
+      "label": "watermelon",
+      "region": "INDIA",
+      "source": "ESA_RDM:2023_npl_cimmyt_poly_110",
+      "rdm_props": {
+        "ewoc_code": 1103020040,
+        "irrigation_status": 0
+      }
+    },
+    {
+      "lat": 28.18439,
+      "lon": 83.97698,
+      "year": 2023,
+      "label": "potato",
+      "region": "INDIA",
+      "source": "ESA_RDM:2023_npl_cimmyt_poly_110",
+      "rdm_props": {
+        "ewoc_code": 1102000020,
+        "irrigation_status": 0
+      }
+    },
+    {
+      "lat": 28.19284,
+      "lon": 83.99133,
+      "year": 2023,
+      "label": "watermelon",
+      "region": "INDIA",
+      "source": "ESA_RDM:2023_npl_cimmyt_poly_110",
+      "rdm_props": {
+        "ewoc_code": 1103020040,
+        "irrigation_status": 0
+      }
+    },
+    {
+      "lat": 8.20544,
+      "lon": 80.44675,
+      "year": 2021,
+      "label": "watermelon",
+      "region": "INDIA",
+      "source": "ESA_RDM:2021_lka_faowapor1_poly_111",
+      "rdm_props": {
+        "ewoc_code": 1103020040,
+        "irrigation_status": 220
+      }
+    },
+    {
+      "lat": 8.18247,
+      "lon": 80.46983,
+      "year": 2021,
+      "label": "lentil",
+      "region": "INDIA",
+      "source": "ESA_RDM:2021_lka_faowapor1_poly_111",
+      "rdm_props": {
+        "ewoc_code": 1105000030,
+        "irrigation_status": 100
+      }
+    },
+    {
+      "lat": 8.16596,
+      "lon": 80.48453,
+      "year": 2021,
+      "label": "watermelon",
+      "region": "INDIA",
+      "source": "ESA_RDM:2021_lka_faowapor1_poly_111",
+      "rdm_props": {
+        "ewoc_code": 1103020040,
+        "irrigation_status": 220
+      }
+    },
+    {
+      "lat": 8.16951,
+      "lon": 80.48857,
+      "year": 2021,
+      "label": "kidneybeans",
+      "region": "INDIA",
+      "source": "ESA_RDM:2021_lka_faowapor1_poly_111",
+      "rdm_props": {
+        "ewoc_code": 1105010010,
+        "irrigation_status": 220
+      }
+    },
+    {
+      "lat": 8.17012,
+      "lon": 80.48844,
+      "year": 2021,
+      "label": "watermelon",
+      "region": "INDIA",
+      "source": "ESA_RDM:2021_lka_faowapor1_poly_111",
+      "rdm_props": {
+        "ewoc_code": 1103020040,
+        "irrigation_status": 220
+      }
+    },
+    {
+      "lat": 8.14196,
+      "lon": 80.50798,
+      "year": 2021,
+      "label": "lentil",
+      "region": "INDIA",
+      "source": "ESA_RDM:2021_lka_faowapor1_poly_111",
+      "rdm_props": {
+        "ewoc_code": 1105000030,
+        "irrigation_status": 100
+      }
+    },
+    {
+      "lat": 8.17533,
+      "lon": 80.52667,
+      "year": 2021,
+      "label": "watermelon",
+      "region": "INDIA",
+      "source": "ESA_RDM:2021_lka_faowapor1_poly_111",
+      "rdm_props": {
+        "ewoc_code": 1103020040,
+        "irrigation_status": 100
+      }
+    },
+    {
+      "lat": 8.21897,
+      "lon": 80.51203,
+      "year": 2021,
+      "label": "lentil",
+      "region": "INDIA",
+      "source": "ESA_RDM:2021_lka_faowapor1_poly_111",
+      "rdm_props": {
+        "ewoc_code": 1105000030,
+        "irrigation_status": 100
+      }
+    },
+    {
+      "lat": 8.22163,
+      "lon": 80.51297,
+      "year": 2021,
+      "label": "lentil",
+      "region": "INDIA",
+      "source": "ESA_RDM:2021_lka_faowapor1_poly_111",
+      "rdm_props": {
+        "ewoc_code": 1105000030,
+        "irrigation_status": 100
+      }
+    },
+    {
+      "lat": 8.51584,
+      "lon": 80.25753,
+      "year": 2021,
+      "label": "lentil",
+      "region": "INDIA",
+      "source": "ESA_RDM:2021_lka_faowapor1_poly_111",
+      "rdm_props": {
+        "ewoc_code": 1105000030,
+        "irrigation_status": 100
+      }
+    },
+    {
+      "lat": 8.50968,
+      "lon": 80.26867,
+      "year": 2021,
+      "label": "lentil",
+      "region": "INDIA",
+      "source": "ESA_RDM:2021_lka_faowapor1_poly_111",
+      "rdm_props": {
+        "ewoc_code": 1105000030,
+        "irrigation_status": 100
+      }
+    },
+    {
+      "lat": 8.51436,
+      "lon": 80.28198,
+      "year": 2021,
+      "label": "lentil",
+      "region": "INDIA",
+      "source": "ESA_RDM:2021_lka_faowapor1_poly_111",
+      "rdm_props": {
+        "ewoc_code": 1105000030,
+        "irrigation_status": 100
+      }
+    },
+    {
+      "lat": 8.512,
+      "lon": 80.2863,
+      "year": 2021,
+      "label": "lentil",
+      "region": "INDIA",
+      "source": "ESA_RDM:2021_lka_faowapor1_poly_111",
+      "rdm_props": {
+        "ewoc_code": 1105000030,
+        "irrigation_status": 100
+      }
+    },
+    {
+      "lat": 8.49756,
+      "lon": 80.27738,
+      "year": 2021,
+      "label": "lentil",
+      "region": "INDIA",
+      "source": "ESA_RDM:2021_lka_faowapor1_poly_111",
+      "rdm_props": {
+        "ewoc_code": 1105000030,
+        "irrigation_status": 100
+      }
+    },
+    {
+      "lat": 8.46818,
+      "lon": 80.28182,
+      "year": 2021,
+      "label": "lentil",
+      "region": "INDIA",
+      "source": "ESA_RDM:2021_lka_faowapor1_poly_111",
+      "rdm_props": {
+        "ewoc_code": 1105000030,
+        "irrigation_status": 100
+      }
+    },
+    {
+      "lat": 8.47177,
+      "lon": 80.2858,
+      "year": 2021,
+      "label": "lentil",
+      "region": "INDIA",
+      "source": "ESA_RDM:2021_lka_faowapor1_poly_111",
+      "rdm_props": {
+        "ewoc_code": 1105000030,
+        "irrigation_status": 100
+      }
+    },
+    {
+      "lat": 8.47523,
+      "lon": 80.28843,
+      "year": 2021,
+      "label": "lentil",
+      "region": "INDIA",
+      "source": "ESA_RDM:2021_lka_faowapor1_poly_111",
+      "rdm_props": {
+        "ewoc_code": 1105000030,
+        "irrigation_status": 100
+      }
+    },
+    {
+      "lat": 8.45366,
+      "lon": 80.30103,
+      "year": 2021,
+      "label": "lentil",
+      "region": "INDIA",
+      "source": "ESA_RDM:2021_lka_faowapor1_poly_111",
+      "rdm_props": {
+        "ewoc_code": 1105000030,
+        "irrigation_status": 100
+      }
+    },
+    {
+      "lat": 8.45791,
+      "lon": 80.34326,
+      "year": 2021,
+      "label": "lentil",
+      "region": "INDIA",
+      "source": "ESA_RDM:2021_lka_faowapor1_poly_111",
+      "rdm_props": {
+        "ewoc_code": 1105000030,
+        "irrigation_status": 100
+      }
+    },
+    {
+      "lat": 8.48711,
+      "lon": 80.37058,
+      "year": 2021,
+      "label": "lentil",
+      "region": "INDIA",
+      "source": "ESA_RDM:2021_lka_faowapor1_poly_111",
+      "rdm_props": {
+        "ewoc_code": 1105000030,
+        "irrigation_status": 100
+      }
+    },
+    {
+      "lat": 8.48678,
+      "lon": 80.3717,
+      "year": 2021,
+      "label": "watermelon",
+      "region": "INDIA",
+      "source": "ESA_RDM:2021_lka_faowapor1_poly_111",
+      "rdm_props": {
+        "ewoc_code": 1103020040,
+        "irrigation_status": 200
+      }
+    },
+    {
+      "lat": 50.83908,
+      "lon": 5.57819,
+      "year": 2024,
+      "label": "kidneybeans",
+      "region": "EUROPE",
+      "source": "ESA_RDM:2024_bel_lpisflanders_poly_110",
+      "rdm_props": {
+        "ewoc_code": 1105010010,
+        "irrigation_status": 0
+      }
+    },
+    {
+      "lat": 50.84059,
+      "lon": 5.58262,
+      "year": 2024,
+      "label": "chickpea",
+      "region": "EUROPE",
+      "source": "ESA_RDM:2024_bel_lpisflanders_poly_110",
+      "rdm_props": {
+        "ewoc_code": 1105010020,
+        "irrigation_status": 0
+      }
+    },
+    {
+      "lat": 56.50806,
+      "lon": 10.35655,
+      "year": 2021,
+      "label": "rapeseed",
+      "region": "EUROPE",
+      "source": "ESA_RDM:2021_dnk_lpis_poly_110",
+      "rdm_props": {
+        "ewoc_code": 1106000031,
+        "irrigation_status": 0
+      }
+    },
+    {
+      "lat": 57.55702,
+      "lon": 10.00158,
+      "year": 2021,
+      "label": "rapeseed",
+      "region": "EUROPE",
+      "source": "ESA_RDM:2021_dnk_lpis_poly_110",
+      "rdm_props": {
+        "ewoc_code": 1106000031,
+        "irrigation_status": 0
+      }
+    },
+    {
+      "lat": 56.95025,
+      "lon": 10.15488,
+      "year": 2021,
+      "label": "chickpea",
+      "region": "EUROPE",
+      "source": "ESA_RDM:2021_dnk_lpis_poly_110",
+      "rdm_props": {
+        "ewoc_code": 1105010023,
+        "irrigation_status": 0
+      }
+    },
+    {
+      "lat": 55.55864,
+      "lon": 8.87013,
+      "year": 2021,
+      "label": "chickpea",
+      "region": "EUROPE",
+      "source": "ESA_RDM:2021_dnk_lpis_poly_110",
+      "rdm_props": {
+        "ewoc_code": 1105010023,
+        "irrigation_status": 0
+      }
+    },
+    {
+      "lat": 54.73838,
+      "lon": 11.99224,
+      "year": 2021,
+      "label": "chickpea",
+      "region": "EUROPE",
+      "source": "ESA_RDM:2021_dnk_lpis_poly_110",
+      "rdm_props": {
+        "ewoc_code": 1105010020,
+        "irrigation_status": 0
+      }
+    },
+    {
+      "lat": 54.73581,
+      "lon": 11.98742,
+      "year": 2021,
+      "label": "chickpea",
+      "region": "EUROPE",
+      "source": "ESA_RDM:2021_dnk_lpis_poly_110",
+      "rdm_props": {
+        "ewoc_code": 1105010020,
+        "irrigation_status": 0
+      }
+    },
+    {
+      "lat": 55.09458,
+      "lon": 10.73578,
+      "year": 2021,
+      "label": "apple",
+      "region": "EUROPE",
+      "source": "ESA_RDM:2021_dnk_lpis_poly_110",
+      "rdm_props": {
+        "ewoc_code": 1201010020,
+        "irrigation_status": 0
+      }
+    },
+    {
+      "lat": 46.40159,
+      "lon": 30.68908,
+      "year": 2023,
+      "label": "grapes",
+      "region": "UKRAINE",
+      "source": "OSM_Field:227456818",
+      "osm_tags": {}
+    },
+    {
+      "lat": 46.27486,
+      "lon": 30.61414,
+      "year": 2023,
+      "label": "grapes",
+      "region": "UKRAINE",
+      "source": "OSM_Field:227455312",
+      "osm_tags": {}
+    },
+    {
+      "lat": 46.27311,
+      "lon": 30.61366,
+      "year": 2023,
+      "label": "grapes",
+      "region": "UKRAINE",
+      "source": "OSM_Field:227455301",
+      "osm_tags": {}
+    },
+    {
+      "lat": 46.11048,
+      "lon": 30.39147,
+      "year": 2023,
+      "label": "grapes",
+      "region": "UKRAINE",
+      "source": "OSM_Field:217434045",
+      "osm_tags": {}
+    },
+    {
+      "lat": 46.27579,
+      "lon": 30.62597,
+      "year": 2023,
+      "label": "grapes",
+      "region": "UKRAINE",
+      "source": "OSM_Field:227455302",
+      "osm_tags": {}
+    },
+    {
+      "lat": 46.13533,
+      "lon": 30.36165,
+      "year": 2023,
+      "label": "grapes",
+      "region": "UKRAINE",
+      "source": "OSM_Field:53744463",
+      "osm_tags": {}
+    },
+    {
+      "lat": 46.10149,
+      "lon": 30.40004,
+      "year": 2023,
+      "label": "grapes",
+      "region": "UKRAINE",
+      "source": "OSM_Field:217434035",
+      "osm_tags": {}
+    },
+    {
+      "lat": 46.45751,
+      "lon": 30.34371,
+      "year": 2023,
+      "label": "grapes",
+      "region": "UKRAINE",
+      "source": "OSM_Field:374262536",
+      "osm_tags": {}
+    },
+    {
+      "lat": 46.10054,
+      "lon": 30.39256,
+      "year": 2023,
+      "label": "grapes",
+      "region": "UKRAINE",
+      "source": "OSM_Field:217190611",
+      "osm_tags": {}
+    },
+    {
+      "lat": 46.11552,
+      "lon": 30.40541,
+      "year": 2023,
+      "label": "grapes",
+      "region": "UKRAINE",
+      "source": "OSM_Field:217434031",
+      "osm_tags": {}
+    },
+    {
+      "lat": 46.28061,
+      "lon": 30.62472,
+      "year": 2023,
+      "label": "grapes",
+      "region": "UKRAINE",
+      "source": "OSM_Field:227455311",
+      "osm_tags": {}
+    },
+    {
+      "lat": 46.34548,
+      "lon": 30.53083,
+      "year": 2023,
+      "label": "grapes",
+      "region": "UKRAINE",
+      "source": "OSM_Field:379714744",
+      "osm_tags": {}
+    },
+    {
+      "lat": 46.37242,
+      "lon": 30.49574,
+      "year": 2023,
+      "label": "grapes",
+      "region": "UKRAINE",
+      "source": "OSM_Field:449847985",
+      "osm_tags": {}
+    },
+    {
+      "lat": 46.12761,
+      "lon": 30.37195,
+      "year": 2023,
+      "label": "grapes",
+      "region": "UKRAINE",
+      "source": "OSM_Field:53744457",
+      "osm_tags": {}
+    },
+    {
+      "lat": 45.05685,
+      "lon": -0.26428,
+      "year": 2023,
+      "label": "grapes",
+      "region": "EUROPE",
+      "source": "OSM_Field:41647517",
+      "osm_tags": {}
+    },
+    {
+      "lat": 44.71981,
+      "lon": -0.63044,
+      "year": 2023,
+      "label": "grapes",
+      "region": "EUROPE",
+      "source": "OSM_Field:26014103",
+      "osm_tags": {}
+    },
+    {
+      "lat": 44.99221,
+      "lon": -0.70868,
+      "year": 2023,
+      "label": "grapes",
+      "region": "EUROPE",
+      "source": "OSM_Field:28183442",
+      "osm_tags": {}
+    },
+    {
+      "lat": 44.7373,
+      "lon": -0.56953,
+      "year": 2023,
+      "label": "grapes",
+      "region": "EUROPE",
+      "source": "OSM_Field:25974894",
+      "osm_tags": {}
+    },
+    {
+      "lat": 44.59308,
+      "lon": -0.39358,
+      "year": 2023,
+      "label": "grapes",
+      "region": "EUROPE",
+      "source": "OSM_Field:41646029",
+      "osm_tags": {}
+    },
+    {
+      "lat": 44.82192,
+      "lon": -0.64088,
+      "year": 2023,
+      "label": "grapes",
+      "region": "EUROPE",
+      "source": "OSM_Field:25873300",
+      "osm_tags": {}
+    },
+    {
+      "lat": 44.73611,
+      "lon": -0.56807,
+      "year": 2023,
+      "label": "grapes",
+      "region": "EUROPE",
+      "source": "OSM_Field:28499803",
+      "osm_tags": {}
+    },
+    {
+      "lat": 44.72893,
+      "lon": -0.58284,
+      "year": 2023,
+      "label": "grapes",
+      "region": "EUROPE",
+      "source": "OSM_Field:25961999",
+      "osm_tags": {}
+    },
+    {
+      "lat": 45.09258,
+      "lon": -0.47915,
+      "year": 2023,
+      "label": "grapes",
+      "region": "EUROPE",
+      "source": "OSM_Field:41786829",
+      "osm_tags": {}
+    },
+    {
+      "lat": 45.00138,
+      "lon": -0.44422,
+      "year": 2023,
+      "label": "grapes",
+      "region": "EUROPE",
+      "source": "OSM_Field:41768091",
+      "osm_tags": {}
+    },
+    {
+      "lat": 44.72383,
+      "lon": -0.53607,
+      "year": 2023,
+      "label": "grapes",
+      "region": "EUROPE",
+      "source": "OSM_Field:25982287",
+      "osm_tags": {}
+    },
+    {
+      "lat": 44.76089,
+      "lon": -0.59356,
+      "year": 2023,
+      "label": "grapes",
+      "region": "EUROPE",
+      "source": "OSM_Field:25909733",
+      "osm_tags": {}
+    },
+    {
+      "lat": 44.76225,
+      "lon": -0.66295,
+      "year": 2023,
+      "label": "grapes",
+      "region": "EUROPE",
+      "source": "OSM_Field:40827405",
+      "osm_tags": {}
+    },
+    {
+      "lat": 44.86945,
+      "lon": -0.41798,
+      "year": 2023,
+      "label": "grapes",
+      "region": "EUROPE",
+      "source": "OSM_Field:41647766",
+      "osm_tags": {}
+    },
+    {
+      "lat": 33.36848,
+      "lon": -102.07596,
+      "year": 2023,
+      "label": "cotton",
+      "region": "USA",
+      "source": "USDA_CDL:2"
+    },
+    {
+      "lat": 33.29143,
+      "lon": -102.0219,
+      "year": 2023,
+      "label": "cotton",
+      "region": "USA",
+      "source": "USDA_CDL:2"
+    },
+    {
+      "lat": 33.15355,
+      "lon": -101.43893,
+      "year": 2023,
+      "label": "cotton",
+      "region": "USA",
+      "source": "USDA_CDL:2"
+    },
+    {
+      "lat": 33.21539,
+      "lon": -102.2831,
+      "year": 2023,
+      "label": "cotton",
+      "region": "USA",
+      "source": "USDA_CDL:2"
+    },
+    {
+      "lat": 33.91243,
+      "lon": -102.28026,
+      "year": 2023,
+      "label": "cotton",
+      "region": "USA",
+      "source": "USDA_CDL:2"
+    },
+    {
+      "lat": 33.80009,
+      "lon": -101.41086,
+      "year": 2023,
+      "label": "cotton",
+      "region": "USA",
+      "source": "USDA_CDL:2"
+    },
+    {
+      "lat": 33.81146,
+      "lon": -101.8298,
+      "year": 2023,
+      "label": "cotton",
+      "region": "USA",
+      "source": "USDA_CDL:2"
+    },
+    {
+      "lat": 33.4655,
+      "lon": -102.22887,
+      "year": 2023,
+      "label": "cotton",
+      "region": "USA",
+      "source": "USDA_CDL:2"
+    },
+    {
+      "lat": 33.40715,
+      "lon": -101.96127,
+      "year": 2023,
+      "label": "cotton",
+      "region": "USA",
+      "source": "USDA_CDL:2"
+    },
+    {
+      "lat": 33.7504,
+      "lon": -101.72805,
+      "year": 2023,
+      "label": "cotton",
+      "region": "USA",
+      "source": "USDA_CDL:2"
+    },
+    {
+      "lat": 33.66769,
+      "lon": -101.65419,
+      "year": 2023,
+      "label": "cotton",
+      "region": "USA",
+      "source": "USDA_CDL:2"
+    },
+    {
+      "lat": 33.74317,
+      "lon": -102.18128,
+      "year": 2023,
+      "label": "cotton",
+      "region": "USA",
+      "source": "USDA_CDL:2"
+    },
+    {
+      "lat": 33.61099,
+      "lon": -102.28603,
+      "year": 2023,
+      "label": "cotton",
+      "region": "USA",
+      "source": "USDA_CDL:2"
+    },
+    {
+      "lat": 33.40061,
+      "lon": -102.04803,
+      "year": 2023,
+      "label": "cotton",
+      "region": "USA",
+      "source": "USDA_CDL:2"
+    },
+    {
+      "lat": 33.56594,
+      "lon": -102.08676,
+      "year": 2023,
+      "label": "cotton",
+      "region": "USA",
+      "source": "USDA_CDL:2"
+    },
+    {
+      "lat": 33.47271,
+      "lon": -102.03364,
+      "year": 2023,
+      "label": "cotton",
+      "region": "USA",
+      "source": "USDA_CDL:2"
+    },
+    {
+      "lat": 33.68119,
+      "lon": -101.79207,
+      "year": 2023,
+      "label": "cotton",
+      "region": "USA",
+      "source": "USDA_CDL:2"
+    },
+    {
+      "lat": 33.99971,
+      "lon": -101.87518,
+      "year": 2023,
+      "label": "cotton",
+      "region": "USA",
+      "source": "USDA_CDL:2"
+    },
+    {
+      "lat": 33.95639,
+      "lon": -102.01979,
+      "year": 2023,
+      "label": "cotton",
+      "region": "USA",
+      "source": "USDA_CDL:2"
+    },
+    {
+      "lat": 33.54994,
+      "lon": -101.65888,
+      "year": 2023,
+      "label": "cotton",
+      "region": "USA",
+      "source": "USDA_CDL:2"
+    },
+    {
+      "lat": 33.62596,
+      "lon": -102.22199,
+      "year": 2023,
+      "label": "cotton",
+      "region": "USA",
+      "source": "USDA_CDL:2"
+    },
+    {
+      "lat": 33.54939,
+      "lon": -102.24675,
+      "year": 2023,
+      "label": "cotton",
+      "region": "USA",
+      "source": "USDA_CDL:2"
+    },
+    {
+      "lat": 33.96036,
+      "lon": -101.83326,
+      "year": 2023,
+      "label": "cotton",
+      "region": "USA",
+      "source": "USDA_CDL:2"
+    },
+    {
+      "lat": 33.3096,
+      "lon": -101.40263,
+      "year": 2023,
+      "label": "cotton",
+      "region": "USA",
+      "source": "USDA_CDL:2"
+    },
+    {
+      "lat": 33.69094,
+      "lon": -101.89448,
+      "year": 2023,
+      "label": "cotton",
+      "region": "USA",
+      "source": "USDA_CDL:2"
+    },
+    {
+      "lat": 33.48564,
+      "lon": -102.12121,
+      "year": 2023,
+      "label": "cotton",
+      "region": "USA",
+      "source": "USDA_CDL:2"
+    },
+    {
+      "lat": 33.96622,
+      "lon": -101.79919,
+      "year": 2023,
+      "label": "cotton",
+      "region": "USA",
+      "source": "USDA_CDL:2"
+    },
+    {
+      "lat": 33.42034,
+      "lon": -101.56957,
+      "year": 2023,
+      "label": "cotton",
+      "region": "USA",
+      "source": "USDA_CDL:2"
+    },
+    {
+      "lat": 33.50947,
+      "lon": -102.22413,
+      "year": 2023,
+      "label": "cotton",
+      "region": "USA",
+      "source": "USDA_CDL:2"
+    },
+    {
+      "lat": 33.47905,
+      "lon": -102.26668,
+      "year": 2023,
+      "label": "cotton",
+      "region": "USA",
+      "source": "USDA_CDL:2"
+    },
+    {
+      "lat": 33.26538,
+      "lon": -101.8834,
+      "year": 2023,
+      "label": "cotton",
+      "region": "USA",
+      "source": "USDA_CDL:2"
+    },
+    {
+      "lat": 33.95255,
+      "lon": -102.26385,
+      "year": 2023,
+      "label": "cotton",
+      "region": "USA",
+      "source": "USDA_CDL:2"
+    },
+    {
+      "lat": 33.40267,
+      "lon": -101.59723,
+      "year": 2023,
+      "label": "cotton",
+      "region": "USA",
+      "source": "USDA_CDL:2"
+    },
+    {
+      "lat": 33.39106,
+      "lon": -101.68026,
+      "year": 2023,
+      "label": "cotton",
+      "region": "USA",
+      "source": "USDA_CDL:2"
+    },
+    {
+      "lat": 33.96314,
+      "lon": -102.23319,
+      "year": 2023,
+      "label": "cotton",
+      "region": "USA",
+      "source": "USDA_CDL:2"
+    },
+    {
+      "lat": 33.50611,
+      "lon": -102.05718,
+      "year": 2023,
+      "label": "cotton",
+      "region": "USA",
+      "source": "USDA_CDL:2"
+    },
+    {
+      "lat": 33.1592,
+      "lon": -101.54201,
+      "year": 2023,
+      "label": "cotton",
+      "region": "USA",
+      "source": "USDA_CDL:2"
+    },
+    {
+      "lat": 33.78711,
+      "lon": -101.84927,
+      "year": 2023,
+      "label": "cotton",
+      "region": "USA",
+      "source": "USDA_CDL:2"
+    },
+    {
+      "lat": 35.61226,
+      "lon": -90.59438,
+      "year": 2023,
+      "label": "cotton",
+      "region": "USA",
+      "source": "USDA_CDL:2"
+    },
+    {
+      "lat": 47.07507,
+      "lon": -117.05139,
+      "year": 2023,
+      "label": "lentil",
+      "region": "USA",
+      "source": "USDA_CDL:52"
+    },
+    {
+      "lat": 47.1515,
+      "lon": -117.1604,
+      "year": 2023,
+      "label": "lentil",
+      "region": "USA",
+      "source": "USDA_CDL:52"
+    },
+    {
+      "lat": 46.57359,
+      "lon": -116.75446,
+      "year": 2023,
+      "label": "lentil",
+      "region": "USA",
+      "source": "USDA_CDL:52"
+    },
+    {
+      "lat": 47.74958,
+      "lon": -105.33746,
+      "year": 2023,
+      "label": "lentil",
+      "region": "USA",
+      "source": "USDA_CDL:52"
+    },
+    {
+      "lat": 47.237,
+      "lon": -116.9236,
+      "year": 2023,
+      "label": "rapeseed",
+      "region": "USA",
+      "source": "USDA_CDL:31"
+    },
+    {
+      "lat": 46.5988,
+      "lon": -117.49197,
+      "year": 2023,
+      "label": "rapeseed",
+      "region": "USA",
+      "source": "USDA_CDL:31"
+    },
+    {
+      "lat": 47.16943,
+      "lon": -117.16593,
+      "year": 2023,
+      "label": "rapeseed",
+      "region": "USA",
+      "source": "USDA_CDL:31"
+    },
+    {
+      "lat": 46.94062,
+      "lon": -117.14007,
+      "year": 2023,
+      "label": "rapeseed",
+      "region": "USA",
+      "source": "USDA_CDL:31"
+    },
+    {
+      "lat": 47.37772,
+      "lon": -100.08297,
+      "year": 2023,
+      "label": "rapeseed",
+      "region": "USA",
+      "source": "USDA_CDL:31"
+    },
+    {
+      "lat": 47.84313,
+      "lon": -100.34512,
+      "year": 2023,
+      "label": "rapeseed",
+      "region": "USA",
+      "source": "USDA_CDL:31"
+    },
+    {
+      "lat": 47.52297,
+      "lon": -100.60217,
+      "year": 2023,
+      "label": "rapeseed",
+      "region": "USA",
+      "source": "USDA_CDL:31"
+    },
+    {
+      "lat": 48.26724,
+      "lon": -105.59433,
+      "year": 2023,
+      "label": "rapeseed",
+      "region": "USA",
+      "source": "USDA_CDL:31"
+    },
+    {
+      "lat": 47.15754,
+      "lon": -117.2829,
+      "year": 2023,
+      "label": "chickpea",
+      "region": "USA",
+      "source": "USDA_CDL:51"
+    },
+    {
+      "lat": 46.98187,
+      "lon": -116.98165,
+      "year": 2023,
+      "label": "chickpea",
+      "region": "USA",
+      "source": "USDA_CDL:51"
+    },
+    {
+      "lat": 47.69579,
+      "lon": -105.61694,
+      "year": 2023,
+      "label": "chickpea",
+      "region": "USA",
+      "source": "USDA_CDL:51"
+    },
+    {
+      "lat": 46.80912,
+      "lon": -117.0979,
+      "year": 2023,
+      "label": "barley",
+      "region": "USA",
+      "source": "USDA_CDL:21"
+    },
+    {
+      "lat": 47.17197,
+      "lon": -117.55241,
+      "year": 2023,
+      "label": "barley",
+      "region": "USA",
+      "source": "USDA_CDL:21"
+    },
+    {
+      "lat": 46.84569,
+      "lon": -117.50437,
+      "year": 2023,
+      "label": "barley",
+      "region": "USA",
+      "source": "USDA_CDL:21"
+    },
+    {
+      "lat": 43.70497,
+      "lon": -112.27424,
+      "year": 2023,
+      "label": "barley",
+      "region": "USA",
+      "source": "USDA_CDL:21"
+    },
+    {
+      "lat": 43.789,
+      "lon": -111.65721,
+      "year": 2023,
+      "label": "barley",
+      "region": "USA",
+      "source": "USDA_CDL:21"
+    },
+    {
+      "lat": 43.92489,
+      "lon": -111.74797,
+      "year": 2023,
+      "label": "barley",
+      "region": "USA",
+      "source": "USDA_CDL:21"
+    },
+    {
+      "lat": 43.54222,
+      "lon": -112.28672,
+      "year": 2023,
+      "label": "barley",
+      "region": "USA",
+      "source": "USDA_CDL:21"
+    },
+    {
+      "lat": 43.60871,
+      "lon": -111.86616,
+      "year": 2023,
+      "label": "barley",
+      "region": "USA",
+      "source": "USDA_CDL:21"
+    },
+    {
+      "lat": 42.87427,
+      "lon": -113.87051,
+      "year": 2023,
+      "label": "barley",
+      "region": "USA",
+      "source": "USDA_CDL:21"
+    },
+    {
+      "lat": 42.3612,
+      "lon": -113.85189,
+      "year": 2023,
+      "label": "barley",
+      "region": "USA",
+      "source": "USDA_CDL:21"
+    },
+    {
+      "lat": 42.38064,
+      "lon": -113.77783,
+      "year": 2023,
+      "label": "barley",
+      "region": "USA",
+      "source": "USDA_CDL:21"
+    },
+    {
+      "lat": 47.25713,
+      "lon": -120.0065,
+      "year": 2023,
+      "label": "kidneybeans",
+      "region": "USA",
+      "source": "USDA_CDL:42"
+    },
+    {
+      "lat": 46.7725,
+      "lon": -119.01082,
+      "year": 2023,
+      "label": "kidneybeans",
+      "region": "USA",
+      "source": "USDA_CDL:42"
+    },
+    {
+      "lat": 47.69232,
+      "lon": -100.84944,
+      "year": 2023,
+      "label": "kidneybeans",
+      "region": "USA",
+      "source": "USDA_CDL:42"
+    },
+    {
+      "lat": 42.82335,
+      "lon": -85.46588,
+      "year": 2023,
+      "label": "kidneybeans",
+      "region": "USA",
+      "source": "USDA_CDL:42"
+    },
+    {
+      "lat": 39.04283,
+      "lon": -121.93788,
+      "year": 2023,
+      "label": "kidneybeans",
+      "region": "USA",
+      "source": "USDA_CDL:42"
+    },
+    {
+      "lat": 43.55256,
+      "lon": -112.10019,
+      "year": 2023,
+      "label": "potato",
+      "region": "USA",
+      "source": "USDA_CDL:43"
+    },
+    {
+      "lat": 43.41087,
+      "lon": -112.03109,
+      "year": 2023,
+      "label": "potato",
+      "region": "USA",
+      "source": "USDA_CDL:43"
+    },
+    {
+      "lat": 43.90745,
+      "lon": -111.62306,
+      "year": 2023,
+      "label": "potato",
+      "region": "USA",
+      "source": "USDA_CDL:43"
+    },
+    {
+      "lat": 43.78737,
+      "lon": -112.42169,
+      "year": 2023,
+      "label": "potato",
+      "region": "USA",
+      "source": "USDA_CDL:43"
+    },
+    {
+      "lat": 42.57175,
+      "lon": -113.69773,
+      "year": 2023,
+      "label": "potato",
+      "region": "USA",
+      "source": "USDA_CDL:43"
+    },
+    {
+      "lat": 46.8945,
+      "lon": -118.96053,
+      "year": 2023,
+      "label": "potato",
+      "region": "USA",
+      "source": "USDA_CDL:43"
+    },
+    {
+      "lat": 46.79125,
+      "lon": -118.98947,
+      "year": 2023,
+      "label": "potato",
+      "region": "USA",
+      "source": "USDA_CDL:43"
+    },
+    {
+      "lat": 47.04977,
+      "lon": -119.61795,
+      "year": 2023,
+      "label": "potato",
+      "region": "USA",
+      "source": "USDA_CDL:43"
+    },
+    {
+      "lat": 47.0906,
+      "lon": -119.17943,
+      "year": 2023,
+      "label": "potato",
+      "region": "USA",
+      "source": "USDA_CDL:43"
+    },
+    {
+      "lat": 46.70493,
+      "lon": -118.9608,
+      "year": 2023,
+      "label": "potato",
+      "region": "USA",
+      "source": "USDA_CDL:43"
+    },
+    {
+      "lat": 46.67305,
+      "lon": -68.18654,
+      "year": 2023,
+      "label": "potato",
+      "region": "USA",
+      "source": "USDA_CDL:43"
+    },
+    {
+      "lat": 46.73809,
+      "lon": -68.11283,
+      "year": 2023,
+      "label": "potato",
+      "region": "USA",
+      "source": "USDA_CDL:43"
+    },
+    {
+      "lat": 46.69323,
+      "lon": -119.05499,
+      "year": 2023,
+      "label": "apple",
+      "region": "USA",
+      "source": "USDA_CDL:68"
+    },
+    {
+      "lat": 47.27456,
+      "lon": -119.64386,
+      "year": 2023,
+      "label": "apple",
+      "region": "USA",
+      "source": "USDA_CDL:68"
+    },
+    {
+      "lat": 43.12784,
+      "lon": -85.75183,
+      "year": 2023,
+      "label": "apple",
+      "region": "USA",
+      "source": "USDA_CDL:68"
+    },
+    {
+      "lat": 43.25077,
+      "lon": -85.82928,
+      "year": 2023,
+      "label": "apple",
+      "region": "USA",
+      "source": "USDA_CDL:68"
+    },
+    {
+      "lat": 47.14356,
+      "lon": -100.59459,
+      "year": 2023,
+      "label": "sunflower",
+      "region": "USA",
+      "source": "USDA_CDL:6"
+    },
+    {
+      "lat": 39.58201,
+      "lon": -122.20782,
+      "year": 2023,
+      "label": "sunflower",
+      "region": "USA",
+      "source": "USDA_CDL:6"
+    },
+    {
+      "lat": 38.93706,
+      "lon": -121.98434,
+      "year": 2023,
+      "label": "sunflower",
+      "region": "USA",
+      "source": "USDA_CDL:6"
+    },
+    {
+      "lat": 36.60229,
+      "lon": -119.35308,
+      "year": 2023,
+      "label": "orange",
+      "region": "USA",
+      "source": "USDA_CDL:72"
+    },
+    {
+      "lat": 28.10011,
+      "lon": -81.11848,
+      "year": 2023,
+      "label": "orange",
+      "region": "USA",
+      "source": "USDA_CDL:212"
+    },
+    {
+      "lat": 28.68698,
+      "lon": -81.65927,
+      "year": 2023,
+      "label": "orange",
+      "region": "USA",
+      "source": "USDA_CDL:212"
+    },
+    {
+      "lat": 27.57125,
+      "lon": -81.44176,
+      "year": 2023,
+      "label": "orange",
+      "region": "USA",
+      "source": "USDA_CDL:212"
+    },
+    {
+      "lat": 28.07684,
+      "lon": -81.59906,
+      "year": 2023,
+      "label": "orange",
+      "region": "USA",
+      "source": "USDA_CDL:212"
+    },
+    {
+      "lat": 27.94251,
+      "lon": -81.59451,
+      "year": 2023,
+      "label": "orange",
+      "region": "USA",
+      "source": "USDA_CDL:212"
+    },
+    {
+      "lat": 27.9117,
+      "lon": -81.76664,
+      "year": 2023,
+      "label": "orange",
+      "region": "USA",
+      "source": "USDA_CDL:212"
+    },
+    {
+      "lat": 27.73037,
+      "lon": -81.75556,
+      "year": 2023,
+      "label": "orange",
+      "region": "USA",
+      "source": "USDA_CDL:212"
+    },
+    {
+      "lat": 27.5702,
+      "lon": -81.78057,
+      "year": 2023,
+      "label": "orange",
+      "region": "USA",
+      "source": "USDA_CDL:212"
+    },
+    {
+      "lat": 27.64081,
+      "lon": -81.4463,
+      "year": 2023,
+      "label": "orange",
+      "region": "USA",
+      "source": "USDA_CDL:212"
+    },
+    {
+      "lat": 27.55182,
+      "lon": -81.78195,
+      "year": 2023,
+      "label": "orange",
+      "region": "USA",
+      "source": "USDA_CDL:212"
+    },
+    {
+      "lat": 27.56927,
+      "lon": -81.44607,
+      "year": 2023,
+      "label": "orange",
+      "region": "USA",
+      "source": "USDA_CDL:212"
+    },
+    {
+      "lat": 46.51902,
+      "lon": -116.89647,
+      "year": 2022,
+      "label": "rapeseed",
+      "region": "USA",
+      "source": "USDA_CDL:31"
+    },
+    {
+      "lat": 46.40452,
+      "lon": -117.52415,
+      "year": 2022,
+      "label": "rapeseed",
+      "region": "USA",
+      "source": "USDA_CDL:31"
+    },
+    {
+      "lat": 46.4969,
+      "lon": -116.83927,
+      "year": 2022,
+      "label": "rapeseed",
+      "region": "USA",
+      "source": "USDA_CDL:31"
+    },
+    {
+      "lat": 46.76832,
+      "lon": -117.03868,
+      "year": 2022,
+      "label": "rapeseed",
+      "region": "USA",
+      "source": "USDA_CDL:31"
+    },
+    {
+      "lat": 46.89559,
+      "lon": -116.93332,
+      "year": 2022,
+      "label": "rapeseed",
+      "region": "USA",
+      "source": "USDA_CDL:31"
+    },
+    {
+      "lat": 47.97396,
+      "lon": -100.37873,
+      "year": 2022,
+      "label": "rapeseed",
+      "region": "USA",
+      "source": "USDA_CDL:31"
+    },
+    {
+      "lat": 47.28219,
+      "lon": -100.66729,
+      "year": 2022,
+      "label": "rapeseed",
+      "region": "USA",
+      "source": "USDA_CDL:31"
+    },
+    {
+      "lat": 46.67426,
+      "lon": -117.19821,
+      "year": 2022,
+      "label": "chickpea",
+      "region": "USA",
+      "source": "USDA_CDL:51"
+    },
+    {
+      "lat": 46.50807,
+      "lon": -117.00432,
+      "year": 2022,
+      "label": "chickpea",
+      "region": "USA",
+      "source": "USDA_CDL:51"
+    },
+    {
+      "lat": 46.55992,
+      "lon": -117.18123,
+      "year": 2022,
+      "label": "chickpea",
+      "region": "USA",
+      "source": "USDA_CDL:51"
+    },
+    {
+      "lat": 46.80978,
+      "lon": -117.48605,
+      "year": 2022,
+      "label": "chickpea",
+      "region": "USA",
+      "source": "USDA_CDL:51"
+    },
+    {
+      "lat": 47.17514,
+      "lon": -116.92327,
+      "year": 2022,
+      "label": "chickpea",
+      "region": "USA",
+      "source": "USDA_CDL:51"
+    },
+    {
+      "lat": 46.56035,
+      "lon": -116.89194,
+      "year": 2022,
+      "label": "chickpea",
+      "region": "USA",
+      "source": "USDA_CDL:51"
+    },
+    {
+      "lat": 46.77421,
+      "lon": -117.07755,
+      "year": 2022,
+      "label": "chickpea",
+      "region": "USA",
+      "source": "USDA_CDL:51"
+    },
+    {
+      "lat": 47.66703,
+      "lon": -105.72981,
+      "year": 2022,
+      "label": "chickpea",
+      "region": "USA",
+      "source": "USDA_CDL:51"
+    },
+    {
+      "lat": 47.71868,
+      "lon": -105.64039,
+      "year": 2022,
+      "label": "chickpea",
+      "region": "USA",
+      "source": "USDA_CDL:51"
+    },
+    {
+      "lat": 47.17294,
+      "lon": -117.03809,
+      "year": 2022,
+      "label": "lentil",
+      "region": "USA",
+      "source": "USDA_CDL:52"
+    },
+    {
+      "lat": 47.15041,
+      "lon": -117.0478,
+      "year": 2022,
+      "label": "lentil",
+      "region": "USA",
+      "source": "USDA_CDL:52"
+    },
+    {
+      "lat": 48.39846,
+      "lon": -105.51241,
+      "year": 2022,
+      "label": "lentil",
+      "region": "USA",
+      "source": "USDA_CDL:52"
+    },
+    {
+      "lat": 48.0192,
+      "lon": -105.36394,
+      "year": 2022,
+      "label": "lentil",
+      "region": "USA",
+      "source": "USDA_CDL:52"
+    },
+    {
+      "lat": 48.20266,
+      "lon": -105.68147,
+      "year": 2022,
+      "label": "lentil",
+      "region": "USA",
+      "source": "USDA_CDL:52"
+    },
+    {
+      "lat": 47.89377,
+      "lon": -105.24552,
+      "year": 2022,
+      "label": "lentil",
+      "region": "USA",
+      "source": "USDA_CDL:52"
+    },
+    {
+      "lat": 47.38556,
+      "lon": -120.20701,
+      "year": 2022,
+      "label": "apple",
+      "region": "USA",
+      "source": "USDA_CDL:68"
+    },
+    {
+      "lat": 46.96037,
+      "lon": -119.58862,
+      "year": 2022,
+      "label": "apple",
+      "region": "USA",
+      "source": "USDA_CDL:68"
+    },
+    {
+      "lat": 43.29343,
+      "lon": -85.27999,
+      "year": 2022,
+      "label": "apple",
+      "region": "USA",
+      "source": "USDA_CDL:68"
+    },
+    {
+      "lat": 43.11463,
+      "lon": -85.30186,
+      "year": 2022,
+      "label": "apple",
+      "region": "USA",
+      "source": "USDA_CDL:68"
+    },
+    {
+      "lat": 43.2573,
+      "lon": -85.85655,
+      "year": 2022,
+      "label": "apple",
+      "region": "USA",
+      "source": "USDA_CDL:68"
+    },
+    {
+      "lat": 43.93936,
+      "lon": -112.39886,
+      "year": 2022,
+      "label": "potato",
+      "region": "USA",
+      "source": "USDA_CDL:43"
+    },
+    {
+      "lat": 43.48469,
+      "lon": -112.16977,
+      "year": 2022,
+      "label": "potato",
+      "region": "USA",
+      "source": "USDA_CDL:43"
+    },
+    {
+      "lat": 43.86404,
+      "lon": -111.63442,
+      "year": 2022,
+      "label": "potato",
+      "region": "USA",
+      "source": "USDA_CDL:43"
+    },
+    {
+      "lat": 43.34947,
+      "lon": -112.15141,
+      "year": 2022,
+      "label": "potato",
+      "region": "USA",
+      "source": "USDA_CDL:43"
+    },
+    {
+      "lat": 43.27465,
+      "lon": -112.14264,
+      "year": 2022,
+      "label": "potato",
+      "region": "USA",
+      "source": "USDA_CDL:43"
+    },
+    {
+      "lat": 42.51927,
+      "lon": -114.22255,
+      "year": 2022,
+      "label": "potato",
+      "region": "USA",
+      "source": "USDA_CDL:43"
+    },
+    {
+      "lat": 42.54644,
+      "lon": -113.71416,
+      "year": 2022,
+      "label": "potato",
+      "region": "USA",
+      "source": "USDA_CDL:43"
+    },
+    {
+      "lat": 47.11236,
+      "lon": -119.10722,
+      "year": 2022,
+      "label": "potato",
+      "region": "USA",
+      "source": "USDA_CDL:43"
+    },
+    {
+      "lat": 47.18226,
+      "lon": -119.19635,
+      "year": 2022,
+      "label": "potato",
+      "region": "USA",
+      "source": "USDA_CDL:43"
+    },
+    {
+      "lat": 47.04171,
+      "lon": -119.54941,
+      "year": 2022,
+      "label": "potato",
+      "region": "USA",
+      "source": "USDA_CDL:43"
+    },
+    {
+      "lat": 46.53016,
+      "lon": -67.85943,
+      "year": 2022,
+      "label": "potato",
+      "region": "USA",
+      "source": "USDA_CDL:43"
+    },
+    {
+      "lat": 44.30763,
+      "lon": -89.39345,
+      "year": 2022,
+      "label": "potato",
+      "region": "USA",
+      "source": "USDA_CDL:43"
+    },
+    {
+      "lat": 44.52608,
+      "lon": -89.4484,
+      "year": 2022,
+      "label": "potato",
+      "region": "USA",
+      "source": "USDA_CDL:43"
+    },
+    {
+      "lat": 43.44113,
+      "lon": -85.18175,
+      "year": 2022,
+      "label": "potato",
+      "region": "USA",
+      "source": "USDA_CDL:43"
+    },
+    {
+      "lat": 43.96405,
+      "lon": -89.67252,
+      "year": 2022,
+      "label": "kidneybeans",
+      "region": "USA",
+      "source": "USDA_CDL:42"
+    },
+    {
+      "lat": 47.11371,
+      "lon": -100.63133,
+      "year": 2022,
+      "label": "kidneybeans",
+      "region": "USA",
+      "source": "USDA_CDL:42"
+    },
+    {
+      "lat": 38.43135,
+      "lon": -121.84761,
+      "year": 2022,
+      "label": "kidneybeans",
+      "region": "USA",
+      "source": "USDA_CDL:42"
+    },
+    {
+      "lat": 38.63709,
+      "lon": -121.85638,
+      "year": 2022,
+      "label": "sunflower",
+      "region": "USA",
+      "source": "USDA_CDL:6"
+    },
+    {
+      "lat": 28.11918,
+      "lon": -81.11689,
+      "year": 2022,
+      "label": "orange",
+      "region": "USA",
+      "source": "USDA_CDL:212"
+    },
+    {
+      "lat": 27.84731,
+      "lon": -81.7111,
+      "year": 2022,
+      "label": "orange",
+      "region": "USA",
+      "source": "USDA_CDL:212"
+    },
+    {
+      "lat": 27.60386,
+      "lon": -81.87739,
+      "year": 2022,
+      "label": "orange",
+      "region": "USA",
+      "source": "USDA_CDL:212"
+    },
+    {
+      "lat": 28.17538,
+      "lon": -81.17548,
+      "year": 2022,
+      "label": "orange",
+      "region": "USA",
+      "source": "USDA_CDL:212"
+    }
+  ]
+}
