@@ -81,10 +81,10 @@
         $session.collapsed = true;
         replace("/results");
       } catch (error) {
-        if (error.name === "AbortError") return;
+        if (error?.name === "AbortError" || controller.signal.aborted) return;
         console.error("Strategy calculation failed:", error);
         failed = true;
-        errorMessage = error.message || "Unknown calculation error.";
+        errorMessage = error?.message || "Unknown calculation error.";
       } finally {
         clearInterval(timer);
       }
