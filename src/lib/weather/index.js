@@ -12,3 +12,8 @@ export {
   getWeather,
   parseWeatherResponse,
 } from './SoilData.js';
+export {
+  buildGibsTileUrl,
+  resolveNearestGibsDate,
+  clearGibsDateCache,
+} from './gibsDateResolver.js';

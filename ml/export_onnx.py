@@ -1,4 +1,5 @@
 import io
+import os
 import re
 import json
 import math
@@ -12,9 +13,9 @@ from PIL import Image
 from pathlib import Path
 from pyproj import Transformer
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import StratifiedGroupKFold, GroupKFold
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.metrics import classification_report, accuracy_score, top_k_accuracy_score
+from sklearn.metrics import classification_report, accuracy_score, top_k_accuracy_score, f1_score
 from skl2onnx import convert_sklearn
 from skl2onnx.common.data_types import FloatTensorType
 import onnxruntime as ort
@@ -1010,79 +1011,82 @@ def main():
         print(f"Загружен чекпоинт {dataset_file.name}: в базе уже {len(existing_df)} полей (новая схема).")
 
     all_candidates = []
-    if cache_file.exists():
-        try:
-            with open(cache_file, "r", encoding="utf-8") as f:
-                cached_obj = json.load(f)
-            if isinstance(cached_obj, dict) and cached_obj.get("schema_version") == 2:
-                cached = cached_obj.get("candidates", [])
-                unfinished = [
-                    p for p in cached
-                    if p.get("label") in TARGET_CLASSES
-                    and (round(p["lat"], 4), round(p["lon"], 4), int(p["year"])) not in done_keys
-                ]
-                if unfinished:
-                    print(f"Продолжаем партию из {cache_file.name}: осталось {len(unfinished)} точек...")
-                    all_candidates = unfinished
-        except Exception:
-            pass
+    skip_scrape = len(existing_df) >= 1500 and not os.environ.get("FORCE_RESCRAPE")
+    if skip_scrape:
+        print(f"Датасет уже содержит {len(existing_df)} строк (>= 1500): пропускаем добор и переходим к Spatial CV + обучению.")
+    else:
+        if cache_file.exists():
+            try:
+                with open(cache_file, "r", encoding="utf-8") as f:
+                    cached_obj = json.load(f)
+                if isinstance(cached_obj, dict) and cached_obj.get("schema_version") == 2:
+                    cached = cached_obj.get("candidates", [])
+                    unfinished = [
+                        p for p in cached
+                        if p.get("label") in TARGET_CLASSES
+                        and (round(p["lat"], 4), round(p["lon"], 4), int(p["year"])) not in done_keys
+                    ]
+                    if unfinished:
+                        print(f"Продолжаем партию из {cache_file.name}: осталось {len(unfinished)} точек...")
+                        all_candidates = unfinished
+            except Exception:
+                pass
 
-    if len(existing_df) < 1650 and len(existing_df) + len(all_candidates) < 1900:
-        existing_crop_counts = existing_df["label"].value_counts().to_dict() if not existing_df.empty else {}
-        cand_keys = set(done_keys)
-        for p in all_candidates:
-            cand_keys.add((round(p["lat"], 4), round(p["lon"], 4), int(p["year"])))
-            existing_crop_counts[p["label"]] = existing_crop_counts.get(p["label"], 0) + 1
+        if len(existing_df) < 1650 and len(existing_df) + len(all_candidates) < 1900:
+            existing_crop_counts = existing_df["label"].value_counts().to_dict() if not existing_df.empty else {}
+            cand_keys = set(done_keys)
+            for p in all_candidates:
+                cand_keys.add((round(p["lat"], 4), round(p["lon"], 4), int(p["year"])))
+                existing_crop_counts[p["label"]] = existing_crop_counts.get(p["label"], 0) + 1
 
-        rdm_pts = fetch_worldcereal_rdm_points(
-            max_per_crop=120,
-            max_per_col_crop=22,
-            existing_keys=cand_keys,
-            existing_crop_counts=existing_crop_counts,
-        )
-        for p in rdm_pts:
-            cand_keys.add((round(p["lat"], 4), round(p["lon"], 4), int(p["year"])))
-            existing_crop_counts[p["label"]] = existing_crop_counts.get(p["label"], 0) + 1
+            rdm_pts = fetch_worldcereal_rdm_points(
+                max_per_crop=120,
+                max_per_col_crop=22,
+                existing_keys=cand_keys,
+                existing_crop_counts=existing_crop_counts,
+            )
+            for p in rdm_pts:
+                cand_keys.add((round(p["lat"], 4), round(p["lon"], 4), int(p["year"])))
+                existing_crop_counts[p["label"]] = existing_crop_counts.get(p["label"], 0) + 1
 
-        osm_pts = fetch_overpass_global_farmland(max_per_region_crop=14, existing_keys=cand_keys)
-        for p in osm_pts:
-            cand_keys.add((round(p["lat"], 4), round(p["lon"], 4), int(p["year"])))
-            existing_crop_counts[p["label"]] = existing_crop_counts.get(p["label"], 0) + 1
+            osm_pts = fetch_overpass_global_farmland(max_per_region_crop=14, existing_keys=cand_keys)
+            for p in osm_pts:
+                cand_keys.add((round(p["lat"], 4), round(p["lon"], 4), int(p["year"])))
+                existing_crop_counts[p["label"]] = existing_crop_counts.get(p["label"], 0) + 1
 
-        us_pts = fetch_usda_cropscape_points(
-            max_per_crop=135,
-            year=2023,
-            existing_keys=cand_keys,
-            existing_crop_counts=existing_crop_counts,
-            seed=101,
-        )
-        for p in us_pts:
-            cand_keys.add((round(p["lat"], 4), round(p["lon"], 4), int(p["year"])))
-            existing_crop_counts[p["label"]] = existing_crop_counts.get(p["label"], 0) + 1
+            us_pts = fetch_usda_cropscape_points(
+                max_per_crop=135,
+                year=2023,
+                existing_keys=cand_keys,
+                existing_crop_counts=existing_crop_counts,
+                seed=101,
+            )
+            for p in us_pts:
+                cand_keys.add((round(p["lat"], 4), round(p["lon"], 4), int(p["year"])))
+                existing_crop_counts[p["label"]] = existing_crop_counts.get(p["label"], 0) + 1
 
-        us_pts_22 = fetch_usda_cropscape_points(
-            max_per_crop=135,
-            year=2022,
-            existing_keys=cand_keys,
-            existing_crop_counts=existing_crop_counts,
-            seed=202,
-        )
+            us_pts_22 = fetch_usda_cropscape_points(
+                max_per_crop=135,
+                year=2022,
+                existing_keys=cand_keys,
+                existing_crop_counts=existing_crop_counts,
+                seed=202,
+            )
 
-        all_candidates.extend(rdm_pts + osm_pts + us_pts + us_pts_22)
-        if all_candidates:
-            with open(cache_file, "w", encoding="utf-8") as f:
-                json.dump({"schema_version": 2, "candidates": all_candidates}, f, indent=2)
+            all_candidates.extend(rdm_pts + osm_pts + us_pts + us_pts_22)
+            if all_candidates:
+                with open(cache_file, "w", encoding="utf-8") as f:
+                    json.dump({"schema_version": 2, "candidates": all_candidates}, f, indent=2)
 
-    pending_pts = [
+    pending_pts = [] if skip_scrape else [
         p for p in all_candidates
         if (round(p["lat"], 4), round(p["lon"], 4), int(p["year"])) not in done_keys
     ]
 
-    print(f"\n[3/4] Новых точек для опроса NASA (8m + 12m) + SRTM + SoilGrids: {len(pending_pts)}")
-
     valid_rows = existing_df.to_dict(orient="records") if not existing_df.empty else []
 
     if pending_pts:
+        print(f"\n[3/4] Новых точек для опроса NASA (8m + 12m) + SRTM + SoilGrids: {len(pending_pts)}")
         with ThreadPoolExecutor(max_workers=10) as pool:
             futures = [pool.submit(enrich_point, pt) for pt in pending_pts]
             for idx, fut in enumerate(as_completed(futures), 1):
@@ -1125,36 +1129,86 @@ def main():
     y = df["label"].astype(str)
     classes = sorted(y.unique().tolist())
 
-    X_train, X_test, y_train, y_test = train_test_split(
-        X, y, test_size=0.2, random_state=42, stratify=y
+    # Spatial 5° x 5° block 5-fold cross-validation
+    spatial_blocks = (
+        np.floor(df["lat"] / 5.0).astype(int).astype(str)
+        + "_"
+        + np.floor(df["lon"] / 5.0).astype(int).astype(str)
     )
+    print(f"[4/4] Spatial 5°x5° Block 5-Fold CV ({spatial_blocks.nunique()} географических блоков)...")
 
-    rf_model = RandomForestClassifier(
-        n_estimators=300,
-        max_depth=16,
-        min_samples_split=2,
-        min_samples_leaf=1,
-        class_weight="balanced_subsample",
-        random_state=42,
-        n_jobs=-1
-    )
-    rf_model.fit(X_train, y_train)
+    try:
+        cv = StratifiedGroupKFold(n_splits=5)
+        folds = list(cv.split(X, y, spatial_blocks))
+        for _, _ in folds:
+            pass
+        cv_name = "StratifiedGroupKFold(n_splits=5)"
+    except Exception:
+        cv = GroupKFold(n_splits=5)
+        folds = list(cv.split(X, y, spatial_blocks))
+        cv_name = "GroupKFold(n_splits=5)"
 
-    y_pred = rf_model.predict(X_test)
-    y_proba = rf_model.predict_proba(X_test)
-    top1_acc = accuracy_score(y_test, y_pred) * 100
-    top3_acc = top_k_accuracy_score(y_test, y_proba, k=3, labels=rf_model.classes_) * 100
-    print(f"[4/4] Точность модели (Top-1): {top1_acc:.2f}% | Точность попадания в Top-3: {top3_acc:.2f}%\n")
-    print(classification_report(y_test, y_pred, zero_division=0))
+    rf_configs = [
+        ("baseline_300_d16_l1_bal", dict(n_estimators=300, max_depth=16, min_samples_split=2, min_samples_leaf=1, max_features="sqrt", class_weight="balanced_subsample")),
+        ("rf_250_d12_l2_bal", dict(n_estimators=250, max_depth=12, min_samples_split=4, min_samples_leaf=2, max_features="sqrt", class_weight="balanced_subsample")),
+        ("rf_200_d10_l3_bal", dict(n_estimators=200, max_depth=10, min_samples_split=4, min_samples_leaf=3, max_features="sqrt", class_weight="balanced_subsample")),
+        ("rf_250_d10_l2_mf035_bal", dict(n_estimators=250, max_depth=10, min_samples_split=4, min_samples_leaf=2, max_features=0.35, class_weight="balanced_subsample")),
+        ("rf_200_d12_l3_none", dict(n_estimators=200, max_depth=12, min_samples_split=5, min_samples_leaf=3, max_features="sqrt", class_weight=None)),
+        ("rf_150_d12_l3_none", dict(n_estimators=150, max_depth=12, min_samples_split=5, min_samples_leaf=3, max_features="sqrt", class_weight=None)),
+        ("rf_150_d11_l3_mf04_bal", dict(n_estimators=150, max_depth=11, min_samples_split=5, min_samples_leaf=3, max_features=0.4, class_weight="balanced_subsample")),
+        ("rf_200_d8_l3_bal", dict(n_estimators=200, max_depth=8, min_samples_split=4, min_samples_leaf=3, max_features="sqrt", class_weight="balanced_subsample")),
+    ]
 
     initial_type = [("float_input", FloatTensorType([None, len(FEATURE_NAMES)]))]
-    onnx_model = convert_sklearn(
-        rf_model,
-        initial_types=initial_type,
-        options={id(rf_model): {"zipmap": False}},
-        target_opset=15
-    )
-    onnx_bytes = onnx_model.SerializeToString()
+    results = []
+    print(f"CV метод: {cv_name}")
+    print(f"{'Config':26s} | {'Top-1':>7s} | {'Top-3':>7s} | {'Macro-F1':>8s} | {'ONNX MB':>8s}")
+    print("-" * 68)
+
+    for cfg_name, cfg_params in rf_configs:
+        oof_pred = np.empty(len(df), dtype=object)
+        oof_proba = np.zeros((len(df), len(classes)), dtype=np.float64)
+        for tr_idx, te_idx in folds:
+            clf = RandomForestClassifier(random_state=42, n_jobs=-1, **cfg_params)
+            clf.fit(X.iloc[tr_idx], y.iloc[tr_idx])
+            oof_pred[te_idx] = clf.predict(X.iloc[te_idx])
+            oof_proba[te_idx] = clf.predict_proba(X.iloc[te_idx])
+
+        top1 = accuracy_score(y, oof_pred) * 100.0
+        top3 = top_k_accuracy_score(y, oof_proba, k=3, labels=classes) * 100.0
+        macro_f1 = f1_score(y, oof_pred, average="macro", zero_division=0) * 100.0
+
+        full_clf = RandomForestClassifier(random_state=42, n_jobs=-1, **cfg_params)
+        full_clf.fit(X, y)
+        cand_onnx = convert_sklearn(
+            full_clf,
+            initial_types=initial_type,
+            options={id(full_clf): {"zipmap": False}},
+            target_opset=15
+        )
+        cand_bytes = cand_onnx.SerializeToString()
+        size_mb = len(cand_bytes) / (1024 * 1024)
+        print(f"{cfg_name:26s} | {top1:6.2f}% | {top3:6.2f}% | {macro_f1:7.2f}% | {size_mb:7.2f}")
+        results.append({
+            "name": cfg_name,
+            "params": cfg_params,
+            "top1": top1,
+            "top3": top3,
+            "macro_f1": macro_f1,
+            "size_mb": size_mb,
+            "oof_pred": oof_pred,
+            "model": full_clf,
+            "onnx_bytes": cand_bytes,
+        })
+
+    # Prefer best Spatial CV Top-1 + Macro-F1 while keeping ONNX compact (<= 15 MB)
+    compact_results = [r for r in results if r["size_mb"] <= 15.0] or results
+    best = max(compact_results, key=lambda r: (r["top1"] + 0.5 * r["macro_f1"] + 0.15 * r["top3"]))
+
+    rf_model = best["model"]
+    onnx_bytes = best["onnx_bytes"]
+    print(f"\nВыбрана лучшая конфигурация: {best['name']} (Spatial Top-1={best['top1']:.2f}%, Top-3={best['top3']:.2f}%, Macro-F1={best['macro_f1']:.2f}%, ONNX={best['size_mb']:.2f} MB)\n")
+    print(classification_report(y, best["oof_pred"], zero_division=0))
 
     for p in [BASE_DIR / "crop_classifier.onnx", PROJECT_ROOT / "public" / "models" / "crop_classifier.onnx"]:
         p.parent.mkdir(parents=True, exist_ok=True)
@@ -1197,8 +1251,8 @@ def main():
     inp_name = sess.get_inputs()[0].name
     out_names = [o.name for o in sess.get_outputs()]
     assert "probabilities" in out_names, f"Expected 'probabilities' output, got {out_names}"
-    ort_proba = sess.run(["probabilities"], {inp_name: X_test.values[:10].astype(np.float32)})[0]
-    sk_proba = rf_model.predict_proba(X_test.iloc[:10])
+    ort_proba = sess.run(["probabilities"], {inp_name: X.values[:20].astype(np.float32)})[0]
+    sk_proba = rf_model.predict_proba(X.iloc[:20])
     max_diff = float(np.max(np.abs(ort_proba - sk_proba)))
     print(f"ONNX Runtime parity check: outputs={out_names}, max_diff={max_diff:.2e}, size={len(onnx_bytes) / 1024 / 1024:.2f} MB")
     assert max_diff < 1e-4, f"ONNX parity mismatch: {max_diff}"

@@ -1,6 +1,6 @@
 import { getWeather, parseWeatherResponse } from '../lib/weather/SoilData.js';
 
-export const WEATHER_CACHE_KEY = 'nasa-preset-cache-v8';
+export const WEATHER_CACHE_KEY = 'nasa-preset-cache-v9';
 const SOILGRIDS_CACHE_KEY = 'soilgrids-coord-cache-v4';
 const SOILGRIDS_TIMEOUT_MS = 5000;
 const inflightRequests = new Map();
@@ -302,6 +302,11 @@ function buildPayload(lat, lon, weather, derived, seasonYear) {
     seasonYear,
     daily_t2m: weather.daily_t2m || [],
     daily_t2m_year: weather.daily_t2m_year ?? seasonYear,
+    daily_t2m_max_12: weather.daily_t2m_max_12 || [],
+    seasonDailyT2mMax: weather.seasonDailyT2mMax || [],
+    daily_precip_12: weather.daily_precip_12 || [],
+    seasonDailyPrecip: weather.seasonDailyPrecip || [],
+    riskCalendarMonths: weather.riskCalendarMonths || [],
     weather,
   };
 }
@@ -317,6 +322,9 @@ function readPresetCache(presetId, numLat, numLon) {
       entry.data &&
       Array.isArray(entry.data.months12) &&
       entry.data.months12.length === 12 &&
+      Array.isArray(entry.data.riskCalendarMonths) &&
+      entry.data.riskCalendarMonths.length === 12 &&
+      Array.isArray(entry.data.daily_t2m_max_12) &&
       isValidRawSoilRecord(entry.soilData) &&
       Math.abs(entry.lat - numLat) < 0.001 &&
       Math.abs(entry.lon - numLon) < 0.001

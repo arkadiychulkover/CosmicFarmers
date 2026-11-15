@@ -79,3 +79,62 @@ export const ROTATION_MATRIX = Object.fromEntries(
     ),
   ]),
 );
+
+const GROUP_CARRYOVER = {
+  legume: { nFactor: 1.12, minDeltaN: 0.12, deltaSoc: 0.5, label: 'Biological N fixation (+12% Total N, +0.5 g/kg SOC)' },
+  cereal: { nFactor: 0.90, minDeltaN: 0, deltaSoc: -0.3, label: 'Cereal nutrient drawdown (-10% Total N, -0.3 g/kg SOC)' },
+  tuber: { nFactor: 0.90, minDeltaN: 0, deltaSoc: -0.5, label: 'Tuber nutrient extraction & tillage (-10% Total N, -0.5 g/kg SOC)' },
+  fibre: { nFactor: 0.90, minDeltaN: 0, deltaSoc: -0.4, label: 'Fibre crop N drawdown (-10% Total N, -0.4 g/kg SOC)' },
+  oilseed: { nFactor: 0.96, minDeltaN: 0, deltaSoc: 0.1, label: 'Moderate oilseed residue turnover (-4% Total N, +0.1 g/kg SOC)' },
+  cucurbit: { nFactor: 0.95, minDeltaN: 0, deltaSoc: -0.2, label: 'Light cucurbit N drawdown (-5% Total N, -0.2 g/kg SOC)' },
+  perennial: { nFactor: 1.0, minDeltaN: 0, deltaSoc: 0.2, label: 'Perennial stand equilibrium' },
+};
+
+const CROP_CARRYOVER_OVERRIDES = {
+  barley: { nFactor: 0.95, minDeltaN: 0, deltaSoc: 0.1, label: 'Light cereal straw residue (-5% Total N, +0.1 g/kg SOC)' },
+  rapeseed: { nFactor: 0.96, minDeltaN: 0, deltaSoc: 0.2, label: 'Deep taproot & brassica residue (-4% Total N, +0.2 g/kg SOC)' },
+  sunflower: { nFactor: 0.95, minDeltaN: 0, deltaSoc: -0.2, label: 'Deep subsoil extraction (-5% Total N, -0.2 g/kg SOC)' },
+};
+
+function clamp(v, min, max) {
+  return Math.min(max, Math.max(min, v));
+}
+
+/**
+ * Compute updated soil nitrogen & SOC parameters after harvesting `prevCrop`
+ * so Year 2 and Year 3 ML re-inference reflects biological N fixation and nutrient drawdown.
+ */
+export function applySoilCarryover(params, prevCrop) {
+  if (!params || !prevCrop) {
+    return {
+      nextParams: params ? { ...params } : null,
+      deltaNitrogen: 0,
+      deltaSoc: 0,
+      note: '',
+    };
+  }
+
+  const group = groupOf[prevCrop] ?? 'cereal';
+  const cfg = CROP_CARRYOVER_OVERRIDES[prevCrop] ?? GROUP_CARRYOVER[group] ?? GROUP_CARRYOVER.cereal;
+
+  const baseN = Number(params.nitrogen ?? 1.8);
+  const baseSoc = Number(params.soc ?? 18.0);
+
+  let rawNextN = baseN * cfg.nFactor;
+  if (cfg.minDeltaN > 0) {
+    rawNextN = Math.max(rawNextN, baseN + cfg.minDeltaN);
+  }
+  const nextNitrogen = Number(clamp(rawNextN, 0.2, 25.0).toFixed(2));
+  const nextSoc = Number(clamp(baseSoc + cfg.deltaSoc, 2.0, 250.0).toFixed(1));
+
+  return {
+    nextParams: {
+      ...params,
+      nitrogen: nextNitrogen,
+      soc: nextSoc,
+    },
+    deltaNitrogen: Number((nextNitrogen - baseN).toFixed(2)),
+    deltaSoc: Number((nextSoc - baseSoc).toFixed(1)),
+    note: cfg.label,
+  };
+}

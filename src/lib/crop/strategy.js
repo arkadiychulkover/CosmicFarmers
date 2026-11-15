@@ -96,6 +96,84 @@ function computeGddWithDeltaT(climate, deltaT, baseGdd) {
   return Math.max(0, Math.round(baseGdd + deltaT * 180));
 }
 
+function computeHeatDaysWithDeltaT(input, deltaT, baseT2mMax) {
+  const climate = input.nasaClimate || {};
+  const weather = climate.weather || {};
+  const telemetry = input.telemetry || {};
+
+  const dailyMax =
+    weather.daily_t2m_max_12 ??
+    weather.seasonDailyT2mMax ??
+    weather.daily_t2m_max ??
+    climate.daily_t2m_max_12 ??
+    telemetry.temperature?.dailyMax12;
+
+  if (Array.isArray(dailyMax) && dailyMax.length > 0) {
+    let count = 0;
+    for (const raw of dailyMax) {
+      const t = Number(raw);
+      if (t !== -999 && Number.isFinite(t) && t + deltaT >= 32) {
+        count++;
+      }
+    }
+    return count;
+  }
+
+  const baseHeatDays = Number(
+    weather.stress?.heatDays ??
+      weather.temperature?.heatDays ??
+      telemetry.temperature?.heatDays ??
+      climate.heatDays ??
+      0,
+  );
+  if (!Number.isFinite(baseHeatDays)) return 0;
+  if (deltaT === 0) return Math.max(0, Math.round(baseHeatDays));
+  if (deltaT > 0) {
+    const rate = baseT2mMax + deltaT >= 28 ? 6 : baseT2mMax + deltaT >= 24 ? 3 : 1;
+    return Math.max(0, Math.round(baseHeatDays + deltaT * rate));
+  }
+  return Math.max(0, Math.round(baseHeatDays * Math.max(0, 1 + deltaT * 0.18)));
+}
+
+function computeStormDaysWithPrecip(input, precipMultiplier, basePrectotcorr) {
+  const climate = input.nasaClimate || {};
+  const weather = climate.weather || {};
+  const telemetry = input.telemetry || {};
+
+  const dailyPrecip =
+    weather.daily_precip_12 ??
+    weather.seasonDailyPrecip ??
+    weather.daily_precip ??
+    climate.daily_precip_12 ??
+    telemetry.precipitation?.daily12;
+
+  if (Array.isArray(dailyPrecip) && dailyPrecip.length > 0) {
+    let count = 0;
+    for (const raw of dailyPrecip) {
+      const p = Number(raw);
+      if (p !== -999 && Number.isFinite(p) && p * precipMultiplier >= 25) {
+        count++;
+      }
+    }
+    return count;
+  }
+
+  const baseStormDays = Number(
+    weather.stress?.stormDays ??
+      weather.stormDays ??
+      telemetry.precipitation?.stormDays ??
+      climate.stormDays ??
+      0,
+  );
+  if (!Number.isFinite(baseStormDays)) return 0;
+  if (precipMultiplier === 1) return Math.max(0, Math.round(baseStormDays));
+  if (precipMultiplier > 1) {
+    const extra = precipMultiplier > 1.2 && basePrectotcorr >= 75 ? Math.round((precipMultiplier - 1) * 4) : 0;
+    return Math.max(0, Math.round(baseStormDays * Math.pow(precipMultiplier, 1.35)) + extra);
+  }
+  return Math.max(0, Math.round(baseStormDays * Math.pow(precipMultiplier, 1.5)));
+}
+
 export function toModelParams(input) {
   const climate = input.nasaClimate;
   if (!climate) throw new Error('NASA climate data is not loaded');
@@ -153,6 +231,8 @@ export function toModelParams(input) {
   const sand = Number(input.sand ?? climate.sand ?? meta.sandPct ?? 35.0);
   const silt = Number(input.silt ?? climate.silt ?? meta.siltPct ?? Math.max(0, 100 - clay - sand));
   const irrigation = irrigationToFeature(input.irrigation ?? input.IRRIGATION ?? 0);
+  const heatDays = computeHeatDaysWithDeltaT(input, deltaT, baseT2mMax);
+  const stormDays = computeStormDaysWithPrecip(input, precipMultiplier, basePrectotcorr);
 
   return {
     ph: Number(ph.toFixed(1)),
@@ -176,6 +256,8 @@ export function toModelParams(input) {
     ELEVATION: elevation,
     SLOPE: slope,
     IRRIGATION: irrigation,
+    heatDays,
+    stormDays,
   };
 }
 
@@ -248,7 +330,10 @@ function toViewModel(plan, input, params) {
     const rotation = rotationNote(y.previousCrop, y.crop, y.isPerennialContinuation);
     const goalMsg = goalNote(input.goal, y.crop);
     const telMsg = telemetryNote(input.goal, params, y.crop);
-    const advisory = [info.advisory, rotation, goalMsg, telMsg].filter(Boolean).join(' ');
+    const carryoverMsg = y.soilCarryover?.note
+      ? `Soil carryover into Year ${y.year}: ${y.soilCarryover.note} (effective Total N ${y.soilCarryover.nitrogen} g/kg, SOC ${y.soilCarryover.soc} g/kg).`
+      : '';
+    const advisory = [info.advisory, rotation, goalMsg, telMsg, carryoverMsg].filter(Boolean).join(' ');
     const win = yearWindows[idx] || {};
 
     return {
@@ -260,13 +345,16 @@ function toViewModel(plan, input, params) {
       previousId: y.previousCrop,
       isPerennial: Boolean(y.isPerennial || win.isPerennial),
       isPerennialContinuation: Boolean(y.isPerennialContinuation),
+      soilCarryover: y.soilCarryover || null,
       rotation,
       goalNote: goalMsg,
       sowWindow: win.sowWindow || null,
       harvestWindow: win.harvestWindow || null,
       coverWindow: win.coverWindow || null,
       why: {
-        soil: `${info.soil}. Your profile: ${soilSummary}.`,
+        soil: y.soilCarryover
+          ? `${info.soil}. Projected Year ${y.year} soil: Total N ${y.soilCarryover.nitrogen} g/kg, SOC ${y.soilCarryover.soc} g/kg, pH ${params.ph} (${soil}, ${irrigationLabel.toLowerCase()}).`
+          : `${info.soil}. Your profile: ${soilSummary}.`,
         climate: `${precip} mm seasonal rainfall and ${gdd} GDD ${info.climate}.`,
         advisory,
       },
