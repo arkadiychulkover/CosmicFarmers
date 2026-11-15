@@ -116,10 +116,10 @@
 
   p {
     margin: 0;
-    font-size: 12px;
-    font-weight: 700;
+    font-size: 9px;
+    font-weight: 400;
     line-height: 1;
-    color: var(--color-text-dim);
+    color: var(--color-panel);
     letter-spacing: 0.04em;
   }
 

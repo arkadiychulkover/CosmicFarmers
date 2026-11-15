@@ -8,204 +8,409 @@
     baseline = 0,
   } = $props();
 
-  const width = 260;
-  const height = 132;
-  const padL = 26;
-  const padR = 8;
-  const top = 16;
-  const plotBottom = 80;
+  void waterBalance;
+
+  const padL = 22;
+  const top = 18;
+  const axisY = top + (78 - top) * 2 * 0.65;
+  let hostWidth = $state(0);
+  const unitPx = 356 / 260;
+  const width = $derived(hostWidth > 0 ? hostWidth / unitPx : 490);
+  const padR = $derived(width * (8 / 250));
+  const labelGap = 7;
+  const valueFont = (8 * 260) / 356;
+  const diffFont = (12 * 260) / 356;
+  const monthFont = valueFont;
+  const P_COLOR = '#7DD3FC';
+  const ET_COLOR = '#F3E474';
 
   const safeValues = $derived(Array.isArray(values) && values.length ? values : [0]);
   const safeMonths = $derived(Array.isArray(months) && months.length ? months : []);
   const safeEt = $derived(
-    Array.isArray(etValues) && etValues.length === safeValues.length ? etValues : []
+    Array.isArray(etValues) && etValues.length === safeValues.length ? etValues : [],
   );
-  const safeBalance = $derived.by(() => {
-    if (Array.isArray(waterBalance) && waterBalance.length === safeValues.length) {
-      return waterBalance.map((v) => Number(v) || 0);
-    }
-    if (safeEt.length === safeValues.length) {
-      return safeValues.map((p, i) => Math.round((Number(p) || 0) - (Number(safeEt[i]) || 0)));
-    }
-    return [];
-  });
-
-  const minScale = $derived(
-    safeBalance.length ? Math.min(0, Math.floor(Math.min(...safeBalance) / 20) * 20) : 0
-  );
-  const maxScale = $derived(
-    Math.max(10, Math.ceil(Math.max(...safeValues, ...safeEt, ...safeBalance, 1) / 20) * 20)
-  );
-
-  function yFor(val) {
-    const span = Math.max(1, maxScale - minScale);
-    return plotBottom - ((val - minScale) / span) * (plotBottom - top);
-  }
-
-  const zeroY = $derived(yFor(0));
-  const plotW = width - padL - padR;
-  const slotW = $derived(plotW / Math.max(1, safeValues.length));
-  const barW = $derived(Math.max(6, Math.min(14, slotW * 0.56)));
+  const hasEt = $derived(safeEt.length > 0);
+  const max = $derived(Math.max(...safeValues, ...(hasEt ? safeEt : []), 1));
 
   const points = $derived(
     safeValues.map((value, index) => {
-      const cx = padL + index * slotW + slotW / 2;
-      const pVal = Math.max(0, Number(value) || 0);
-      const etVal = safeEt.length ? Math.max(0, Number(safeEt[index]) || 0) : null;
-      const wbVal = safeBalance.length ? Number(safeBalance[index]) || 0 : null;
+      const pVal = Number(value) || 0;
+      const etVal = hasEt ? Number(safeEt[index]) || 0 : null;
+      const slot = (width - padL - padR) / Math.max(1, safeValues.length);
+      const x = padL + slot / 2 + index * slot;
+      const yOf = (v) => axisY - (Math.max(0, v) / max) * (axisY - top);
       return {
-        cx,
-        pVal,
-        pY: yFor(pVal),
-        etVal,
-        etY: etVal !== null ? yFor(etVal) : null,
-        wbVal,
-        wbY: wbVal !== null ? yFor(wbVal) : null,
+        x,
+        y: yOf(pVal),
+        value: pVal,
+        et: etVal,
+        etY: etVal === null ? null : yOf(etVal),
       };
     }),
   );
 
-  const etLine = $derived(
-    points.every((p) => p.etY !== null)
-      ? points.map((p) => `${p.cx},${p.etY}`).join(' ')
-      : ''
+  function bezierControls(pts, i, yKey, extend = 6, flatten = 0.35) {
+    const p0 = pts[Math.max(0, i - 1)];
+    const p1 = pts[i];
+    const p2 = pts[i + 1];
+    const p3 = pts[Math.min(pts.length - 1, i + 2)];
+    const y = (p) => p[yKey];
+    return {
+      x1: p1.x,
+      y1: y(p1),
+      c1x: p1.x + (p2.x - p0.x) / extend,
+      c1y: y(p1) + ((y(p2) - y(p0)) / extend) * flatten,
+      c2x: p2.x - (p3.x - p1.x) / extend,
+      c2y: y(p2) - ((y(p3) - y(p1)) / extend) * flatten,
+      x2: p2.x,
+      y2: y(p2),
+    };
+  }
+
+  function bezierPoint(seg, t) {
+    const u = 1 - t;
+    return {
+      x: u * u * u * seg.x1 + 3 * u * u * t * seg.c1x + 3 * u * t * t * seg.c2x + t * t * t * seg.x2,
+      y: u * u * u * seg.y1 + 3 * u * u * t * seg.c1y + 3 * u * t * t * seg.c2y + t * t * t * seg.y2,
+    };
+  }
+
+  function segmentList(pts, yKey) {
+    if (pts.length < 2) return [];
+    const segments = [];
+    for (let i = 0; i < pts.length - 1; i += 1) segments.push(bezierControls(pts, i, yKey));
+    return segments;
+  }
+
+  function smoothPath(pts, yKey) {
+    if (!pts.length) return '';
+    if (pts.length === 1) return `M ${pts[0].x} ${pts[0][yKey]}`;
+    let d = `M ${pts[0].x} ${pts[0][yKey]}`;
+    for (let i = 0; i < pts.length - 1; i += 1) {
+      const seg = bezierControls(pts, i, yKey);
+      d += ` C ${seg.c1x} ${seg.c1y}, ${seg.c2x} ${seg.c2y}, ${seg.x2} ${seg.y2}`;
+    }
+    return d;
+  }
+
+  const drawn = $derived(
+    points.map((point) => ({
+      x: point.x,
+      y: point.y + 3,
+      etY: point.etY === null ? null : point.etY + 3,
+    })),
   );
-  const wbLine = $derived(
-    points.every((p) => p.wbY !== null)
-      ? points.map((p) => `${p.cx},${p.wbY}`).join(' ')
-      : ''
+  const curved = $derived.by(() => {
+    if (drawn.length < 2) return drawn;
+    const slot = (drawn[1].x - drawn[0].x) / 2;
+    const first = drawn[0];
+    const last = drawn[drawn.length - 1];
+    const midY = (first.y + last.y) / 2;
+    const midEt = first.etY === null || last.etY === null ? null : (first.etY + last.etY) / 2;
+    return [
+      { x: first.x - slot, y: midY, etY: midEt },
+      ...drawn,
+      { x: last.x + slot, y: midY, etY: midEt },
+    ];
+  });
+  const line = $derived(smoothPath(curved, 'y'));
+  const etLine = $derived(hasEt ? smoothPath(curved, 'etY') : '');
+  const area = $derived(
+    !hasEt && points.length
+      ? `${smoothPath(points, 'y')} L ${points[points.length - 1].x} ${axisY} L ${points[0].x} ${axisY} Z`
+      : '',
   );
 
-  const marks = $derived(
-    safeMonths.length >= 12
-      ? [0, 2, 4, 6, 8, 10]
-      : safeMonths.map((_, i) => i)
+  const fills = $derived.by(() => {
+    if (!hasEt || curved.length < 2) return [];
+    const pSegs = segmentList(curved, 'y');
+    const eSegs = segmentList(curved, 'etY');
+    const steps = 8;
+    const samples = [];
+    for (let i = 0; i < pSegs.length; i += 1) {
+      const count = i === pSegs.length - 1 ? steps : steps - 1;
+      for (let s = 0; s <= count; s += 1) {
+        const t = s / steps;
+        const p = bezierPoint(pSegs[i], t);
+        const e = bezierPoint(eSegs[i], t);
+        samples.push({ x: p.x, pY: p.y, etY: e.y });
+      }
+    }
+    if (!samples.length) return [];
+
+    const pOnTop = (sample) => sample.pY <= sample.etY;
+    const bands = [];
+    let band = { pOnTop: pOnTop(samples[0]), pts: [samples[0]] };
+    for (let i = 1; i < samples.length; i += 1) {
+      const prev = samples[i - 1];
+      const cur = samples[i];
+      if (pOnTop(prev) === pOnTop(cur)) {
+        band.pts.push(cur);
+        continue;
+      }
+      const dp = prev.pY - prev.etY;
+      const dc = cur.pY - cur.etY;
+      const denom = dp - dc;
+      const t = denom === 0 ? 0.5 : dp / denom;
+      const crossY = prev.pY + (cur.pY - prev.pY) * t;
+      const cross = {
+        x: prev.x + (cur.x - prev.x) * t,
+        pY: crossY,
+        etY: crossY,
+      };
+      band.pts.push(cross);
+      bands.push(band);
+      band = { pOnTop: pOnTop(cur), pts: [cross, cur] };
+    }
+    bands.push(band);
+
+    return bands
+      .filter((item) => item.pts.length >= 2)
+      .map((item) => {
+        const forward = item.pts.map((p, index) => `${index === 0 ? 'M' : 'L'} ${p.x} ${p.pY}`);
+        const back = [...item.pts].reverse().map((p) => `L ${p.x} ${p.etY}`);
+        return {
+          d: `${forward.join(' ')} ${back.join(' ')} Z`,
+          color: item.pOnTop ? P_COLOR : ET_COLOR,
+        };
+      });
+  });
+
+  const markers = $derived(
+    points.map((point, index) => {
+      const base = {
+        key: index,
+        x: point.x,
+        month: safeMonths[index] ?? '',
+      };
+      if (!hasEt) {
+        return {
+          ...base,
+          pLabel: point.value,
+          pTextY: point.y - 4,
+          pAnchor: 'auto',
+          showEt: false,
+          bottom: axisY,
+        };
+      }
+
+      const pDrawn = point.y + 3;
+      const etDrawn = point.etY + 3;
+      const pIsUpper = pDrawn <= etDrawn;
+      const lowerY = Math.max(pDrawn, etDrawn);
+      const diff = Math.round(point.value - point.et);
+      const lowerTextY = lowerY + labelGap;
+
+      return {
+        ...base,
+        pLabel: Math.round(point.value),
+        etLabel: Math.round(point.et),
+        pTextY: pIsUpper ? pDrawn - labelGap : pDrawn + labelGap,
+        pAnchor: pIsUpper ? 'auto' : 'hanging',
+        etTextY: pIsUpper ? etDrawn + labelGap : etDrawn - labelGap,
+        etAnchor: pIsUpper ? 'hanging' : 'auto',
+        diffText: `${diff > 0 ? '+' : ''}${diff}`,
+        positive: diff >= 0,
+        showEt: true,
+        showDiff: true,
+        bottom: lowerTextY + valueFont,
+      };
+    }),
   );
 
-  const season = $derived(Number(total) || safeValues.reduce((sum, v) => sum + (Number(v) || 0), 0));
+  const labelBottom = $derived(Math.max(axisY, ...markers.map((marker) => marker.bottom)));
+  const rowGap = 6;
+  const monthsY = $derived(labelBottom + rowGap);
+  const diffY = $derived(monthsY + monthFont + rowGap);
+  const seasonY = $derived(hasEt ? diffY + diffFont + 12 : monthsY + monthFont + 12);
+  const barH = 4;
+  const barRadius = barH / 2;
+  const markerH = barH * 3;
+  const barY = $derived(seasonY + 8);
+  const height = $derived(barY + barH + 8);
+
+  const season = $derived(Number(total) || safeValues.reduce((sum, value) => sum + value, 0));
   const base = $derived(Number(baseline) || 0);
-  const netBalance = $derived(
-    safeBalance.length ? Math.round(safeBalance.reduce((s, v) => s + v, 0)) : null
-  );
-  const barScale = $derived(Math.max(season, base, 1));
-  const seasonWidth = $derived((plotW * Math.max(0, season)) / barScale);
+  const chartLeft = padL;
+  const chartRight = $derived(width - padR);
+  const trackWidth = $derived(Math.max(0, chartRight - chartLeft));
+  const barScale = $derived(base > 0 ? base * 1.05 : Math.max(season, 1));
+  const seasonWidth = $derived(Math.min(trackWidth, (trackWidth * season) / barScale));
+  const hundredX = $derived(chartLeft + trackWidth / 1.05);
 </script>
 
-<svg viewBox="0 0 {width} {height}" role="img" aria-label="12-month precipitation, evapotranspiration, and P minus ET water balance">
-  <text x="0" y={top + 3} class="axis">{Math.round(maxScale)}</text>
-  <text x="0" y={zeroY + 3} class="axis">0</text>
-  {#if minScale < 0}
-    <text x="0" y={plotBottom + 2} class="axis">{Math.round(minScale)}</text>
+<div class="plot" bind:clientWidth={hostWidth}>
+<svg
+  viewBox="0 0 {width} {height}"
+  role="img"
+  aria-label={hasEt ? 'Monthly precipitation and evapotranspiration' : 'Monthly precipitation'}
+>
+  {#if !hasEt}
+    <defs>
+      <linearGradient id="precip-area" gradientUnits="userSpaceOnUse" x1="0" y1={top} x2="0" y2={axisY}>
+        <stop offset="0%" stop-color="#7DD3FC" stop-opacity="0.9" />
+        <stop offset="100%" stop-color="#7DD3FC" stop-opacity="0.05" />
+      </linearGradient>
+    </defs>
   {/if}
-
-  <line x1={padL} y1={zeroY} x2={width - padR} y2={zeroY} class="baseline" />
-
-  {#each points as point, index (safeMonths[index] ?? index)}
-    {@const barH = Math.max(1, zeroY - point.pY)}
-    <rect
-      x={point.cx - barW / 2}
-      y={point.pY}
-      width={barW}
-      height={barH}
-      rx="1.5"
-      class="precip-bar"
-    />
-    {#if marks.includes(index)}
-      <text x={point.cx} y={plotBottom + 11} text-anchor="middle" class="month">{safeMonths[index] ?? ''}</text>
+  <text x="0" y={top} dominant-baseline="central" class="axis">{Math.round(max)}</text>
+  <text x="0" y={axisY} dominant-baseline="central" class="axis">0</text>
+  <line x1={padL} y1={top} x2={width - padR} y2={top} class="maxline" />
+  {#if !hasEt}
+    <path d={area} fill="url(#precip-area)" />
+  {/if}
+  {#each fills as fill, index (index)}
+    <path d={fill.d} fill={fill.color} fill-opacity="0.25" />
+  {/each}
+  <line x1={padL} y1={axisY} x2={width - padR} y2={axisY} class="baseline" />
+  <path d={line} class="line" />
+  {#if etLine}
+    <path d={etLine} class="et-line" />
+  {/if}
+  {#each markers as marker (marker.key)}
+    <text
+      x={marker.x}
+      y={marker.pTextY}
+      text-anchor="middle"
+      dominant-baseline={marker.pAnchor}
+      class="value"
+    >{marker.pLabel}</text>
+    {#if marker.showEt}
+      <text
+        x={marker.x}
+        y={marker.etTextY}
+        text-anchor="middle"
+        dominant-baseline={marker.etAnchor}
+        class="et-value"
+      >{marker.etLabel}</text>
+    {/if}
+    <text x={marker.x} y={monthsY} text-anchor="middle" dominant-baseline="hanging" class="month">{marker.month}</text>
+    {#if marker.showDiff}
+      <text
+        x={marker.x}
+        y={diffY}
+        text-anchor="middle"
+        dominant-baseline="hanging"
+        class={marker.positive ? 'diff-pos' : 'diff-neg'}
+      >{marker.diffText}</text>
     {/if}
   {/each}
-
-  {#if etLine}
-    <polyline points={etLine} class="et-line" />
-  {/if}
-
-  {#if wbLine}
-    <polyline points={wbLine} class="wb-line" />
-    {#each points as point, index (safeMonths[index] ?? index)}
-      <circle
-        cx={point.cx}
-        cy={point.wbY}
-        r="1.9"
-        class={point.wbVal >= 0 ? 'wb-pos' : 'wb-neg'}
-      />
-    {/each}
-  {/if}
-
-  <rect x={padL} y="97" width="6" height="5" rx="1" class="precip-bar" />
-  <text x={padL + 9} y="102" class="legend">P (mm)</text>
-  {#if etLine}
-    <line x1={padL + 46} y1="99.5" x2={padL + 56} y2="99.5" class="et-line" />
-    <text x={padL + 59} y="102" class="legend">ET</text>
-  {/if}
-  {#if wbLine}
-    <line x1={padL + 78} y1="99.5" x2={padL + 88} y2="99.5" class="wb-line" />
-    <text x={padL + 91} y="102" class="legend">
-      P−ET{netBalance !== null ? ` (${netBalance >= 0 ? '+' : ''}${netBalance})` : ''}
-    </text>
-  {/if}
-
-  <text x={padL} y="116" class="caption">12-mo P {Math.round(season)} mm</text>
-  <text x={width - padR} y="116" text-anchor="end" class="caption">10-yr avg {Math.round(base)} mm</text>
-  <rect x={padL} y="121" width={plotW} height="4" rx="2" class="track" />
-  <rect x={padL} y="121" width={seasonWidth} height="4" rx="2" class="fill" />
+  <text x={padL} y={seasonY} class="season">Season {Math.round(season)} mm</text>
+  <text x={width - padR} y={seasonY} text-anchor="end" class="baseline-label">10-yr baseline {Math.round(base)} mm</text>
+  <rect x={chartLeft} y={barY} width={trackWidth} height={barH} rx={barRadius} class="track" />
+  <rect x={chartLeft} y={barY} width={seasonWidth} height={barH} rx={barRadius} class="fill" />
+  <line
+    x1={hundredX}
+    y1={barY + barH / 2 - markerH / 2}
+    x2={hundredX}
+    y2={barY + barH / 2 + markerH / 2}
+    class="hundred"
+  />
 </svg>
+</div>
 
 <style>
+  .plot {
+    width: 100%;
+  }
+
   svg {
     display: block;
     width: 100%;
     height: auto;
   }
 
-  .precip-bar {
-    fill: var(--color-chart-blue);
-    opacity: 0.72;
+  .line,
+  .et-line {
+    fill: none;
+    stroke-width: 1.8;
+    stroke-linejoin: round;
+    stroke-linecap: round;
+  }
+
+  .line {
+    stroke: #7dd3fc;
   }
 
   .et-line {
+    stroke: #f3e474;
+  }
+
+  .maxline {
+    stroke: var(--color-panel);
+    stroke-width: 1;
     fill: none;
-    stroke: var(--color-chart-orange);
-    stroke-width: 1.4;
-    stroke-dasharray: 3 2;
-  }
-
-  .wb-line {
-    fill: none;
-    stroke: var(--color-chart-green);
-    stroke-width: 1.5;
-  }
-
-  .wb-pos {
-    fill: var(--color-chart-green);
-  }
-
-  .wb-neg {
-    fill: var(--color-chart-red);
   }
 
   .baseline {
-    stroke: var(--color-card-dim);
+    stroke: var(--color-panel);
     stroke-width: 1;
-    opacity: 0.7;
+    fill: none;
   }
 
   .track {
-    fill: var(--color-chart-track);
+    stroke: none;
+    fill: var(--color-panel);
   }
 
   .fill {
-    fill: var(--color-chart-blue);
+    fill: #7dd3fc;
   }
 
-  .month,
-  .legend {
-    fill: var(--color-card-text);
-    font-size: 7.5px;
+  .hundred {
+    stroke: #fff;
+    stroke-width: 1;
+    stroke-dasharray: 1.4 1;
+    stroke-opacity: 0.75;
+    fill: none;
   }
 
-  .caption,
+  .value,
+  .et-value,
+  .month {
+    font-size: calc(8px * 260 / 356);
+    font-weight: 700;
+  }
+
+  .diff-pos,
+  .diff-neg {
+    font-size: calc(12px * 260 / 356);
+    font-weight: 700;
+  }
+
+  .season,
+  .baseline-label,
   .axis {
-    fill: var(--color-card-dim);
-    font-size: 7.5px;
+    font-size: 9px;
+    font-weight: 700;
+  }
+
+  .value,
+  .season {
+    fill: #7dd3fc;
+  }
+
+  .et-value {
+    fill: #f3e474;
+  }
+
+  .diff-pos {
+    fill: #b2ff9e;
+  }
+
+  .diff-neg {
+    fill: #ffb26b;
+  }
+
+  .month {
+    fill: #cbc9c7;
+  }
+
+  .baseline-label {
+    fill: #fff;
+  }
+
+  .axis {
+    fill: #cbc9c7;
   }
 </style>

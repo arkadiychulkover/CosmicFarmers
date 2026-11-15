@@ -180,10 +180,13 @@
 
 <div class="app">
   <Header />
-
+  
   <div class="layout">
+    
     <section class="panel" class:collapsed={$session.collapsed}>
-      <div class="content">
+      
+      <div class="content" class:input-page={currentPath === '/' || currentPath === '/telemetry'}>
+        
         <Router
           id="panel-router"
           routes={panelRoutes}
@@ -294,17 +297,17 @@
   .app {
     display: flex;
     flex-direction: column;
-    min-height: 100vh;
+    height: 100vh;
+    overflow: hidden;
   }
 
   .layout {
-    flex: 1 0 auto;
+    flex: 1 1 auto;
     display: flex;
     align-items: stretch;
-    min-height: calc(100vh - var(--header-height) - 56px);
+    min-height: 0;
     position: relative;
     overflow: hidden;
-    overflow: clip;
   }
 
   .panel {
@@ -312,9 +315,8 @@
     flex-shrink: 0;
     width: var(--panel-width);
     max-width: calc(100vw - var(--rail-width));
-    height: calc(100vh - var(--header-height) - 56px);
-    min-height: calc(100vh - var(--header-height) - 56px);
-    max-height: calc(100vh - var(--header-height) - 56px);
+    min-height: 0;
+    height: 100%;
     background: var(--color-panel);
     border-right: 1px solid var(--color-border);
     transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -339,10 +341,19 @@
     padding: 32px clamp(16px, 4vw, 36px);
     opacity: 1;
     transition: opacity 0.2s ease;
+    overflow-x: hidden;
     overflow-y: auto;
-    max-height: calc(100vh - var(--header-height) - 56px);
+    overflow-anchor: none;
+    overscroll-behavior: none;
+    min-height: 0;
+    height: 100%;
     scrollbar-width: none;
     -ms-overflow-style: none;
+  }
+
+  .content.input-page {
+    margin-top: 30px;
+    height: auto;
   }
 
   .content::-webkit-scrollbar {
@@ -355,7 +366,8 @@
     position: relative;
     flex: 1;
     min-width: 0;
-    height: calc(100vh - var(--header-height) - 56px);
+    height: 100%;
+    min-height: 0;
     display: flex;
     flex-direction: column;
     align-items: center;

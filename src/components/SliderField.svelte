@@ -88,11 +88,14 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
+    height: 26px;
   }
 
   label {
     font-size: 16px;
     font-weight: 600;
+    line-height: 20px;
+    white-space: nowrap;
     color: var(--color-text);
   }
 

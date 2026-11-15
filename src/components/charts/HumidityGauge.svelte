@@ -5,7 +5,10 @@
   const cx = 58;
   const cy = 64;
   const radius = 40;
-  const optimalRadius = 47;
+  const bandWidth = 8;
+  const bandGap = 1.5;
+  const gapFraction = bandGap / (Math.PI * radius);
+  const optimalRadius = radius + bandWidth / 2 + bandWidth;
 
   const segments = [
     { from: 0, to: 0.1, color: '#8A603A' },
@@ -31,6 +34,12 @@
     return `M ${x1} ${y1} A ${r} ${r} 0 0 1 ${x2} ${y2}`;
   }
 
+  function segmentArc(from, to) {
+    const start = from <= 0 ? from : from + gapFraction / 2;
+    const end = to >= 1 ? to : to - gapFraction / 2;
+    return arc(start, end, radius);
+  }
+
   const optimalFrom = $derived(Math.min(1, Math.max(0, optimalMin / max)));
   const optimalTo = $derived(Math.min(1, Math.max(optimalFrom, optimalMax / max)));
   const marker = $derived(point(Math.min(1, Math.max(0, numVal / max)), radius));
@@ -46,20 +55,24 @@
 <div class="gauge">
   <svg viewBox="0 0 130 82" role="img" aria-label="Relative humidity gauge">
     {#each segments as segment (`${segment.from}`)}
-      <path d={arc(segment.from, segment.to, radius)} stroke={segment.color} class="band" />
+      <path d={segmentArc(segment.from, segment.to)} stroke={segment.color} class="band" />
     {/each}
     <path d={arc(optimalFrom, optimalTo, optimalRadius)} class="optimal-arc" />
     <circle cx={marker[0]} cy={marker[1]} r="3.2" class="marker" />
     <text x={cx} y="58" text-anchor="middle" class="number">{numVal.toFixed(1)}</text>
     <text x="8" y="76" class="edge">0%</text>
-    <text x="84" y="76" class="edge">100%</text>
     <text x={cx} y="76" text-anchor="middle" class="edge">RH2M</text>
+    <text x="122" y="76" text-anchor="end" class="edge">100%</text>
   </svg>
   <div class="optimal">
-    <p>Optimal RH zone</p>
-    <strong>{optimalMin}–{optimalMax}%</strong>
-    <span>2 m relative humidity</span>
-    <em>{statusLabel}</em>
+    <div class="block">
+      <p>Optimal RH zone</p>
+      <div class="rest">
+        <strong>{optimalMin}–{optimalMax}%</strong>
+        <span>2 m relative humidity</span>
+        <em>{statusLabel}</em>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -89,7 +102,7 @@
   .optimal-arc {
     stroke: var(--color-accent);
     stroke-width: 3;
-    stroke-linecap: round;
+    stroke-linecap: butt;
   }
 
   .marker {
@@ -111,6 +124,24 @@
     font-size: 9px;
   }
 
+  .optimal {
+    display: flex;
+    justify-content: flex-end;
+  }
+
+  .block {
+    display: flex;
+    flex-direction: column;
+    width: max-content;
+    max-width: 100%;
+  }
+
+  .rest {
+    width: 0;
+    min-width: 100%;
+    text-align: left;
+  }
+
   .optimal p,
   .optimal strong,
   .optimal span,
@@ -120,9 +151,15 @@
 
   .optimal p {
     color: var(--color-accent);
-    font-size: 9px;
-    font-weight: 400;
+    font-family: var(--font-display);
+    font-size: 16px;
+    font-weight: 600;
+    font-stretch: 75%;
+    letter-spacing: -0.03em;
     line-height: 1;
+    margin-bottom: 0.75em;
+    text-align: left;
+    white-space: nowrap;
     text-transform: uppercase;
   }
 
@@ -132,23 +169,25 @@
     font-family: var(--font-display);
     font-size: 16px;
     font-weight: 600;
-    line-height: 1.1;
+    line-height: 1;
+  }
+
+  .optimal span,
+  .optimal em {
+    display: block;
+    font-style: normal;
+    line-height: 1;
   }
 
   .optimal span {
-    display: block;
     color: var(--color-card-dim);
     font-size: 9px;
-    line-height: 1.1;
+    font-weight: 700;
   }
 
   .optimal em {
-    display: block;
     color: var(--color-tone-warn);
-    font-size: 10px;
-    font-style: normal;
-    font-weight: 500;
-    line-height: 1.2;
+    font-size: 12px;
   }
 </style>
 

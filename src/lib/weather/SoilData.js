@@ -112,12 +112,22 @@ export async function fetchSrtmTerrain(latitude, longitude, { signal, strict = f
   }
 }
 
-export async function getWeather(longitude, latitude, { signal } = {}) {
+const weatherRequests = new Map();
+
+function readJson(response, label) {
+  if (!response.ok) throw new Error(`${label} error: ${response.status}`);
+  return response.json();
+}
+
+export function startWeatherRequests(longitude, latitude, { signal } = {}) {
   const numLat = Number(latitude);
   const numLon = Number(longitude);
+  const key = `${numLat.toFixed(4)},${numLon.toFixed(4)}`;
+  const current = weatherRequests.get(key);
+  if (current) return current;
+
   const isSouthern = numLat < 0;
   const seasonYear = getSeasonYear(numLat);
-
   const startStr = isSouthern ? `${seasonYear}0501` : `${seasonYear}0101`;
   const endStr = isSouthern ? `${seasonYear + 1}0430` : `${seasonYear}1231`;
 
@@ -130,7 +140,6 @@ export async function getWeather(longitude, latitude, { signal } = {}) {
     end: endStr,
     format: 'JSON',
   });
-
   const monthlyUrl = 'https://power.larc.nasa.gov/api/temporal/monthly/point?' + new URLSearchParams({
     parameters: 'PRECTOTCORR',
     community: 'AG',
@@ -141,22 +150,13 @@ export async function getWeather(longitude, latitude, { signal } = {}) {
     format: 'JSON',
   });
 
-  const [dailyRes, monthlyRes, srtmRes] = await Promise.all([
-    fetch(dailyUrl, { signal }).then((r) => {
-      if (!r.ok) throw new Error(`Daily NASA POWER error: ${r.status}`);
-      return r.json();
-    }),
-    fetch(monthlyUrl, { signal }).then((r) => {
-      if (!r.ok) throw new Error(`Monthly NASA POWER error: ${r.status}`);
-      return r.json();
-    }).catch((err) => {
-      if (signal?.aborted || err?.name === 'AbortError') throw err;
-      return null;
-    }),
-    fetchSrtmTerrain(numLat, numLon, { signal }),
-  ]);
-
-  return {
+  const daily = fetch(dailyUrl, { signal }).then((response) => readJson(response, 'Daily NASA POWER'));
+  const monthly = fetch(monthlyUrl, { signal }).then((response) => readJson(response, 'Monthly NASA POWER')).catch((err) => {
+    if (signal?.aborted || err?.name === 'AbortError') throw err;
+    return null;
+  });
+  const srtm = fetchSrtmTerrain(numLat, numLon, { signal });
+  const full = Promise.all([daily, monthly, srtm]).then(([dailyRes, monthlyRes, srtmRes]) => ({
     daily: dailyRes,
     monthly: monthlyRes,
     srtm: srtmRes,
@@ -165,7 +165,18 @@ export async function getWeather(longitude, latitude, { signal } = {}) {
     dateRange: { start: startStr, end: endStr },
     latitude: numLat,
     longitude: numLon,
-  };
+  }));
+
+  const job = { daily, monthly, srtm, full };
+  weatherRequests.set(key, job);
+  full.finally(() => {
+    if (weatherRequests.get(key) === job) weatherRequests.delete(key);
+  });
+  return job;
+}
+
+export async function getWeather(longitude, latitude, { signal } = {}) {
+  return startWeatherRequests(longitude, latitude, { signal }).full;
 }
 
 function sortedValidSeasonValues(paramObj, monthKeySet, ex) {
@@ -422,6 +433,27 @@ function computeFrostAndStressMetrics(dp, isSouthern, ex) {
   };
 }
 
+function seasonDailyTriple(dp, monthKeys, ex) {
+  const months = new Set(monthKeys);
+  const meanMap = dp.T2M || {};
+  const maxMap = dp.T2M_MAX || {};
+  const minMap = dp.T2M_MIN || {};
+  const dates = Object.keys(meanMap)
+    .filter((date) => months.has(date.slice(4, 6)) && meanMap[date] !== ex && Number.isFinite(meanMap[date]))
+    .sort();
+  const daily = dates.map((date) => Number(meanMap[date]));
+  const read = (map, date, fallback) => {
+    const value = map[date];
+    return value !== undefined && value !== ex && Number.isFinite(value) ? Number(value) : fallback;
+  };
+  return {
+    dates,
+    daily,
+    dailyMax: dates.map((date, index) => read(maxMap, date, daily[index])),
+    dailyMin: dates.map((date, index) => read(minMap, date, daily[index])),
+  };
+}
+
 export function parseWeatherResponse(weatherData, options = {}) {
   const { daily, monthly, srtm } = weatherData;
   const ex = daily.header?.fill_value ?? -999;
@@ -526,6 +558,7 @@ export function parseWeatherResponse(weatherData, options = {}) {
   );
 
   const stress = computeFrostAndStressMetrics(dp, seasonCfg.isSouthern, ex);
+  const seasonDaily = seasonDailyTriple(dp, MONTH_KEYS_12, ex);
   const prectotcorrSeasonMean = totalPrecip > 0
     ? totalPrecip / SEASON_MONTHS
     : averageWithException(sortedValidSeasonValues(dp.PRECTOTCORR, seasonKeySet, ex), ex);
@@ -604,6 +637,10 @@ export function parseWeatherResponse(weatherData, options = {}) {
       monthlyMin12,
       heatDays: stress.heatDays,
       freezeThawDays: stress.freezeThawDays,
+      dates: seasonDaily.dates,
+      daily: seasonDaily.daily,
+      dailyMax: seasonDaily.dailyMax,
+      dailyMin: seasonDaily.dailyMin,
     },
     atmosphere: {
       rh2m: Number(rh2mVal.toFixed(1)),
