@@ -631,6 +631,8 @@
   <div class="actions">
     <ActionButton
       variant="surface"
+      loading={$session.nasaLoading}
+      disabled={!canProceed}
       onclick={() => goto('/telemetry')}
     >
       {$session.nasaLoading ? 'Loading NASA Data...' : isNonArableBlocked ? 'Acknowledge Land Cover Warning Above' : 'Stress Test →'}

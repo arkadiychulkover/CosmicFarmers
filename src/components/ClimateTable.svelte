@@ -35,23 +35,47 @@
     event.currentTarget.value = n;
   }
 
+  let tableWrap = $state(null);
+  let tableEl = $state(null);
+  let headerRow = $state(null);
   let anomalyLabel = $state(null);
   let lineCell = $state(null);
   let lineInset = $state(0);
+  let centerPad = $state(0);
 
   $effect(() => {
+    const wrap = tableWrap;
+    const table = tableEl;
+    const row = headerRow;
     const label = anomalyLabel;
     const cell = lineCell;
-    if (!label || !cell) return;
+    if (!wrap || !table || !row || !label || !cell) return;
 
     const measure = () => {
       const start = label.getBoundingClientRect().left - cell.getBoundingClientRect().left;
       lineInset = Math.max(0, start);
+
+      const heads = row.querySelectorAll('th[scope="col"]');
+      const firstHead = heads[0];
+      const lastHead = heads[heads.length - 1];
+      if (!firstHead || !lastHead || wrap.clientWidth < 560) {
+        if (centerPad !== 0) centerPad = 0;
+        return;
+      }
+
+      const tableRect = table.getBoundingClientRect();
+      const firstRect = firstHead.getBoundingClientRect();
+      const lastRect = lastHead.getBoundingClientRect();
+      const leftSpan = firstRect.left - tableRect.left;
+      const rightEdge = tableRect.right - lastRect.right;
+      const nextPad = Math.max(0, Math.round(leftSpan - rightEdge));
+      if (Math.abs(nextPad - centerPad) >= 1) centerPad = nextPad;
     };
 
     measure();
     document.fonts?.ready?.then(measure);
     const observer = new ResizeObserver(measure);
+    observer.observe(wrap);
     observer.observe(label);
     observer.observe(cell);
     window.addEventListener('resize', measure);
@@ -74,14 +98,20 @@
   }
 </script>
 
-<div class="table-scroll">
-<table>
+<div class="table-scroll" bind:this={tableWrap} style:padding-right="{centerPad}px">
+<table bind:this={tableEl}>
+  <colgroup>
+    <col class="label-col" />
+    {#each columns as column (column.key)}
+      <col class="metric-col" style:width="{100 / Math.max(1, columns.length)}%" />
+    {/each}
+  </colgroup>
   <thead>
     <tr>
       <td></td>
       <th class="metric" colspan={columns.length} scope="colgroup">Metric</th>
     </tr>
-    <tr>
+    <tr bind:this={headerRow}>
       <td></td>
       {#each columns as column (column.key)}
         <th scope="col">{column.label}</th>
@@ -136,6 +166,7 @@
 
 <style>
   .table-scroll {
+    box-sizing: border-box;
     width: 100%;
     overflow-x: auto;
   }
@@ -145,6 +176,10 @@
     border-collapse: separate;
     border-spacing: 8px 6px;
     text-align: center;
+  }
+
+  .label-col {
+    width: 1px;
   }
 
   th,
@@ -163,6 +198,7 @@
   }
 
   .row {
+    width: 1px;
     font-family: 'Roboto', var(--font-body);
     font-size: 16px;
     font-weight: 600;
@@ -172,7 +208,9 @@
 
   .cell {
     display: block;
+    box-sizing: border-box;
     width: 100%;
+    min-width: 0;
     padding: 3px 8px;
     border-radius: 6px;
     color: var(--color-text);
@@ -189,6 +227,8 @@
     position: relative;
     display: flex;
     align-items: center;
+    width: 100%;
+    min-width: 0;
   }
 
   .anomaly {
