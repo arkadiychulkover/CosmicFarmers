@@ -85,10 +85,10 @@
     {
       name: 'Crop Card Photography & Cover Visuals',
       resolution: '1204 × 672 WebP (UI & PDF cards)',
-      license: 'SI-generated watermarked + team bundled assets',
+      license: 'SI-generated & watermarked (26/26)',
       temporal: 'Static illustrative crop visuals',
       variables: '26 crop species visuals used in Result cards, Timeline slides, and PDF reports',
-      notes: '13 crop visuals (alfalfa, apple, barley, chickpea, cotton, crimson-clover, grapes, hairy-vetch, kidneybeans, lentil, maize, soybean, wheat) were generated using Google Gemini SI image tools, converted to WebP, and carry a visible Gemini sparkle + "Gemini · SI" watermark without NASA branding; the remaining 13 files are original repository visuals pending user replacement.',
+      notes: 'All 26 crop visuals carry clear SI watermarks without NASA branding: 13 (alfalfa, apple, barley, chickpea, cotton, crimson-clover, grapes, hairy-vetch, kidneybeans, lentil, maize, soybean, wheat) were generated using Google Gemini SI tools ("Gemini · SI"), and 13 (millet, oats, oats-field-pea, oilseed-radish, orange, peanut, potato, rapeseed, rice, sorghum, sunflower, watermelon, winter-rye) were generated using xAI Grok SI tools ("Grok · SI" + native GROK corner mark), all saved as 1204 × 672 WebP.',
     },
   ];
 

@@ -523,7 +523,7 @@ export async function downloadPlan(result, form) {
     'Esri / Impact Observatory Sentinel-2 10m Land Cover & ESA WorldCereal RDM / WorldCover: Licensed under CC BY 4.0.',
     'USGS NLCD Annual Land Cover (30 m CONUS) & USDA NRCS SSURGO / NASS CropScape CDL: U.S. Government Public Domain.',
     'OpenStreetMap (Overpass API, Basemap Tiles & Nominatim): Licensed under ODbL (OpenStreetMap contributors).',
-    'Crop Visuals (src/crops/*.webp): 13 species visuals are Gemini SI-generated with visible Gemini sparkle + "Gemini - SI" watermarks (no NASA branding); remaining 13 files await user replacement.',
+    'Crop Visuals (src/crops/*.webp): All 26 species visuals are SI-generated & watermarked (no NASA branding): 13 via Google Gemini ("Gemini - SI") and 13 via xAI Grok ("Grok - SI" + native GROK mark), saved as 1204x672 WebP.',
   ]) {
     dy = paragraph(doc, `- ${attr}`, margin, dy + 1.5, { size: 8.5, color: 60 });
   }
