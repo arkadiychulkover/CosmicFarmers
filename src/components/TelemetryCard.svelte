@@ -80,7 +80,8 @@
 
   .source {
     margin: 0;
-    color: var(--color-panel);
+    color: var(--color-card-text);
+    opacity: 0.72;
     font-size: 8px;
     letter-spacing: 0.02em;
     text-transform: uppercase;
@@ -106,7 +107,8 @@
     gap: 2px;
     padding: 8px 16px;
     border-radius: 4px;
-    background: #f1edea;
+    border: 1px solid var(--color-status-error-border);
+    background: var(--color-field);
     color: var(--color-danger);
     text-align: center;
   }

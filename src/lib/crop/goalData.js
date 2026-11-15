@@ -1,60 +1,40 @@
+import { irrigationToFeature } from './features.js';
+
 export const GOAL_WEIGHTS = {
   regeneration: {
-    pigeonpeas: 1.50,
     soybean: 1.45,
-    blackgram: 1.45,
-    mungbean: 1.45,
     chickpea: 1.40,
     lentil: 1.40,
     kidneybeans: 1.40,
-    mothbeans: 1.40,
     rapeseed: 1.15,
     barley: 1.05,
-    coffee: 1.05,
-    mango: 1.05,
-    pomegranate: 1.05,
     apple: 1.00,
-    coconut: 1.00,
     grapes: 1.00,
     orange: 1.00,
     wheat: 0.95,
-    muskmelon: 0.95,
-    papaya: 0.95,
     watermelon: 0.95,
-    banana: 0.90,
-    jute: 0.90,
+    potato: 0.90,
     sunflower: 0.85,
     maize: 0.80,
     rice: 0.80,
     cotton: 0.70,
   },
   water: {
-    mothbeans: 1.50,
     chickpea: 1.40,
     lentil: 1.40,
     sunflower: 1.35,
     barley: 1.30,
-    pigeonpeas: 1.30,
-    pomegranate: 1.30,
-    mungbean: 1.25,
     wheat: 1.20,
-    blackgram: 1.20,
     soybean: 1.10,
     rapeseed: 1.05,
     kidneybeans: 1.05,
-    mango: 1.00,
     apple: 0.95,
     grapes: 0.95,
-    muskmelon: 0.90,
     orange: 0.90,
-    coffee: 0.85,
     watermelon: 0.85,
     cotton: 0.80,
+    potato: 0.75,
     maize: 0.75,
-    papaya: 0.75,
-    coconut: 0.60,
-    banana: 0.55,
-    jute: 0.50,
     rice: 0.35,
   },
   yield: {
@@ -62,32 +42,46 @@ export const GOAL_WEIGHTS = {
     rice: 1.40,
     wheat: 1.35,
     cotton: 1.35,
+    potato: 1.35,
     soybean: 1.30,
     rapeseed: 1.30,
-    banana: 1.30,
     sunflower: 1.25,
     grapes: 1.25,
-    coffee: 1.25,
     watermelon: 1.25,
     barley: 1.20,
     apple: 1.20,
-    muskmelon: 1.20,
     orange: 1.20,
-    papaya: 1.20,
-    pomegranate: 1.20,
-    coconut: 1.15,
-    mango: 1.15,
-    jute: 1.10,
     kidneybeans: 1.10,
     chickpea: 1.05,
     lentil: 1.00,
-    pigeonpeas: 1.00,
-    mungbean: 0.95,
-    blackgram: 0.85,
-    mothbeans: 0.75,
   },
 };
 
+export const CROP_WATER_DEMAND = {
+  rice: 'very-high',
+  cotton: 'high',
+  maize: 'high',
+  apple: 'high',
+  orange: 'high',
+  watermelon: 'high',
+  potato: 'moderate-high',
+  soybean: 'moderate',
+  kidneybeans: 'moderate',
+  grapes: 'moderate',
+  rapeseed: 'moderate',
+  wheat: 'moderate',
+  barley: 'low',
+  sunflower: 'low',
+  chickpea: 'low',
+  lentil: 'low',
+};
+
+export function getWaterDemandTier(cropId) {
+  const tier = CROP_WATER_DEMAND[cropId] ?? 'moderate';
+  if (tier === 'very-high' || tier === 'high') return 'high';
+  if (tier === 'low') return 'low';
+  return 'moderate';
+}
 
 export function getGoalMultipliers(goal, classes) {
   const n = classes.length;
@@ -99,23 +93,14 @@ export function getGoalMultipliers(goal, classes) {
   return arr;
 }
 
-
 const SOIL_STABILIZING_CROPS = new Set([
-  'pigeonpeas',
   'chickpea',
   'lentil',
-  'mungbean',
-  'blackgram',
-  'mothbeans',
   'soybean',
   'barley',
   'wheat',
   'apple',
   'orange',
-  'mango',
-  'pomegranate',
-  'coffee',
-  'coconut',
   'grapes',
 ]);
 
@@ -124,9 +109,21 @@ const ROW_EROSION_RISK_CROPS = new Set([
   'cotton',
   'sunflower',
   'watermelon',
-  'muskmelon',
+  'potato',
 ]);
 
+export function computeWaterBalanceMm(params) {
+  if (!params) return null;
+  if (Number.isFinite(Number(params.waterBalance))) {
+    return Number(params.waterBalance);
+  }
+  const precip = Number(params.PRECTOTCORR);
+  const evptrns = Number(params.EVPTRNS);
+  if (Number.isFinite(precip) && Number.isFinite(evptrns)) {
+    return precip - evptrns * 30.4;
+  }
+  return null;
+}
 
 export function getTelemetryMultipliers(goal, params, classes) {
   const n = classes.length;
@@ -136,26 +133,51 @@ export function getTelemetryMultipliers(goal, params, classes) {
 
   const gwetroot = Number(params.GWETROOT);
   const slope = Number(params.SLOPE);
-  const hasWaterDeficit = goal === 'water' && Number.isFinite(gwetroot) && gwetroot < 0.35;
+  const irrigationVal = irrigationToFeature(params.IRRIGATION ?? params.irrigation ?? 0);
+  const pMinusEt = computeWaterBalanceMm(params);
+
+  const aridClimate = Number.isFinite(pMinusEt) && pMinusEt < 0;
+  const rootDeficit = Number.isFinite(gwetroot) && gwetroot < 0.35;
+  const hasWaterDeficit = aridClimate || rootDeficit;
+  const severeDeficit = (Number.isFinite(pMinusEt) && pMinusEt < -45) || (aridClimate && rootDeficit);
+
   const highSlope = Number.isFinite(slope) && slope > 8;
   const elevatedSlope = !highSlope && Number.isFinite(slope) && slope > 5;
 
   for (let i = 0; i < n; i++) {
     const crop = classes[i];
+    const demand = CROP_WATER_DEMAND[crop] ?? 'moderate';
     let mult = 1.0;
 
+    // Enforce water-deficit penalties regardless of selected goal when rainfed (or supplemental)
     if (hasWaterDeficit) {
-      const w = GOAL_WEIGHTS.water[crop] ?? 1.0;
-      if (w >= 1.25) mult *= 1.25;
-      else if (w <= 0.75) mult *= 0.75;
+      if (irrigationVal <= 0.1) {
+        // Rainfed in arid or root-zone deficit conditions
+        if (demand === 'very-high') mult *= severeDeficit ? 0.18 : 0.25;
+        else if (demand === 'high') mult *= severeDeficit ? 0.42 : 0.56;
+        else if (demand === 'moderate-high') mult *= severeDeficit ? 0.62 : 0.74;
+        else if (demand === 'moderate') mult *= severeDeficit ? 0.82 : 0.90;
+        else if (demand === 'low') mult *= 1.15;
+      } else if (irrigationVal < 0.8) {
+        // Supplemental irrigation eases deficit for annuals, still penalizes flooded rice
+        if (demand === 'very-high') mult *= 0.50;
+        else if (demand === 'high') mult *= 0.85;
+        else if (demand === 'low') mult *= 1.05;
+      }
+    }
+
+    // Extra priority when user explicitly picks Water Conservation goal
+    if (goal === 'water' && hasWaterDeficit) {
+      if (demand === 'low') mult *= 1.18;
+      else if ((demand === 'very-high' || demand === 'high') && irrigationVal < 0.8) mult *= 0.82;
     }
 
     if (highSlope) {
       if (SOIL_STABILIZING_CROPS.has(crop)) mult *= 1.25;
-      else if (ROW_EROSION_RISK_CROPS.has(crop)) mult *= 0.85;
+      else if (ROW_EROSION_RISK_CROPS.has(crop)) mult *= 0.82;
     } else if (elevatedSlope) {
       if (SOIL_STABILIZING_CROPS.has(crop)) mult *= 1.15;
-      else if (ROW_EROSION_RISK_CROPS.has(crop)) mult *= 0.92;
+      else if (ROW_EROSION_RISK_CROPS.has(crop)) mult *= 0.90;
     }
 
     arr[i] = mult;
@@ -163,38 +185,54 @@ export function getTelemetryMultipliers(goal, params, classes) {
   return arr;
 }
 
-
 export function telemetryNote(goal, params, cropId) {
   if (!params) return '';
   const notes = [];
   const gwetroot = Number(params.GWETROOT);
   const slope = Number(params.SLOPE);
+  const irrigationVal = irrigationToFeature(params.IRRIGATION ?? params.irrigation ?? 0);
+  const pMinusEt = computeWaterBalanceMm(params);
+  const demand = CROP_WATER_DEMAND[cropId] ?? 'moderate';
 
-  if (goal === 'water' && Number.isFinite(gwetroot) && gwetroot < 0.35) {
-    const w = GOAL_WEIGHTS.water[cropId] ?? 1.0;
-    if (w >= 1.25) {
-      notes.push(`SMAP root-zone deficit (GWETROOT ${gwetroot.toFixed(2)} < 0.35): drought-tolerant priority boost.`);
-    } else if (w <= 0.75) {
-      notes.push(`SMAP root-zone deficit (GWETROOT ${gwetroot.toFixed(2)} < 0.35): penalized due to high water demand.`);
+  const aridClimate = Number.isFinite(pMinusEt) && pMinusEt < 0;
+  const rootDeficit = Number.isFinite(gwetroot) && gwetroot < 0.35;
+  const hasWaterDeficit = aridClimate || rootDeficit;
+
+  if (hasWaterDeficit) {
+    const deficitParts = [];
+    if (aridClimate) deficitParts.push(`P−ET ${Math.round(pMinusEt)} mm/mo`);
+    if (rootDeficit) deficitParts.push(`GWETROOT ${gwetroot.toFixed(2)} < 0.35`);
+    const deficitLabel = deficitParts.join(', ');
+
+    if (irrigationVal <= 0.1) {
+      if (demand === 'low') {
+        notes.push(`Rainfed water deficit (${deficitLabel}): drought-hardy crop receives resilience boost.`);
+      } else if (demand === 'very-high' || demand === 'high' || demand === 'moderate-high') {
+        notes.push(`Rainfed water deficit (${deficitLabel}): penalized due to ${demand.replace('-', ' ')} crop water demand.`);
+      }
+    } else if (irrigationVal >= 0.8 && (demand === 'very-high' || demand === 'high')) {
+      notes.push(`Full irrigation selected: offsets seasonal moisture deficit (${deficitLabel}).`);
+    } else if (demand === 'very-high') {
+      notes.push(`Supplemental irrigation only (${deficitLabel}): paddy/flooded demand remains penalized.`);
     }
+  } else if (goal === 'water' && demand === 'low') {
+    notes.push('Water conservation alignment: low seasonal evapotranspiration footprint.');
   }
 
   if (Number.isFinite(slope) && slope > 5) {
     if (SOIL_STABILIZING_CROPS.has(cropId)) {
       notes.push(`SRTM runoff protection (slope ${slope.toFixed(1)}%): erosion-control root/canopy bonus.`);
     } else if (ROW_EROSION_RISK_CROPS.has(cropId)) {
-      notes.push(`SRTM runoff warning (slope ${slope.toFixed(1)}%): contour tillage & residue cover recommended.`);
+      notes.push(`SRTM runoff warning (slope ${slope.toFixed(1)}%): contour tillage & cover crop protection recommended.`);
     }
   }
 
   return notes.join(' ');
 }
 
-
 function clamp(v, min, max) {
   return Math.min(max, Math.max(min, v));
 }
-
 
 export function computePlanIndicators(years = [], params = {}, previousCrop = null) {
   if (!years.length) return [];
@@ -209,15 +247,18 @@ export function computePlanIndicators(years = [], params = {}, previousCrop = nu
   const gwetroot = Number(params?.GWETROOT);
   const evptrns = Number(params?.EVPTRNS);
   const slope = Number(params?.SLOPE);
+  const pMinusEt = computeWaterBalanceMm(params);
+  const irrigationVal = irrigationToFeature(params?.IRRIGATION ?? params?.irrigation ?? 0);
 
   const baselineWater = previousCrop && GOAL_WEIGHTS.water[previousCrop] !== undefined
     ? GOAL_WEIGHTS.water[previousCrop]
     : 0.85;
   const deltaWater = avgWater - baselineWater;
 
-  const deficitPenalty = Number.isFinite(gwetroot) && gwetroot < 0.35 && avgWater < 1.05 ? 10 : 0;
+  const aridRainfedPenalty = irrigationVal <= 0.1 && Number.isFinite(pMinusEt) && pMinusEt < 0 && avgWater < 1.05 ? 10 : 0;
+  const deficitPenalty = Number.isFinite(gwetroot) && gwetroot < 0.35 && avgWater < 1.05 ? 8 : 0;
   const etPenalty = Number.isFinite(evptrns) && evptrns > 4.5 && avgWater < 1.0 ? 6 : 0;
-  const waterScore = Math.round(clamp(55 + deltaWater * 95 - deficitPenalty - etPenalty, 25, 98));
+  const waterScore = Math.round(clamp(55 + deltaWater * 95 - aridRainfedPenalty - deficitPenalty - etPenalty, 20, 98));
   const waterDiffPct = Math.round((deltaWater / Math.max(0.35, baselineWater)) * 100);
   const waterValue = waterDiffPct > 0
     ? `+${waterDiffPct}% saved`
@@ -227,7 +268,10 @@ export function computePlanIndicators(years = [], params = {}, previousCrop = nu
   const baselineLabel = previousCrop && GOAL_WEIGHTS.water[previousCrop] !== undefined
     ? `vs 3-yr ${previousCrop}`
     : 'vs baseline';
-  const waterNote = Number.isFinite(gwetroot) && gwetroot < 0.35
+  const irrTag = irrigationVal >= 0.8 ? 'Irrigated' : irrigationVal >= 0.4 ? 'Supplemental' : 'Rainfed';
+  const waterNote = Number.isFinite(pMinusEt)
+    ? `${irrTag} · P−ET ${pMinusEt >= 0 ? '+' : ''}${Math.round(pMinusEt)} mm/mo`
+    : Number.isFinite(gwetroot) && gwetroot < 0.35
     ? `${baselineLabel} · SMAP deficit (${gwetroot.toFixed(2)})`
     : Number.isFinite(evptrns)
     ? `${baselineLabel} · ET ${evptrns.toFixed(1)} mm/d`
@@ -279,7 +323,6 @@ export function computePlanIndicators(years = [], params = {}, previousCrop = nu
   ];
 }
 
-
 export function goalNote(goal, cropId) {
   const k = GOAL_WEIGHTS[goal]?.[cropId] ?? 1.0;
   if (k >= 1.25) {
@@ -295,7 +338,7 @@ export function goalNote(goal, cropId) {
   }
   if (k <= 0.75) {
     if (goal === 'regeneration') {
-      return 'Caution: high nutrient extraction and soil depletion for a regenerative cycle.';
+      return 'Caution: high nutrient extraction and soil disturbance for a regenerative cycle.';
     }
     if (goal === 'water') {
       return 'Caution: high water demand and sensitivity to moisture deficits.';
