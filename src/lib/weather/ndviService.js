@@ -1,17 +1,3 @@
-/**
- * Satellite NDVI & Bare-Soil Detection Service (`ndviService.js`).
- *
- * Solves Problem #4 by replacing the coarse `monthlyTemp < 5°C` bare-soil proxy with
- * real 12-month MODIS Terra NDVI sampled directly from CORS-open NASA GIBS WMTS tiles:
- * - Primary: `MODIS_Terra_NDVI_8Day` (`GoogleMapsCompatible_Level9`, zoom 8)
- * - Gap / archive fallback: `MODIS_Terra_L3_NDVI_Monthly` (`GoogleMapsCompatible_Level7`, zoom 7)
- * - Optional metadata lookup: Element84 Earth Search STAC (`sentinel-2-l2a`, CORS-open)
- *
- * Works identically in DOM browsers and Node/non-DOM test runners via pure Web-API PNG
- * decoding (`DecompressionStream('deflate')`) with `createImageBitmap` canvas fallback.
- * Falls back to temperature/season heuristics ONLY when satellite tiles fail or time out.
- */
-
 const MONTHS_12 = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const BARE_SOIL_NDVI_THRESHOLD = 0.25;
 const DEFAULT_TIMEOUT_MS = 5000;
@@ -22,7 +8,6 @@ const GIBS_MONTHLY_TEMPLATE =
   'https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/MODIS_Terra_L3_NDVI_Monthly/default/{date}/GoogleMapsCompatible_Level7/{z}/{y}/{x}.png';
 const STAC_SEARCH_URL = 'https://earth-search.aws.element84.com/v1/search';
 
-// Official NASA GIBS MODIS_NDVI.xml v1.3 colormap (140 solid bins: [R, G, B, midNDVI])
 export const MODIS_NDVI_PALETTE = Object.freeze([
   [241, 236, 236, 0.0026], [241, 236, 237, 0.0076], [239, 231, 231, 0.0126], [239, 231, 232, 0.0176],
   [236, 226, 226, 0.0226], [236, 226, 227, 0.0276], [226, 216, 216, 0.0326], [226, 216, 217, 0.0376],
@@ -84,13 +69,6 @@ function createBudgetSignal(timeoutMs, externalSignal) {
   };
 }
 
-/**
- * Converts geographic coordinates to an EPSG:3857 WebMercator tile address and pixel coordinates.
- * @param {number} lat
- * @param {number} lon
- * @param {number} zoom
- * @returns {{ zoom: number, col: number, row: number, px: number, py: number }}
- */
 export function latLonToEpsg3857Tile(lat, lon, zoom = 8) {
   const n = Math.pow(2, zoom);
   const clampedLat = Math.max(-85.05112878, Math.min(85.05112878, Number(lat)));
@@ -104,19 +82,8 @@ export function latLonToEpsg3857Tile(lat, lon, zoom = 8) {
   return { zoom, col, row, px, py };
 }
 
-/**
- * Maps an RGBA PNG pixel from a NASA GIBS MODIS NDVI tile to an NDVI float (-0.15..0.995),
- * or returns null for transparent/nodata fill pixels.
- * @param {number} r
- * @param {number} g
- * @param {number} b
- * @param {number} [a=255]
- * @returns {number | null}
- */
 export function rgbToModisNdvi(r, g, b, a = 255) {
-  // Missing / nodata color in MODIS_NDVI.xml is [0, 26, 105]
   if (r === 0 && g === 26 && b === 105) return null;
-  // Snow/ice/water transparent entries in MODIS_NDVI.xml preserve RGB when decoded via PLTE
   if (r === 225 && g === 225 && (b === 225 || b === 226)) {
     return b === 225 ? -0.15 : -0.05;
   }
@@ -139,12 +106,6 @@ export function rgbToModisNdvi(r, g, b, a = 255) {
   return bestDist <= 1200 ? bestNdvi : null;
 }
 
-/**
- * Decodes an uncompressed/deflated non-interlaced PNG ArrayBuffer into RGBA pixels without DOM canvas,
- * using native Web `DecompressionStream('deflate')` with browser `createImageBitmap` fallback.
- * @param {ArrayBuffer} arrayBuffer
- * @returns {Promise<{ width: number, height: number, rgba: Uint8Array, colorType: number }>}
- */
 export async function decodePngRgba(arrayBuffer) {
   if (typeof DecompressionStream !== 'undefined') {
     const bytes = new Uint8Array(arrayBuffer);
@@ -285,7 +246,6 @@ export async function decodePngRgba(arrayBuffer) {
     return { width, height, rgba, colorType };
   }
 
-  // Fallback for older browsers without DecompressionStream
   if (typeof createImageBitmap === 'function' && typeof OffscreenCanvas !== 'undefined') {
     const blob = new Blob([arrayBuffer], { type: 'image/png' });
     const bmp = await createImageBitmap(blob);
@@ -310,7 +270,6 @@ function sampleNdviFromDecodedPng(png, px, py) {
   );
   if (center !== null) return Number(center.toFixed(3));
 
-  // Sample 3x3 pixel neighborhood around point to survive localized cloud masking
   const samples = [];
   for (let dy = -1; dy <= 1; dy++) {
     for (let dx = -1; dx <= 1; dx++) {
@@ -334,17 +293,11 @@ async function fetchTileNdvi(url, tilePos, signal) {
   return sampleNdviFromDecodedPng(png, tilePos.px, tilePos.py);
 }
 
-/**
- * Generates the latest 12 completed calendar months (indexed 0=Jan .. 11=Dec)
- * for GIBS WMTS querying (keeping within rolling 8-Day window when possible).
- * @param {Date} [referenceDate]
- * @returns {{ dates12: string[], monthStartDates12: string[] }}
- */
 export function buildLatest12MonthSampleDates(referenceDate = new Date()) {
   const dates12 = new Array(12).fill(null);
   const monthStartDates12 = new Array(12).fill(null);
   const year = referenceDate.getUTCFullYear();
-  const month = referenceDate.getUTCMonth(); // 0..11
+  const month = referenceDate.getUTCMonth();
 
   for (let offset = 1; offset <= 12; offset++) {
     let m = month - offset;
@@ -360,12 +313,6 @@ export function buildLatest12MonthSampleDates(referenceDate = new Date()) {
   return { dates12, monthStartDates12 };
 }
 
-/**
- * Builds the transparent temperature/season fallback NDVI profile used ONLY when
- * satellite GIBS tile fetching or decoding fails.
- * @param {{ monthlyTemp12?: number[], seasonKeys?: string[], lat?: number }} [options]
- * @returns {object}
- */
 export function computeFallbackNdviProfile({ monthlyTemp12 = [], seasonKeys = [], lat = 45 } = {}) {
   const defaultSeasonKeys =
     Number(lat) < 0
@@ -384,7 +331,6 @@ export function computeFallbackNdviProfile({ monthlyTemp12 = [], seasonKeys = []
     }
     if (!inSeason) return 0.21;
     if (hasTemp) {
-      // Smooth agronomic proxy between 0.30 (10C) and 0.62 (24C+) when tiles fail
       const norm = Math.max(0, Math.min(1, (t - 5) / 20));
       return Number((0.28 + norm * 0.34).toFixed(3));
     }
@@ -409,13 +355,6 @@ export function computeFallbackNdviProfile({ monthlyTemp12 = [], seasonKeys = []
   };
 }
 
-/**
- * Optional metadata lookup on Element84 Earth Search STAC (`sentinel-2-l2a`, CORS-open).
- * @param {number} lat
- * @param {number} lon
- * @param {{ timeoutMs?: number, signal?: AbortSignal }} [options]
- * @returns {Promise<object | null>}
- */
 export async function querySentinel2StacMetadata(lat, lon, options = {}) {
   const { timeoutMs = 3500, signal } = options;
   const { signal: budgetSignal, cleanup } = createBudgetSignal(timeoutMs, signal);
@@ -453,33 +392,6 @@ export async function querySentinel2StacMetadata(lat, lon, options = {}) {
   }
 }
 
-/**
- * Fetches 12-month real satellite NDVI for `(lat, lon)` from NASA GIBS MODIS WMTS tiles
- * (`MODIS_Terra_NDVI_8Day` at zoom 8 with `MODIS_Terra_L3_NDVI_Monthly` zoom 7 gap filling).
- * Replaces the old `temp < 5°C` heuristic (`NDVI < 0.25` -> bare soil).
- *
- * @param {number} lat
- * @param {number} lon
- * @param {{
- *   monthlyTemp12?: number[],
- *   seasonKeys?: string[],
- *   signal?: AbortSignal,
- *   timeoutMs?: number,
- *   zoom8Day?: number,
- *   zoomMonthly?: number,
- * }} [options]
- * @returns {Promise<{
- *   monthlyNdvi12: number[],
- *   bareSoilMonths: string[],
- *   bareSoilMonthIndices: number[],
- *   bareSoilMask12: boolean[],
- *   meanNdvi: number,
- *   bareSoilSource: string,
- *   ndviFallback: boolean,
- *   sampledDates: string[],
- *   resolution: string,
- * }>}
- */
 export async function fetchNdviProfile(lat, lon, options = {}) {
   const numLat = Number(lat);
   const numLon = Number(lon);
@@ -506,7 +418,6 @@ export async function fetchNdviProfile(lat, lon, options = {}) {
   const { signal: budgetSignal, cleanup } = createBudgetSignal(timeoutMs, signal);
 
   try {
-    // 1. Sample MODIS_Terra_NDVI_8Day across all 12 latest calendar months in parallel
     const settled8Day = await Promise.allSettled(
       dates12.map((d) => {
         const url = GIBS_8DAY_TEMPLATE
@@ -522,7 +433,6 @@ export async function fetchNdviProfile(lat, lon, options = {}) {
 
     const raw12 = settled8Day.map((r) => (r.status === 'fulfilled' ? r.value : null));
 
-    // 2. For any month missing (snow/cloud/outside rolling window), backfill using MODIS_Terra_L3_NDVI_Monthly
     const missingIndices = raw12.reduce((acc, val, i) => (val === null ? [...acc, i] : acc), []);
     let usedMonthlyComposite = false;
     if (missingIndices.length > 0 && missingIndices.length <= 12 && !budgetSignal.aborted) {
@@ -548,17 +458,15 @@ export async function fetchNdviProfile(lat, lon, options = {}) {
 
     const validValues = raw12.filter((v) => typeof v === 'number' && Number.isFinite(v));
 
-    // Require at least 3 valid satellite samples; otherwise transparently fall back to thermal/season proxy
     if (validValues.length < 3) {
       return computeFallbackNdviProfile({ monthlyTemp12, seasonKeys, lat: numLat });
     }
 
-    // Fill isolated persistent winter/cloud gap months cleanly so downstream arrays remain 12 numbers
     const meanSatellite = validValues.reduce((a, b) => a + b, 0) / validValues.length;
     const monthlyNdvi12 = raw12.map((val, i) => {
       if (typeof val === 'number' && Number.isFinite(val)) return Number(val.toFixed(3));
       const t = Number(monthlyTemp12[i]);
-      if (Number.isFinite(t) && t < 2) return 0.14; // winter snow/freeze cloud-masked period -> bare/inactive
+      if (Number.isFinite(t) && t < 2) return 0.14;
       const prev = raw12[(i + 11) % 12];
       const next = raw12[(i + 1) % 12];
       if (typeof prev === 'number' && typeof next === 'number') {

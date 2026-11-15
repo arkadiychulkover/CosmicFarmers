@@ -79,7 +79,6 @@ describe('Agronomy Goal Weights & FAO-56 Physical Indicators', () => {
     expect(labels.some((l) => l.includes('soil'))).toBe(true);
     expect(labels.some((l) => l.includes('climate') || l.includes('resilience'))).toBe(true);
 
-    // Ensure yield goal notes frame agronomic biomass/harvest rather than commercial prices
     for (const crop of Object.keys(GOAL_WEIGHTS.yield)) {
       const note = goalNote('yield', crop);
       expect(note.toLowerCase()).not.toContain('commercial');
@@ -109,11 +108,8 @@ describe('Agronomy Goal Weights & FAO-56 Physical Indicators', () => {
     expect(wDryIrrigated).toBeDefined();
     expect(wDryLowKc).toBeDefined();
 
-    // Wet climate should outperform dry rainfed for high-Kc crops
     expect(wWet.score).toBeGreaterThan(wDryRainfed.score);
-    // Low-Kc drought-tolerant plan should outperform high-Kc plan under dry rainfed conditions
     expect(wDryLowKc.score).toBeGreaterThan(wDryRainfed.score);
-    // Full irrigation in dry climate should relieve rainfed moisture stress vs rainfed
     expect(wDryIrrigated.score).toBeGreaterThan(wDryRainfed.score);
   });
 
@@ -249,8 +245,8 @@ describe('Scenario Comparison & Strategy Telemetry / 8-mo vs 12-mo Clarity', () 
       },
     });
     expect(pctRes.varianceSource).toContain('10-yr NASA POWER');
-    expect(pctRes.scenarios[0].precipDeltaPct).toBe(-30); // (420 - 600) / 600 = -30%
-    expect(pctRes.scenarios[2].precipDeltaPct).toBe(40); // (840 - 600) / 600 = +40%
+    expect(pctRes.scenarios[0].precipDeltaPct).toBe(-30);
+    expect(pctRes.scenarios[2].precipDeltaPct).toBe(40);
   });
 
   it('forwards telemetry, distinct 8-mo growing-season vs 12-mo annual precipitation, and scenarios through real runStrategy', async () => {
@@ -326,7 +322,6 @@ describe('Scenario Comparison & Strategy Telemetry / 8-mo vs 12-mo Clarity', () 
     expect(viewModel.indicators.map((i) => i.key)).toEqual(['water', 'soil', 'climate']);
     expect(viewModel.indicators.some((i) => /market/i.test(i.key) || /market/i.test(i.label))).toBe(false);
 
-    // 8-mo growing season (90 * 8 = 720 mm) vs 12-mo annual (920 mm) clarity
     expect(viewModel.precipitationSummary.seasonMonths).toBe(8);
     expect(viewModel.precipitationSummary.seasonPrecip8Mm).toBe(720);
     expect(viewModel.precipitationSummary.annualPrecip12Mm).toBe(920);
@@ -334,7 +329,6 @@ describe('Scenario Comparison & Strategy Telemetry / 8-mo vs 12-mo Clarity', () 
       viewModel.precipitationSummary.seasonPrecip8Mm,
     );
 
-    // Telemetry forwarding
     expect(viewModel.landCover?.arable).toBe(true);
     expect(viewModel.ndviProfile?.bareSoilSource).toBe('MODIS GIBS NDVI');
     expect(viewModel.freezeThawDays).toBe(24);
@@ -343,5 +337,28 @@ describe('Scenario Comparison & Strategy Telemetry / 8-mo vs 12-mo Clarity', () 
     expect(viewModel.precipPercentiles?.season?.p25).toBe(590);
     expect(viewModel.scenarios).toHaveLength(3);
     expect(viewModel.scenarioComparison.varianceSource).toContain('10-yr NASA POWER');
+
+    expect(viewModel.strategyComparison).toHaveLength(4);
+    expect(viewModel.strategyComparison.map((s) => s.key)).toEqual([
+      'baseline',
+      'regeneration',
+      'water',
+      'yield',
+    ]);
+    const [baselineStrategy, activeStrategy] = viewModel.strategyComparison;
+    expect(baselineStrategy.isBaseline).toBe(true);
+    expect(baselineStrategy.badge).toBe('BASELINE');
+    expect(activeStrategy.isActive).toBe(true);
+    expect(activeStrategy.badge).toBe('ACTIVE');
+    for (const st of viewModel.strategyComparison) {
+      expect(st.sequenceLabel.length).toBeGreaterThan(0);
+      expect(st.coverLabel.length).toBeGreaterThan(0);
+      expect(st.why.length).toBeGreaterThan(0);
+      expect(st.evidence.length).toBeGreaterThan(0);
+      expect(st.benefits.length).toBeGreaterThan(0);
+      expect(st.gaps).toContain('SRTM fallback grid used');
+      expect(st.risks.length).toBeGreaterThan(0);
+      expect(st.metrics.etc3YrMm).toBeGreaterThan(0);
+    }
   });
 });
