@@ -11,11 +11,11 @@
   } = $props();
 
   const width = 540;
-  const height = 132;
+  const height = 114;
   const padL = 30;
   const padR = 14;
-  const top = 30;
-  const axisY = 100;
+  const top = 14;
+  const axisY = 84;
   const plotH = axisY - top;
   const plotW = width - padL - padR;
 
@@ -69,18 +69,18 @@
   const splitX = padL + slotW * 3;
 </script>
 
-<svg viewBox="0 0 {width} {height}" role="img" aria-label="Raw SoilGrids physical and chemical soil layers">
-  <rect x={padL + 4} y="2" width={slotW * 3 - 10} height="15" rx="4" class="group-pill" />
-  <circle cx={padL + 14} cy="9.5" r="3" class="dot-chem" />
-  <text x={padL + 22} y="12.5" class="group-text">
-    {customEdited ? 'User-calibrated' : soilSource} · Chemistry (pH, SOC, Total N)
-  </text>
+<div class="soil-legend" role="list" aria-label="Soil chart legend">
+  <span class="group-pill" role="listitem">
+    <span class="dot dot-chem" aria-hidden="true"></span>
+    <span>{customEdited ? 'User-calibrated' : soilSource} · Chemistry (pH, SOC, Total N)</span>
+  </span>
+  <span class="group-pill" role="listitem">
+    <span class="dot dot-tex" aria-hidden="true"></span>
+    <span>0–15 cm Texture Fractions (Clay, Sand, Silt)</span>
+  </span>
+</div>
 
-  <rect x={splitX + 6} y="2" width={slotW * 3 - 10} height="15" rx="4" class="group-pill" />
-  <circle cx={splitX + 16} cy="9.5" r="3" class="dot-tex" />
-  <text x={splitX + 24} y="12.5" class="group-text">
-    0–15 cm Texture Fractions (Clay, Sand, Silt)
-  </text>
+<svg viewBox="0 0 {width} {height}" role="img" aria-label="Raw SoilGrids physical and chemical soil layers">
 
   {#each [0, 0.5, 1] as ratio}
     {@const y = axisY - ratio * plotH}
@@ -111,29 +111,54 @@
 </svg>
 
 <style>
+  .soil-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 8px;
+    align-items: center;
+    margin-bottom: 8px;
+  }
+
+  .group-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    max-width: 100%;
+    padding: 4px 8px;
+    border-radius: 4px;
+    background: var(--color-panel);
+    opacity: 0.92;
+    color: var(--color-text);
+    font-size: 10.5px;
+    font-weight: 600;
+    line-height: 1.25;
+  }
+
+  .dot {
+    flex: 0 0 auto;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+  }
+
+  .dot-chem {
+    background: var(--color-chart-green);
+  }
+
+  .dot-tex {
+    background: var(--color-chart-blue);
+  }
+
   svg {
     display: block;
     width: 100%;
     height: auto;
   }
 
-  .group-pill {
-    fill: var(--color-panel);
-    opacity: 0.92;
-  }
-
-  .group-text {
-    fill: var(--color-text);
-    font-size: 8px;
-    font-weight: 600;
-  }
-
-  .dot-chem,
   .bar.chem {
     fill: var(--color-chart-green);
   }
 
-  .dot-tex,
   .bar.tex {
     fill: var(--color-chart-blue);
   }
