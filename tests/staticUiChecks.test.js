@@ -95,6 +95,10 @@ describe('Static & UI Compliance Checks', () => {
     expect(riskCal).toContain('NDVI < 0.25');
     expect(riskCal).toContain('freezeThawDays');
 
+    const soilChart = readRepoFile('src/components/charts/SoilSourceChart.svelte');
+    expect(soilChart).toContain('class="soil-legend"');
+    expect(soilChart).not.toMatch(/<rect[^>]*class="group-pill"/);
+
     const telemetry = readRepoFile('src/screens/TelemetryScreen.svelte');
     expect(telemetry).toContain('nonArableAckCoord');
     expect(telemetry).toContain('freezeThawDays');
