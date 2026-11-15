@@ -129,7 +129,7 @@
 
   p {
     margin: 0;
-    font-size: 9.5px;
+    font-size: 12px;
     line-height: 1.45;
     color: var(--color-result-dim);
   }
@@ -146,8 +146,8 @@
     border: none;
     background: transparent;
     color: var(--color-accent);
-    font-size: 9px;
-    font-weight: 600;
+    font-size: 10px;
+    font-weight: 700;
     letter-spacing: 0.02em;
     cursor: pointer;
     text-decoration: underline;

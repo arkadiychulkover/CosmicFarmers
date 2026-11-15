@@ -82,13 +82,13 @@
   }
 
   .band {
-    fill: #ffb26b;
+    fill: var(--color-water-soft);
     opacity: 0.18;
   }
 
   .line-max {
     fill: none;
-    stroke: #ffb26b;
+    stroke: var(--color-water-soft);
     stroke-width: 1.8;
   }
 
@@ -99,7 +99,7 @@
   }
 
   .dot-max {
-    fill: #ffb26b;
+    fill: var(--color-water-soft);
   }
 
   .dot-min {
@@ -109,12 +109,12 @@
   .month,
   .legend {
     fill: var(--color-card-text);
-    font-size: 8px;
+    font-size: 9px;
   }
 
   .axis {
     fill: var(--color-card-dim);
-    font-size: 8px;
+    font-size: 9px;
   }
 </style>
 

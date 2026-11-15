@@ -159,8 +159,8 @@
     padding: 2px 10px;
     border: 1px solid var(--color-result-text);
     border-radius: 999px;
-    font-size: 9px;
-    font-weight: 500;
+    font-size: 12px;
+    font-weight: 700;
     letter-spacing: 0.02em;
     opacity: 0.9;
   }
@@ -251,14 +251,15 @@
   }
 
   strong {
-    font-size: 10px;
+    font-size: 11px;
     font-weight: 700;
     color: var(--color-result-text);
   }
 
   p {
     margin: 0;
-    font-size: 9px;
+    font-size: 12px;
+    font-weight: 700;
     line-height: 1.45;
     color: var(--color-result-dim);
   }

@@ -11,8 +11,8 @@
 <svg viewBox="0 0 248 96" role="img" aria-label="Growing degree days progress">
   <defs>
     <linearGradient id="gdd-fill" x1="0" x2="1" y1="0" y2="0">
-      <stop offset="0%" stop-color="#f3e474" />
-      <stop offset="100%" stop-color="#b2ff9e" />
+      <stop offset="0%" style="stop-color: var(--color-heat-fill)" />
+      <stop offset="100%" style="stop-color: var(--color-accent)" />
     </linearGradient>
   </defs>
   <text x={markerX} y="16" text-anchor="middle" class="value">{numVal.toLocaleString('en-US')} GDD</text>
@@ -35,23 +35,23 @@
   }
 
   .track {
-    fill: #293751;
+    fill: var(--color-panel);
   }
 
   .pin {
-    fill: #b2ff9e;
+    fill: var(--color-accent);
   }
 
   .value,
   .edge,
   .mile {
     fill: var(--color-card-text);
-    font-size: 8px;
+    font-size: 9px;
+    font-weight: 700;
   }
 
   .value {
     font-size: 12px;
-    font-weight: 700;
     font-weight: 700;
   }
 </style>
